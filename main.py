@@ -21,7 +21,7 @@ POST_LIST_URL = (
 POST_DETAIL_URL = "https://www.blablalink.com/post/detail?post_uuid={post_uuid}"
 MAX_SEEN_POSTS = 500
 SUMMARY_MAX_LENGTH = 300
-REQUEST_TIMEOUT_SECONDS = 20
+REQUEST_TIMEOUT_SECONDS = 60
 
 
 @register(
@@ -77,19 +77,23 @@ class NikkeNewsPlugin(Star):
         logger.info("NIKKE 官方消息推送插件已停止。")
 
     async def _poll_loop(self):
+        logger.info("NIKKE 轮询循环已开始。")
         while True:
             try:
                 await self._poll_once()
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                logger.exception(f"NIKKE 官方消息轮询失败：{exc}")
+                logger.warning(
+                    f"NIKKE 轮询异常（{type(exc).__name__}），将在下次重试：{exc}"
+                )
 
             await asyncio.sleep(self._poll_interval_seconds())
 
     async def _poll_once(self):
         posts = await self._fetch_official_posts()
         if not posts:
+            logger.warning("NIKKE 未获取到任何帖子（API 返回空或客户端未就绪）。")
             return
 
         seen = set(self._state.get("seen_post_uuids", []))
@@ -100,19 +104,20 @@ class NikkeNewsPlugin(Star):
             self._state["initialized"] = True
             self._save_state()
             logger.info(
-                f"NIKKE 官方消息首次初始化完成，已记录 {len(fetched_uuids)} 条历史消息。",
+                f"NIKKE 首次初始化完成，已记录 {len(fetched_uuids)} 条历史消息。",
             )
             return
 
         new_posts = [post for post in posts if post.get("post_uuid") not in seen]
         if not new_posts:
+            logger.info(f"NIKKE 轮询完成，无新帖（已跟踪 {len(seen)} 条）。")
             return
 
         new_posts.sort(key=lambda post: self._safe_int(post.get("created_on")))
-        logger.debug(
-            "NIKKE 官方消息发现新内容："
+        logger.info(
+            "NIKKE 发现新帖："
             + ", ".join(
-                f"{post.get('post_uuid')}({self._clean_text(post.get('title'))})"
+                f"{post.get('post_uuid')[:8]}…({self._clean_text(post.get('title'))[:30]})"
                 for post in new_posts
             ),
         )
@@ -121,10 +126,10 @@ class NikkeNewsPlugin(Star):
         if not targets:
             self._mark_seen([post["post_uuid"] for post in new_posts])
             self._save_state()
-            logger.warning("NIKKE 官方消息发现新内容，但未配置启用的 QQ 推送目标。")
+            logger.warning("NIKKE 发现新帖，但未配置推送目标。")
             return
 
-        for post in new_posts:
+        for idx, post in enumerate(new_posts):
             post_uuid = post.get("post_uuid")
             message = self._format_post_message(post)
             delivered = False
@@ -138,22 +143,23 @@ class NikkeNewsPlugin(Star):
                         platform="aiocqhttp",
                     )
                     delivered = True
-                    logger.debug(
-                        "NIKKE 官方消息发送成功："
-                        f"post_uuid={post_uuid}, "
-                        f"target_type={target['target_type']}, "
-                        f"target_id={target['target_id']}",
+                    logger.info(
+                        f"NIKKE 消息已发送：target={target['target_type']}:{target['target_id']} "
+                        f"uuid={post_uuid}"
                     )
                 except Exception as exc:
-                    logger.exception(
-                        "NIKKE 官方消息发送失败："
-                        f"target_type={target['target_type']}, "
-                        f"target_id={target['target_id']}, error={exc}",
+                    logger.warning(
+                        f"NIKKE 消息发送失败：target={target['target_type']}:{target['target_id']} "
+                        f"error={exc}"
                     )
 
             if delivered and post_uuid:
                 self._mark_seen([post_uuid])
                 self._save_state()
+
+            delay = self._push_delay_seconds()
+            if delay > 0 and idx < len(new_posts) - 1:
+                await asyncio.sleep(delay)
 
     async def _fetch_official_posts(self) -> list[dict[str, Any]]:
         if not self._client:
@@ -206,19 +212,17 @@ class NikkeNewsPlugin(Star):
         enabled: list[dict[str, str]] = []
         group_targets = self.config.get("scheduled_push_groups", []) or []
 
-        # New config format: list[str], each item is group_id or unified_msg_origin.
         for item in group_targets:
             item_str = str(item or "").strip()
             if not item_str:
                 continue
 
-            parsed = self._parse_group_target(item_str)
+            parsed = self._parse_push_target(item_str)
             if not parsed:
-                logger.warning(f"NIKKE 官方消息跳过无效群推送目标：{item_str}")
+                logger.warning(f"NIKKE 跳过无效推送目标：{item_str}")
                 continue
             enabled.append(parsed)
 
-        # Backward compatibility for old template_list format.
         if enabled:
             return enabled
 
@@ -229,8 +233,8 @@ class NikkeNewsPlugin(Star):
 
             target_type = str(target.get("target_type", "")).strip()
             target_id = str(target.get("target_id", "")).strip()
-            if target_type not in {"GroupMessage", "PrivateMessage"} or not target_id:
-                logger.warning(f"NIKKE 官方消息跳过无效旧版推送目标：{target}")
+            if target_type not in {"GroupMessage", "PrivateMessage", "FriendMessage"} or not target_id:
+                logger.warning(f"NIKKE 跳过无效旧版推送目标：{target}")
                 continue
 
             enabled.append({"target_type": target_type, "target_id": target_id})
@@ -238,14 +242,16 @@ class NikkeNewsPlugin(Star):
         return enabled
 
     @staticmethod
-    def _parse_group_target(value: str) -> dict[str, str] | None:
+    def _parse_push_target(value: str) -> dict[str, str] | None:
         if value.isdigit():
             return {"target_type": "GroupMessage", "target_id": value}
 
-        # unified_msg_origin, e.g. aiocqhttp:GroupMessage:957880653
+        # unified_msg_origin, e.g. napcat:FriendMessage:2854964693
         parts = value.split(":")
-        if len(parts) == 3 and parts[1] == "GroupMessage" and parts[2].isdigit():
-            return {"target_type": "GroupMessage", "target_id": parts[2]}
+        if len(parts) == 3 and parts[2].isdigit():
+            msg_type = parts[1]
+            if msg_type in {"GroupMessage", "PrivateMessage", "FriendMessage"}:
+                return {"target_type": msg_type, "target_id": parts[2]}
 
         return None
 
@@ -266,7 +272,7 @@ class NikkeNewsPlugin(Star):
                 "seen_post_uuids": [str(item) for item in seen if item],
             }
         except Exception as exc:
-            logger.warning(f"NIKKE 官方消息状态文件读取失败，将重新初始化：{exc}")
+            logger.warning(f"NIKKE 状态文件读取失败，将重新初始化：{exc}")
             return {"initialized": False, "seen_post_uuids": []}
 
     def _save_state(self):
@@ -278,7 +284,7 @@ class NikkeNewsPlugin(Star):
             with self._state_path.open("w", encoding="utf-8") as f:
                 json.dump(self._state, f, ensure_ascii=False, indent=2)
         except Exception as exc:
-            logger.exception(f"NIKKE 官方消息状态文件保存失败：{exc}")
+            logger.warning(f"NIKKE 状态文件保存失败：{exc}")
 
     def _mark_seen(self, post_uuids: list[str]):
         current = [str(item) for item in self._state.get("seen_post_uuids", []) if item]
@@ -298,7 +304,7 @@ class NikkeNewsPlugin(Star):
     def _language(self) -> str:
         language = str(self.config.get("language", "zh-TW")).strip() or "zh-TW"
         if language not in {"zh-TW", "en", "ja", "ko", "zh"}:
-            logger.warning(f"NIKKE 官方消息语言配置无效，已使用 zh-TW：{language}")
+            logger.warning(f"NIKKE 语言配置无效，已使用 zh-TW：{language}")
             return "zh-TW"
         return language
 
@@ -314,8 +320,11 @@ class NikkeNewsPlugin(Star):
         try:
             return int(self.config.get(key, default))
         except (TypeError, ValueError):
-            logger.warning(f"NIKKE 官方消息配置 {key} 非法，已使用默认值 {default}。")
+            logger.warning(f"NIKKE 配置 {key} 非法，已使用默认值 {default}。")
             return default
+
+    def _push_delay_seconds(self) -> int:
+        return min(30, max(0, self._config_int("push_delay_seconds", 2)))
 
     @staticmethod
     def _clean_text(value: Any) -> str:

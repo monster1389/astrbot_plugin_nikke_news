@@ -34,5 +34,11 @@
     "default": "mark_seen",
     "options": ["mark_seen"],
     "hint": "当前版本固定为首次启动只记录已有消息，不补发历史消息。"
+  },
+  "push_delay_seconds": {
+    "description": "消息推送间隔秒数",
+    "type": "int",
+    "default": 2,
+    "hint": "多条新帖推送时，每条消息之间的等待秒数。最小值 0，最大值 30。"
   }
 }
