@@ -1,0 +1,66 @@
+{
+  "enabled": {
+    "description": "启用 NIKKE 官方消息推送",
+    "type": "bool",
+    "default": true
+  },
+  "poll_interval_seconds": {
+    "description": "轮询间隔秒数",
+    "type": "int",
+    "default": 300,
+    "hint": "实际运行时最低为 60 秒，避免过于频繁请求 Blablalink。"
+  },
+  "language": {
+    "description": "消息语言",
+    "type": "string",
+    "default": "zh-TW",
+    "options": ["zh-TW", "en", "ja", "ko", "zh"]
+  },
+  "fetch_limit": {
+    "description": "每次拉取的消息数量",
+    "type": "int",
+    "default": 10,
+    "hint": "实际运行时会限制在 1 到 50 之间。"
+  },
+  "targets": {
+    "description": "QQ 推送目标",
+    "type": "template_list",
+    "templates": {
+      "qq_target": {
+        "name": "QQ 推送目标",
+        "hint": "通过 NapCat / aiocqhttp 主动发送到指定群或私聊。",
+        "items": {
+          "target_type": {
+            "description": "目标类型",
+            "type": "string",
+            "default": "GroupMessage",
+            "options": ["GroupMessage", "PrivateMessage"]
+          },
+          "target_id": {
+            "description": "目标 ID",
+            "type": "string",
+            "default": "",
+            "hint": "群消息填写群号，私聊消息填写 QQ 号。"
+          },
+          "enabled": {
+            "description": "启用此目标",
+            "type": "bool",
+            "default": true
+          },
+          "note": {
+            "description": "备注",
+            "type": "string",
+            "default": ""
+          }
+        }
+      }
+    }
+  },
+  "startup_mode": {
+    "description": "首次启动行为",
+    "type": "string",
+    "default": "mark_seen",
+    "options": ["mark_seen"],
+    "hint": "当前版本固定为首次启动只记录已有消息，不补发历史消息。"
+  }
+}
