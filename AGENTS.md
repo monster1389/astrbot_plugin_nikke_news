@@ -63,6 +63,6 @@ Legacy format (`targets`, dictionary-style with `target_type`/`target_id`/`enabl
 
 ## Development commands
 
-There is no build system, test runner, linter, or typechecker configured in this repo. The plugin runs embedded in AstrBot.
-
+- **Run tests**: `pytest tests/ -v` (requires `pytest pytest-asyncio httpx` in a venv)
+- Tests mock the entire AstrBot SDK via `conftest.py` so they run without the framework.
 - The AstrBot plugin development docs: <https://docs.astrbot.app/dev/star/plugin-new.html>

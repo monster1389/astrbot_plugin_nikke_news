@@ -205,7 +205,7 @@ class NikkeNewsPlugin(Star):
         detail_url = POST_DETAIL_URL.format(post_uuid=post.get("post_uuid"))
 
         prefix = self._push_prefix()
-        parts = [prefix, title]
+        parts = [prefix, title] if prefix else [title]
         if summary:
             parts.append(summary)
         parts.append(f"发布时间：{created_on}")
