@@ -40,5 +40,11 @@
     "type": "int",
     "default": 2,
     "hint": "多条新帖推送时，每条消息之间的等待秒数。最小值 0，最大值 30。"
+  },
+  "push_prefix": {
+    "description": "推送消息前缀",
+    "type": "string",
+    "default": "【NIKKE 官方消息推送】",
+    "hint": "每条推送消息最前面加的前缀提示，留空则不加。"
   }
 }

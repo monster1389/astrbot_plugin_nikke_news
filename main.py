@@ -1,6 +1,7 @@
 import asyncio
 import html
 import json
+import re
 from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
@@ -91,6 +92,8 @@ class NikkeNewsPlugin(Star):
             await asyncio.sleep(self._poll_interval_seconds())
 
     async def _poll_once(self):
+        self._state = self._load_state()
+
         posts = await self._fetch_official_posts()
         if not posts:
             logger.warning("NIKKE 未获取到任何帖子（API 返回空或客户端未就绪）。")
@@ -110,7 +113,7 @@ class NikkeNewsPlugin(Star):
 
         new_posts = [post for post in posts if post.get("post_uuid") not in seen]
         if not new_posts:
-            logger.info(f"NIKKE 轮询完成，无新帖（已跟踪 {len(seen)} 条）。")
+            logger.debug(f"NIKKE 轮询完成，无新帖（已跟踪 {len(seen)} 条）。")
             return
 
         new_posts.sort(key=lambda post: self._safe_int(post.get("created_on")))
@@ -201,7 +204,8 @@ class NikkeNewsPlugin(Star):
         created_on = self._format_timestamp(post.get("created_on"))
         detail_url = POST_DETAIL_URL.format(post_uuid=post.get("post_uuid"))
 
-        parts = [title]
+        prefix = self._push_prefix()
+        parts = [prefix, title]
         if summary:
             parts.append(summary)
         parts.append(f"发布时间：{created_on}")
@@ -326,9 +330,13 @@ class NikkeNewsPlugin(Star):
     def _push_delay_seconds(self) -> int:
         return min(30, max(0, self._config_int("push_delay_seconds", 2)))
 
+    def _push_prefix(self) -> str:
+        return str(self.config.get("push_prefix", "") or "").strip()
+
     @staticmethod
     def _clean_text(value: Any) -> str:
-        text = html.unescape(str(value or ""))
+        text = re.sub(r"<[^>]*>", "", str(value or ""))
+        text = html.unescape(text)
         return " ".join(text.split())
 
     @staticmethod
