@@ -26,7 +26,7 @@ REQUEST_TIMEOUT_SECONDS = 20
 
 @register(
     PLUGIN_NAME,
-    "lxx",
+    "monster1389",
     "轮询 Blablalink NIKKE 官方消息并通过 NapCat QQ 主动推送。",
     "1.0.0",
 )
@@ -109,6 +109,13 @@ class NikkeNewsPlugin(Star):
             return
 
         new_posts.sort(key=lambda post: self._safe_int(post.get("created_on")))
+        logger.debug(
+            "NIKKE 官方消息发现新内容："
+            + ", ".join(
+                f"{post.get('post_uuid')}({self._clean_text(post.get('title'))})"
+                for post in new_posts
+            ),
+        )
         targets = self._enabled_targets()
 
         if not targets:
@@ -131,6 +138,12 @@ class NikkeNewsPlugin(Star):
                         platform="aiocqhttp",
                     )
                     delivered = True
+                    logger.debug(
+                        "NIKKE 官方消息发送成功："
+                        f"post_uuid={post_uuid}, "
+                        f"target_type={target['target_type']}, "
+                        f"target_id={target['target_id']}",
+                    )
                 except Exception as exc:
                     logger.exception(
                         "NIKKE 官方消息发送失败："
@@ -190,21 +203,51 @@ class NikkeNewsPlugin(Star):
         return "\n\n".join(parts)
 
     def _enabled_targets(self) -> list[dict[str, str]]:
-        targets = self.config.get("targets", []) or []
         enabled: list[dict[str, str]] = []
-        for target in targets:
+        group_targets = self.config.get("scheduled_push_groups", []) or []
+
+        # New config format: list[str], each item is group_id or unified_msg_origin.
+        for item in group_targets:
+            item_str = str(item or "").strip()
+            if not item_str:
+                continue
+
+            parsed = self._parse_group_target(item_str)
+            if not parsed:
+                logger.warning(f"NIKKE 官方消息跳过无效群推送目标：{item_str}")
+                continue
+            enabled.append(parsed)
+
+        # Backward compatibility for old template_list format.
+        if enabled:
+            return enabled
+
+        legacy_targets = self.config.get("targets", []) or []
+        for target in legacy_targets:
             if not isinstance(target, dict) or not target.get("enabled", True):
                 continue
 
             target_type = str(target.get("target_type", "")).strip()
             target_id = str(target.get("target_id", "")).strip()
             if target_type not in {"GroupMessage", "PrivateMessage"} or not target_id:
-                logger.warning(f"NIKKE 官方消息跳过无效推送目标：{target}")
+                logger.warning(f"NIKKE 官方消息跳过无效旧版推送目标：{target}")
                 continue
 
             enabled.append({"target_type": target_type, "target_id": target_id})
 
         return enabled
+
+    @staticmethod
+    def _parse_group_target(value: str) -> dict[str, str] | None:
+        if value.isdigit():
+            return {"target_type": "GroupMessage", "target_id": value}
+
+        # unified_msg_origin, e.g. aiocqhttp:GroupMessage:957880653
+        parts = value.split(":")
+        if len(parts) == 3 and parts[1] == "GroupMessage" and parts[2].isdigit():
+            return {"target_type": "GroupMessage", "target_id": parts[2]}
+
+        return None
 
     def _load_state(self) -> dict[str, Any]:
         if not self._state_path or not self._state_path.exists():

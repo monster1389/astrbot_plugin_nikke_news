@@ -22,39 +22,11 @@
     "default": 10,
     "hint": "实际运行时会限制在 1 到 50 之间。"
   },
-  "targets": {
-    "description": "QQ 推送目标",
-    "type": "template_list",
-    "templates": {
-      "qq_target": {
-        "name": "QQ 推送目标",
-        "hint": "通过 NapCat / aiocqhttp 主动发送到指定群或私聊。",
-        "items": {
-          "target_type": {
-            "description": "目标类型",
-            "type": "string",
-            "default": "GroupMessage",
-            "options": ["GroupMessage", "PrivateMessage"]
-          },
-          "target_id": {
-            "description": "目标 ID",
-            "type": "string",
-            "default": "",
-            "hint": "群消息填写群号，私聊消息填写 QQ 号。"
-          },
-          "enabled": {
-            "description": "启用此目标",
-            "type": "bool",
-            "default": true
-          },
-          "note": {
-            "description": "备注",
-            "type": "string",
-            "default": ""
-          }
-        }
-      }
-    }
+  "scheduled_push_groups": {
+    "description": "定时推送目标群组列表",
+    "type": "list",
+    "hint": "直接填写群号即可，如：[\"957880653\", \"123456789\"]。也支持 unified_msg_origin 格式",
+    "default": []
   },
   "startup_mode": {
     "description": "首次启动行为",

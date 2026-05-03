@@ -2,7 +2,7 @@ name: astrbot_plugin_nikke_news
 display_name: NIKKE 官方消息推送
 desc: 轮询 Blablalink NIKKE Official 板块，并通过 NapCat/aiocqhttp 主动推送 QQ 消息。
 version: v1.0.0
-author: lxx
-repo: ""
+author: monster1389
+repo: "https://github.com/monster1389/astrbot_plugin_nikke_news"
 support_platforms:
   - aiocqhttp

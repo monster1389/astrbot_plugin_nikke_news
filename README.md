@@ -24,11 +24,9 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 - `poll_interval_seconds`：轮询间隔，最低会按 60 秒执行。
 - `language`：消息语言，可选 `zh-TW`、`en`、`ja`、`ko`、`zh`。
 - `fetch_limit`：每次拉取数量，运行时限制在 1 到 50。
-- `targets`：QQ 推送目标列表。
-  - `target_type`：`GroupMessage` 为群聊，`PrivateMessage` 为私聊。
-  - `target_id`：群号或 QQ 号。
-  - `enabled`：是否启用该目标。
-  - `note`：备注。
+- `scheduled_push_groups`：定时推送目标群组列表。
+  - 直接填群号，例如 `["957880653", "123456789"]`。
+  - 也支持 `unified_msg_origin` 格式，例如 `["aiocqhttp:GroupMessage:957880653"]`。
 - `startup_mode`：当前固定为 `mark_seen`，首次启动只记录不推送。
 
 ## 消息来源
