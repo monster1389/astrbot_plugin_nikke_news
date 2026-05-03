@@ -29,7 +29,7 @@ REQUEST_TIMEOUT_SECONDS = 60
     PLUGIN_NAME,
     "monster1389",
     "轮询 Blablalink NIKKE 官方消息并通过 NapCat QQ 主动推送。",
-    "1.0.0",
+    "v1.0.0",
 )
 class NikkeNewsPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
