@@ -15,6 +15,7 @@ def _make_module(name: str, **attrs: object) -> ModuleType:
 
 _mock_api = _make_module("astrbot.api")
 _mock_api_event = _make_module("astrbot.api.event")
+_mock_api_message_components = _make_module("astrbot.api.message_components")
 _mock_api_star = _make_module("astrbot.api.star")
 
 # ---------------------------------------------------------------------------
@@ -29,18 +30,40 @@ _logger.setLevel(logging.DEBUG)
 AstrBotConfig = dict
 
 # ---------------------------------------------------------------------------
-# MessageChain
+# Message components / MessageChain
 # ---------------------------------------------------------------------------
+class Plain:
+    def __init__(self, text: str):
+        self.text = text
+
+
+class Image:
+    def __init__(self, file: str):
+        self.file = file
+
+    @staticmethod
+    def fromURL(url: str) -> "Image":
+        if not url.startswith(("http://", "https://")):
+            raise Exception("not a valid url")
+        return Image(url)
+
+
 class MessageChain:
     def __init__(self):
+        self.chain = []
         self._content = ""
 
     def message(self, text: str) -> "MessageChain":
-        self._content = text
+        self.chain.append(Plain(text))
+        self._content += text
+        return self
+
+    def url_image(self, url: str) -> "MessageChain":
+        self.chain.append(Image.fromURL(url))
         return self
 
     def __repr__(self):
-        return f"MessageChain({self._content!r})"
+        return f"MessageChain({self.chain!r})"
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +107,12 @@ class StarTools:
                 "target_type": target_type,
                 "target_id": target_id,
                 "content": message_chain._content,
+                "components": list(message_chain.chain),
+                "image_urls": [
+                    component.file
+                    for component in message_chain.chain
+                    if isinstance(component, Image)
+                ],
                 "platform": platform,
             }
         )
@@ -113,6 +142,7 @@ _mock_api.__dict__.update(
     logger=_logger,
 )
 _mock_api_event.__dict__.update(MessageChain=MessageChain)
+_mock_api_message_components.__dict__.update(Plain=Plain, Image=Image)
 _mock_api_star.__dict__.update(
     Context=Context,
     Star=Star,
@@ -123,6 +153,7 @@ _mock_api_star.__dict__.update(
 sys.modules["astrbot"] = _make_module("astrbot")
 sys.modules["astrbot.api"] = _mock_api
 sys.modules["astrbot.api.event"] = _mock_api_event
+sys.modules["astrbot.api.message_components"] = _mock_api_message_components
 sys.modules["astrbot.api.star"] = _mock_api_star
 
 

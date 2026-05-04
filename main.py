@@ -4,12 +4,14 @@ import json
 import re
 from contextlib import suppress
 from datetime import datetime
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
 import httpx
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import MessageChain
+import astrbot.api.message_components as Comp
 from astrbot.api.star import Context, Star, StarTools, register
 
 
@@ -23,13 +25,71 @@ POST_DETAIL_URL = "https://www.blablalink.com/post/detail?post_uuid={post_uuid}"
 MAX_SEEN_POSTS = 500
 SUMMARY_MAX_LENGTH = 300
 REQUEST_TIMEOUT_SECONDS = 60
+CONTENT_MODES = {"none", "summary", "content"}
+
+
+class _ReadableHtmlParser(HTMLParser):
+    _BREAK_TAGS = {"br"}
+    _BLOCK_TAGS = {"div", "p", "section", "article", "header", "footer", "li"}
+    _IGNORED_CONTAINER_TAGS = {"script", "style"}
+    _IGNORED_VOID_TAGS = {"img"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=False)
+        self._parts: list[str] = []
+        self._ignored_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]):
+        tag = tag.lower()
+        if tag in self._IGNORED_VOID_TAGS:
+            return
+        if tag in self._IGNORED_CONTAINER_TAGS:
+            self._ignored_depth += 1
+            return
+        if self._ignored_depth:
+            return
+        if tag in self._BREAK_TAGS or tag in self._BLOCK_TAGS:
+            self._newline()
+
+    def handle_endtag(self, tag: str):
+        tag = tag.lower()
+        if tag in self._IGNORED_CONTAINER_TAGS and self._ignored_depth:
+            self._ignored_depth -= 1
+            return
+        if self._ignored_depth:
+            return
+        if tag in self._BLOCK_TAGS:
+            self._newline()
+
+    def handle_data(self, data: str):
+        if self._ignored_depth:
+            return
+        self._parts.append(data)
+
+    def handle_entityref(self, name: str):
+        if not self._ignored_depth:
+            self._parts.append(f"&{name};")
+
+    def handle_charref(self, name: str):
+        if not self._ignored_depth:
+            self._parts.append(f"&#{name};")
+
+    def _newline(self):
+        if self._parts and self._parts[-1] != "\n":
+            self._parts.append("\n")
+
+    def text(self) -> str:
+        raw = html.unescape("".join(self._parts))
+        lines = [" ".join(line.split()) for line in raw.splitlines()]
+        compact_lines = [line for line in lines if line]
+        return "\n".join(compact_lines)
 
 
 @register(
     PLUGIN_NAME,
     "monster1389",
     "轮询 Blablalink NIKKE 官方消息并通过 NapCat QQ 主动推送。",
-    "v1.0.0",
+    "v1.1.0",
 )
 class NikkeNewsPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
@@ -134,7 +194,6 @@ class NikkeNewsPlugin(Star):
 
         for idx, post in enumerate(new_posts):
             post_uuid = post.get("post_uuid")
-            message = self._format_post_message(post)
             delivered = False
 
             for target in targets:
@@ -142,7 +201,7 @@ class NikkeNewsPlugin(Star):
                     await StarTools.send_message_by_id(
                         target["target_type"],
                         target["target_id"],
-                        MessageChain().message(message),
+                        self._format_post_message_chain(post),
                         platform="aiocqhttp",
                     )
                     delivered = True
@@ -197,20 +256,60 @@ class NikkeNewsPlugin(Star):
 
     def _format_post_message(self, post: dict[str, Any]) -> str:
         title = self._clean_text(post.get("title")) or "NIKKE 官方消息"
-        summary = self._clean_text(post.get("content_summary"))
-        if len(summary) > SUMMARY_MAX_LENGTH:
-            summary = summary[:SUMMARY_MAX_LENGTH].rstrip() + "..."
+        body = self._format_post_body(post)
 
         created_on = self._format_timestamp(post.get("created_on"))
         detail_url = POST_DETAIL_URL.format(post_uuid=post.get("post_uuid"))
 
         prefix = self._push_prefix()
         parts = [prefix, title] if prefix else [title]
-        if summary:
-            parts.append(summary)
-        parts.append(f"发布时间：{created_on}")
+        if body:
+            parts.append(body)
+        if self._show_publish_time():
+            parts.append(f"发布时间：{created_on}")
         parts.append(f"链接：{detail_url}")
         return "\n\n".join(parts)
+
+    def _format_post_message_chain(self, post: dict[str, Any]) -> MessageChain:
+        chain = MessageChain().message(self._format_post_message(post))
+        for image_url in self._post_image_urls(post):
+            chain.chain.append(Comp.Image.fromURL(image_url))
+        return chain
+
+    def _format_post_body(self, post: dict[str, Any]) -> str:
+        mode = self._content_mode()
+        if mode == "none":
+            return ""
+
+        if mode == "content":
+            return self._clean_html_with_linebreaks(post.get("content"))
+
+        summary = self._clean_text(post.get("content_summary"))
+        if len(summary) > SUMMARY_MAX_LENGTH:
+            summary = summary[:SUMMARY_MAX_LENGTH].rstrip() + "..."
+        return summary
+
+    def _post_image_urls(self, post: dict[str, Any]) -> list[str]:
+        if self._is_video_post(post):
+            return []
+
+        max_images = self._max_images()
+        if max_images <= 0:
+            return []
+
+        pic_urls = post.get("pic_urls", [])
+        if not isinstance(pic_urls, list):
+            return []
+
+        urls: list[str] = []
+        for value in pic_urls:
+            url = str(value or "").strip()
+            if not url.startswith(("http://", "https://")) or url in urls:
+                continue
+            urls.append(url)
+            if len(urls) >= max_images:
+                break
+        return urls
 
     def _enabled_targets(self) -> list[dict[str, str]]:
         enabled: list[dict[str, str]] = []
@@ -333,11 +432,34 @@ class NikkeNewsPlugin(Star):
     def _push_prefix(self) -> str:
         return str(self.config.get("push_prefix", "") or "").strip()
 
+    def _content_mode(self) -> str:
+        mode = str(self.config.get("content_mode", "summary") or "summary").strip()
+        if mode not in CONTENT_MODES:
+            logger.warning(f"NIKKE 内容模式配置无效，已使用 summary：{mode}")
+            return "summary"
+        return mode
+
+    def _max_images(self) -> int:
+        return min(9, max(0, self._config_int("max_images", 3)))
+
+    def _show_publish_time(self) -> bool:
+        return self._config_bool("show_publish_time", True)
+
+    def _is_video_post(self, post: dict[str, Any]) -> bool:
+        return self._safe_int(post.get("type")) == 3
+
     @staticmethod
     def _clean_text(value: Any) -> str:
         text = re.sub(r"<[^>]*>", "", str(value or ""))
         text = html.unescape(text)
         return " ".join(text.split())
+
+    @staticmethod
+    def _clean_html_with_linebreaks(value: Any) -> str:
+        parser = _ReadableHtmlParser()
+        parser.feed(str(value or ""))
+        parser.close()
+        return parser.text()
 
     @staticmethod
     def _safe_int(value: Any) -> int:

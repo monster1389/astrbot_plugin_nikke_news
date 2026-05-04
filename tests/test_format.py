@@ -41,6 +41,18 @@ def test_clean_text_none():
 
 
 # ---------------------------------------------------------------------------
+# _clean_html_with_linebreaks – block tags preserved
+# ---------------------------------------------------------------------------
+def test_clean_html_with_linebreaks():
+    raw = (
+        "<div>Line one</div><div>Line <b>two</b><br>Line three</div>"
+        '<div><img src="https://example.com/a.png">After image</div>'
+    )
+    result = PLUGIN._clean_html_with_linebreaks(raw)
+    assert result == "Line one\nLine two\nLine three\nAfter image"
+
+
+# ---------------------------------------------------------------------------
 # _format_post_message – full post
 # ---------------------------------------------------------------------------
 def test_format_post_full():
@@ -91,6 +103,58 @@ def test_format_post_summary_truncated():
     msg = plugin._format_post_message(post)
     assert len(msg) < len(long_summary) + 200
     assert "..." in msg
+
+
+# ---------------------------------------------------------------------------
+# _format_post_message – no content
+# ---------------------------------------------------------------------------
+def test_format_post_content_mode_none():
+    plugin = NikkeNewsPlugin(context=None, config={"content_mode": "none"})
+    post = {
+        "post_uuid": "u",
+        "title": "Title",
+        "content_summary": "Summary",
+        "content": "<div>Body</div>",
+        "created_on": 1,
+    }
+    msg = plugin._format_post_message(post)
+    assert "Title" in msg
+    assert "Summary" not in msg
+    assert "Body" not in msg
+    assert "链接：" in msg
+
+
+# ---------------------------------------------------------------------------
+# _format_post_message – content mode preserves linebreaks
+# ---------------------------------------------------------------------------
+def test_format_post_content_mode_body_preserves_linebreaks():
+    plugin = NikkeNewsPlugin(context=None, config={"content_mode": "content"})
+    post = {
+        "post_uuid": "u",
+        "title": "Title",
+        "content_summary": "Summary",
+        "content": "<div>First paragraph</div><div>Second<br>line</div>",
+        "created_on": 1,
+    }
+    msg = plugin._format_post_message(post)
+    assert "Summary" not in msg
+    assert "First paragraph\nSecond\nline" in msg
+
+
+# ---------------------------------------------------------------------------
+# _format_post_message – publish time hidden
+# ---------------------------------------------------------------------------
+def test_format_post_hide_publish_time():
+    plugin = NikkeNewsPlugin(context=None, config={"show_publish_time": False})
+    post = {
+        "post_uuid": "u",
+        "title": "Title",
+        "content_summary": "Summary",
+        "created_on": 1,
+    }
+    msg = plugin._format_post_message(post)
+    assert "发布时间：" not in msg
+    assert "链接：" in msg
 
 
 # ---------------------------------------------------------------------------

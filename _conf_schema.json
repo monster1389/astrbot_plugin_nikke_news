@@ -22,6 +22,24 @@
     "default": 10,
     "hint": "实际运行时会限制在 1 到 50 之间。"
   },
+  "content_mode": {
+    "description": "推送内容模式",
+    "type": "string",
+    "default": "summary",
+    "options": ["none", "summary", "content"],
+    "hint": "none 只发送标题和链接；summary 发送概览；content 发送正文并保留段落换行。"
+  },
+  "max_images": {
+    "description": "每条推送最多发送图片数",
+    "type": "int",
+    "default": 3,
+    "hint": "实际运行时会限制在 0 到 9 之间；0 表示不发送图片。视频帖不会发送图片。"
+  },
+  "show_publish_time": {
+    "description": "显示发布时间",
+    "type": "bool",
+    "default": true
+  },
   "scheduled_push_groups": {
     "description": "定时推送目标群组列表",
     "type": "list",

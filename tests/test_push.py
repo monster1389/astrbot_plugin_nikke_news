@@ -18,6 +18,13 @@ API_RESPONSE = {
                 "created_on": 1000,
                 "plate_id": 43,
                 "is_official": 1,
+                "pic_urls": [
+                    "https://example.com/a1.png",
+                    "https://example.com/a2.png",
+                    "https://example.com/a3.png",
+                    "https://example.com/a4.png",
+                ],
+                "type": 1,
             },
             {
                 "post_uuid": "bbb2",
@@ -26,6 +33,8 @@ API_RESPONSE = {
                 "created_on": 2000,
                 "plate_id": 43,
                 "is_official": 1,
+                "pic_urls": [],
+                "type": 1,
             },
         ]
     },
@@ -59,6 +68,89 @@ def _write_state(tmp_path, seen):
     tmp_path.write_text(
         json.dumps({"initialized": True, "seen_post_uuids": seen})
     )
+
+
+# ---------------------------------------------------------------------------
+# image push – defaults to at most 3 images
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_push_images_default_max_three(captured, tmp_path):
+    state_path = tmp_path / "state.json"
+    plugin = make_plugin()
+    plugin._state_path = state_path
+    _write_state(state_path, ["bbb2"])
+    _mock_client(plugin)
+
+    await plugin._poll_once()
+
+    assert captured[0]["image_urls"] == [
+        "https://example.com/a1.png",
+        "https://example.com/a2.png",
+        "https://example.com/a3.png",
+    ]
+
+
+# ---------------------------------------------------------------------------
+# image push – max_images can limit or disable images
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_push_images_respects_max_images(captured, tmp_path):
+    state_path = tmp_path / "state.json"
+    plugin = make_plugin(max_images=1)
+    plugin._state_path = state_path
+    _write_state(state_path, ["bbb2"])
+    _mock_client(plugin)
+
+    await plugin._poll_once()
+
+    assert captured[0]["image_urls"] == ["https://example.com/a1.png"]
+
+
+@pytest.mark.asyncio
+async def test_push_images_can_be_disabled(captured, tmp_path):
+    state_path = tmp_path / "state.json"
+    plugin = make_plugin(max_images=0)
+    plugin._state_path = state_path
+    _write_state(state_path, ["bbb2"])
+    _mock_client(plugin)
+
+    await plugin._poll_once()
+
+    assert captured[0]["image_urls"] == []
+
+
+# ---------------------------------------------------------------------------
+# video posts do not send images
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_push_video_post_skips_images(captured, tmp_path):
+    state_path = tmp_path / "state.json"
+    plugin = make_plugin()
+    plugin._state_path = state_path
+    _write_state(state_path, [])
+    response = {
+        "code": 0,
+        "data": {
+            "list": [
+                {
+                    "post_uuid": "vid1",
+                    "title": "Video",
+                    "content_summary": "Summary",
+                    "created_on": 1000,
+                    "plate_id": 43,
+                    "is_official": 1,
+                    "type": 3,
+                    "pic_urls": ["https://example.com/cover.png"],
+                    "ext_info": '[{"video_cover":"https://example.com/video.jpg"}]',
+                }
+            ]
+        },
+    }
+    _mock_client(plugin, response=response)
+
+    await plugin._poll_once()
+
+    assert captured[0]["image_urls"] == []
 
 
 # ---------------------------------------------------------------------------
