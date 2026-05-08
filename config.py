@@ -1,4 +1,5 @@
-﻿from datetime import time
+﻿import json
+from datetime import time
 
 from astrbot.api import AstrBotConfig, logger
 
@@ -76,8 +77,44 @@ class PluginConfig:
     def player_data_enabled(self) -> bool:
         return self._nested_bool(self._player, "enabled", False)
 
+    def _parse_cookie_json(self) -> dict:
+        """Parse the cookie config value into a dict, regardless of input format."""
+        cookie_cfg = self._player.get("cookie")
+        if isinstance(cookie_cfg, dict):
+            return cookie_cfg
+        if isinstance(cookie_cfg, str) and cookie_cfg.strip():
+            try:
+                parsed = json.loads(cookie_cfg)
+                if isinstance(parsed, dict):
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+        return {}
+
     def player_data_cookie(self) -> str:
-        return str(self._player.get("cookie", "") or "").strip()
+        cfg = self._parse_cookie_json()
+        if cfg:
+            parts = []
+            for key in ("game_token", "game_openid", "game_channelid", "game_gameid"):
+                value = str(cfg.get(key, "") or "").strip()
+                if value:
+                    parts.append(f"{key}={value}")
+            if parts:
+                return "; ".join(parts)
+        # Fallback: plain string cookie (backward compat)
+        cookie_cfg = self._player.get("cookie")
+        if isinstance(cookie_cfg, str) and cookie_cfg.strip():
+            return cookie_cfg.strip()
+        return ""
+
+    def player_data_area_id(self) -> int:
+        cfg = self._parse_cookie_json()
+        if cfg:
+            try:
+                return int(cfg.get("nikke_area_id", 84))
+            except (TypeError, ValueError):
+                pass
+        return 84
 
     def player_remind_daily_mission_enabled(self) -> bool:
         return self._nested_bool(self._player, "daily_mission_enabled", True)

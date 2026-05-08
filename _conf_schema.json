@@ -82,10 +82,12 @@
         "hint": "启用后将使用 Cookie 拉取玩家进度并按规则提醒。"
       },
       "cookie": {
-        "description": "玩家数据 Cookie",
-        "type": "string",
-        "default": "",
-        "hint": "手动填写单行纯 ASCII 的 Cookie header 值。有效期通常约一个月，失效后需手动更新。"
+        "description": "玩家登录凭据",
+        "type": "text",
+        "editor_mode": true,
+        "editor_language": "json",
+        "default": "{\n  \"game_token\": \"\",\n  \"game_openid\": \"\",\n  \"game_channelid\": \"\",\n  \"game_gameid\": \"\",\n  \"nikke_area_id\": 84\n}",
+        "hint": "从浏览器 Cookie 中提取对应字段填入。日服 area_id=81，韩服=83，国际服=84，东南亚=85。"
       },
       "outpost_fullness_threshold_percent": {
         "description": "前哨基地满仓提醒阈值（0-100）",

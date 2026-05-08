@@ -1,4 +1,5 @@
 ﻿import asyncio
+import json
 import sys
 from contextlib import suppress
 from datetime import datetime
@@ -17,7 +18,7 @@ if str(_PLUGIN_DIR) not in sys.path:
     sys.path.insert(0, str(_PLUGIN_DIR))
 
 from config import PluginConfig
-from constants import CST, PLUGIN_NAME, REQUEST_TIMEOUT_SECONDS
+from constants import CST, PLAYER_PROGRESS_URL, PLUGIN_NAME, REQUEST_TIMEOUT_SECONDS
 from message_builder import MessageBuilder
 from news_client import NewsClient
 from player_client import PlayerClient
@@ -175,10 +176,13 @@ class NikkeNewsPlugin(Star):
         if not self._plugin_config.player_data_enabled():
             return
 
-        cookie = self._plugin_config.player_data_cookie()
-        if not cookie:
+        raw_cookie = self._plugin_config.player_data_cookie()
+        if not raw_cookie:
             logger.warning("NIKKE 玩家数据功能已启用，但未配置 player_reminder.cookie。")
             return
+
+        # Parse cookie JSON config (new format) or use plain string (legacy)
+        cookie, area_id = self._resolve_player_cookie(raw_cookie)
 
         targets = self._enabled_targets()
         if not targets:
@@ -191,7 +195,7 @@ class NikkeNewsPlugin(Star):
         player_state.setdefault("last_daily_mission_alert_day_key", "")
 
         try:
-            data = await PlayerClient(self._client).fetch_progress(cookie)
+            data = await self._fetch_player_progress(cookie, area_id)
             if player_state.get("cookie_invalid_notified"):
                 player_state["cookie_invalid_notified"] = False
                 self._save_state()
@@ -219,10 +223,15 @@ class NikkeNewsPlugin(Star):
         lines: list[str] = []
         save_needed = False
 
+        daily_list = data.get("daily_progress") or []
+        daily = daily_list[0] if isinstance(daily_list, list) and len(daily_list) > 0 else {}
+
+        fullness = self._safe_float(daily.get("outpost_battle_storage_fullness"))
+        fullness_percent = fullness * 100
+        points = self._safe_int(daily.get("daily_mission_received_points"))
+
         threshold = self._plugin_config.outpost_fullness_threshold_percent()
         if threshold > 0:
-            fullness = self._safe_float(data.get("outpost_battle_storage_fullness"))
-            fullness_percent = fullness * 100
             last_day = str(player_state.get("last_outpost_alert_day_key", ""))
             if fullness_percent >= threshold and last_day != today_key:
                 lines.append(
@@ -232,7 +241,6 @@ class NikkeNewsPlugin(Star):
                 save_needed = True
 
         if self._plugin_config.player_remind_daily_mission_enabled():
-            points = self._safe_int(data.get("daily_mission_received_points"))
             last_day = str(player_state.get("last_daily_mission_alert_day_key", ""))
             if points == 0 and now >= remind_dt and last_day != today_key:
                 lines.append("今日日常任务积分仍为 0，请记得完成日常。")
@@ -244,6 +252,37 @@ class NikkeNewsPlugin(Star):
 
         if save_needed:
             self._save_state()
+
+        logger.debug(
+            f"NIKKE 玩家数据轮询完成（前哨 {fullness_percent:.0f}%，"
+            f"日常积分 {points}）。"
+        )
+
+    async def _fetch_player_progress(self, cookie: str, area_id: int) -> dict[str, Any]:
+        if not self._client:
+            raise RuntimeError("http client not ready")
+
+        headers = {"Cookie": cookie} if cookie else {}
+        resp = await self._client.post(
+            PLAYER_PROGRESS_URL,
+            headers=headers,
+            json={"nikke_area_id": area_id},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        if not isinstance(data, dict):
+            raise RuntimeError("玩家数据接口返回结构异常")
+
+        code = safe_int(data.get("code"))
+        if code != 0:
+            raise RuntimeError(f"PLAYER_API_ERROR:{code}:{data.get('msg', '')}")
+
+        payload = data.get("data")
+        if not isinstance(payload, dict):
+            raise RuntimeError("玩家数据缺少 data 字段")
+
+        return payload
 
     async def _send_player_alert(self, targets: list[dict[str, str]], lines: list[str]):
         chain = MessageChain().message(MessageBuilder(self._plugin_config).format_player_alert_message(lines))
@@ -278,6 +317,28 @@ class NikkeNewsPlugin(Star):
 
     def _save_state(self):
         PluginStateStore(self._state_path).save(self._state)
+
+    @staticmethod
+    def _resolve_player_cookie(raw_cookie: str) -> tuple[str, int]:
+        """Parse cookie JSON config into (cookie_header, area_id).
+
+        New JSON format produces a proper ``key=value; ...`` header string.
+        Legacy plain-string cookie is returned as-is with area_id default 84.
+        """
+        try:
+            cfg = json.loads(raw_cookie)
+            if isinstance(cfg, dict):
+                parts = []
+                for key in ("game_token", "game_openid", "game_channelid", "game_gameid"):
+                    value = str(cfg.get(key, "") or "").strip()
+                    if value:
+                        parts.append(f"{key}={value}")
+                cookie = "; ".join(parts) if parts else raw_cookie
+                area_id = int(cfg.get("nikke_area_id", 84))
+                return cookie, area_id
+        except (json.JSONDecodeError, TypeError, ValueError):
+            pass
+        return raw_cookie, 84
 
     def _mark_seen(self, post_uuids: list[str]):
         PluginStateStore.mark_seen(self._state, post_uuids)
