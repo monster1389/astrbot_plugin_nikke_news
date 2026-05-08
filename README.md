@@ -23,36 +23,59 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 
 ## 配置
 
-顶层保留两个通用项：
+### 顶层配置
 
-- `enabled`
-- `poll_interval_seconds`
+| 键 | 类型 | 默认值 | 说明 |
+|---|------|--------|------|
+| `enabled` | bool | `true` | 启用 NIKKE 官方消息推送 |
+| `poll_interval_seconds` | int | `300` | 轮询间隔秒数（最低 60） |
 
-其余配置改为两组嵌套对象：
+### `news_push` 新闻推送配置
 
-- `news_push`：官方新闻推送配置
-- `player_reminder`：玩家数据提醒配置
+| 键 | 类型 | 默认值 | 说明 |
+|---|------|--------|------|
+| `language` | string | `zh-TW` | 消息语言：`zh-TW` / `en` / `ja` / `ko` / `zh` |
+| `fetch_limit` | int | `10` | 每次拉取数量（1-50） |
+| `content_mode` | string | `summary` | `none` 仅标题+链接 / `summary` 概览 / `content` 正文 |
+| `max_images` | int | `3` | 每条推送最多图片数（0-9，视频帖不发送图片） |
+| `show_publish_time` | bool | `true` | 是否显示发布时间 |
+| `scheduled_push_groups` | list | `[]` | 推送目标列表（格式见下文） |
+| `startup_mode` | string | `mark_seen` | 首次启动行为（当前固定 `mark_seen`） |
+| `push_delay_seconds` | int | `2` | 多条新帖推送间隔秒数（0-30） |
+| `push_prefix` | string | `【NIKKE 官方消息推送】` | 消息前缀，留空则不添加 |
 
-### `news_push` 关键项
+### `player_reminder` 玩家数据提醒配置
 
-- `language`：`zh-TW` / `en` / `ja` / `ko` / `zh`
-- `fetch_limit`：每次拉取数量（运行时限制 1-50）
-- `content_mode`：`none` / `summary` / `content`
-- `max_images`：每条消息最多图片数（0-9）
-- `show_publish_time`：是否显示发布时间
-- `scheduled_push_groups`：推送目标列表（格式见下文）
-- `push_delay_seconds`：多条推送间隔秒数（0-30）
-- `push_prefix`：消息前缀
+| 键 | 类型 | 默认值 | 说明 |
+|---|------|--------|------|
+| `enabled` | bool | `false` | 启用玩家数据提醒（需配置 cookie） |
+| `cookie` | JSON | 见下方 | 玩家登录凭据，JSON 格式填入浏览器 Cookie 字段 |
+| `outpost_fullness_threshold_percent` | int | `90` | 前哨基地满仓提醒阈值（0=关闭，1-100 表示触发百分比） |
+| `daily_mission_enabled` | bool | `true` | 启用日常未完成提醒 |
+| `daily_mission_remind_time` | string | `21:00` | 日常提醒时间（北京时间 `HH:MM`） |
+| `alert_prefix` | string | `【NIKKE 玩家状态提醒】` | 玩家提醒消息前缀，留空则不添加 |
 
-### `player_reminder` 关键项
+**`cookie` JSON 格式**（从浏览器 Cookie 中提取对应字段填入）：
 
-- `enabled`：是否启用玩家提醒
-- `cookie`：玩家请求 Cookie（必须是单行纯 ASCII 的 Cookie header 值）
-- `outpost_fullness_threshold_percent`：前哨阈值 0-100  
-`0` 表示关闭；`1-100` 表示“达到或超过阈值触发”（大于等于）
-- `daily_mission_enabled`：是否启用日常未完成提醒
-- `daily_mission_remind_time`：提醒时间（北京时间 `HH:MM`）
-- `alert_prefix`：玩家提醒消息前缀
+```json
+{
+  "game_token": "",
+  "game_openid": "",
+  "game_channelid": "",
+  "game_gameid": "",
+  "nikke_area_id": 84
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| `game_token` | 浏览器 Cookie 中的 `game_token` 值 |
+| `game_openid` | 浏览器 Cookie 中的 `game_openid` 值 |
+| `game_channelid` | 浏览器 Cookie 中的 `game_channelid` 值 |
+| `game_gameid` | 浏览器 Cookie 中的 `game_gameid` 值 |
+| `nikke_area_id` | 区服 ID：日服=81，韩服=83，国际服=84，东南亚=85 |
+
+兼容旧版：直接填写纯字符串 Cookie header 值也可识别。
 
 ### 推送目标格式
 
@@ -66,5 +89,6 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 ## 消息来源
 
 - 官方板块 ID：`43`
-- 列表接口：`https://api.blablalink.com/api/ugc/direct/standalonesite/Dynamics/GetPostList`
-- 详情链接格式：`https://www.blablalink.com/post/detail?post_uuid=<post_uuid>`
+- 帖子列表：`https://api.blablalink.com/api/ugc/direct/standalonesite/Dynamics/GetPostList`
+- 详情链接：`https://www.blablalink.com/post/detail?post_uuid=<post_uuid>`
+- 玩家数据：`https://api.blablalink.com/api/game/proxy/Game/GetUserDailyContentsProgress`
