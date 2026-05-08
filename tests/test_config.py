@@ -6,8 +6,30 @@ from main import NikkeNewsPlugin
 
 
 def make_plugin(**config) -> NikkeNewsPlugin:
-    base = {"enabled": True}
-    base.update(config)
+    news_keys = {
+        "language",
+        "fetch_limit",
+        "content_mode",
+        "max_images",
+        "show_publish_time",
+        "scheduled_push_groups",
+        "startup_mode",
+        "push_delay_seconds",
+        "push_prefix",
+    }
+    base = {
+        "enabled": True,
+        "news_push": {
+            "language": "zh-TW",
+            "fetch_limit": 10,
+            "push_delay_seconds": 2,
+        },
+    }
+    for key, value in config.items():
+        if key in news_keys:
+            base["news_push"][key] = value
+        else:
+            base[key] = value
     return NikkeNewsPlugin(context=None, config=base)
 
 

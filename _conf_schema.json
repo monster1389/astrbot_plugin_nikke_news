@@ -10,59 +10,106 @@
     "default": 300,
     "hint": "实际运行时最低为 60 秒，避免过于频繁请求 Blablalink。"
   },
-  "language": {
-    "description": "消息语言",
-    "type": "string",
-    "default": "zh-TW",
-    "options": ["zh-TW", "en", "ja", "ko", "zh"]
+  "news_push": {
+    "description": "官方新闻推送配置",
+    "type": "object",
+    "items": {
+      "language": {
+        "description": "消息语言",
+        "type": "string",
+        "default": "zh-TW",
+        "options": ["zh-TW", "en", "ja", "ko", "zh"]
+      },
+      "fetch_limit": {
+        "description": "每次拉取的消息数量",
+        "type": "int",
+        "default": 10,
+        "hint": "实际运行时会限制在 1 到 50 之间。"
+      },
+      "content_mode": {
+        "description": "推送内容模式",
+        "type": "string",
+        "default": "summary",
+        "options": ["none", "summary", "content"],
+        "hint": "none 只发送标题和链接；summary 发送概览；content 发送正文并保留段落换行。"
+      },
+      "max_images": {
+        "description": "每条推送最多发送图片数",
+        "type": "int",
+        "default": 3,
+        "hint": "实际运行时会限制在 0 到 9 之间；0 表示不发送图片。视频帖不会发送图片。"
+      },
+      "show_publish_time": {
+        "description": "显示发布时间",
+        "type": "bool",
+        "default": true
+      },
+      "scheduled_push_groups": {
+        "description": "定时推送目标群组列表",
+        "type": "list",
+        "hint": "直接填写群号即可，如：[\"957880653\", \"123456789\"]。也支持 unified_msg_origin 格式",
+        "default": []
+      },
+      "startup_mode": {
+        "description": "首次启动行为",
+        "type": "string",
+        "default": "mark_seen",
+        "options": ["mark_seen"],
+        "hint": "当前版本固定为首次启动只记录已有消息，不补发历史消息。"
+      },
+      "push_delay_seconds": {
+        "description": "消息推送间隔秒数",
+        "type": "int",
+        "default": 2,
+        "hint": "多条新帖推送时，每条消息之间的等待秒数。最小值 0，最大值 30。"
+      },
+      "push_prefix": {
+        "description": "推送消息前缀",
+        "type": "string",
+        "default": "【NIKKE 官方消息推送】",
+        "hint": "每条推送消息最前面加的前缀提示，留空则不加。"
+      }
+    }
   },
-  "fetch_limit": {
-    "description": "每次拉取的消息数量",
-    "type": "int",
-    "default": 10,
-    "hint": "实际运行时会限制在 1 到 50 之间。"
-  },
-  "content_mode": {
-    "description": "推送内容模式",
-    "type": "string",
-    "default": "summary",
-    "options": ["none", "summary", "content"],
-    "hint": "none 只发送标题和链接；summary 发送概览；content 发送正文并保留段落换行。"
-  },
-  "max_images": {
-    "description": "每条推送最多发送图片数",
-    "type": "int",
-    "default": 3,
-    "hint": "实际运行时会限制在 0 到 9 之间；0 表示不发送图片。视频帖不会发送图片。"
-  },
-  "show_publish_time": {
-    "description": "显示发布时间",
-    "type": "bool",
-    "default": true
-  },
-  "scheduled_push_groups": {
-    "description": "定时推送目标群组列表",
-    "type": "list",
-    "hint": "直接填写群号即可，如：[\"957880653\", \"123456789\"]。也支持 unified_msg_origin 格式",
-    "default": []
-  },
-  "startup_mode": {
-    "description": "首次启动行为",
-    "type": "string",
-    "default": "mark_seen",
-    "options": ["mark_seen"],
-    "hint": "当前版本固定为首次启动只记录已有消息，不补发历史消息。"
-  },
-  "push_delay_seconds": {
-    "description": "消息推送间隔秒数",
-    "type": "int",
-    "default": 2,
-    "hint": "多条新帖推送时，每条消息之间的等待秒数。最小值 0，最大值 30。"
-  },
-  "push_prefix": {
-    "description": "推送消息前缀",
-    "type": "string",
-    "default": "【NIKKE 官方消息推送】",
-    "hint": "每条推送消息最前面加的前缀提示，留空则不加。"
+  "player_reminder": {
+    "description": "玩家数据提醒配置",
+    "type": "object",
+    "items": {
+      "enabled": {
+        "description": "启用玩家数据提醒",
+        "type": "bool",
+        "default": false,
+        "hint": "启用后将使用 Cookie 拉取玩家进度并按规则提醒。"
+      },
+      "cookie": {
+        "description": "玩家数据 Cookie",
+        "type": "string",
+        "default": "",
+        "hint": "手动填写单行纯 ASCII 的 Cookie header 值。有效期通常约一个月，失效后需手动更新。"
+      },
+      "outpost_fullness_threshold_percent": {
+        "description": "前哨基地满仓提醒阈值（0-100）",
+        "type": "int",
+        "default": 90,
+        "hint": "0=关闭提醒；1-100 表示达到或超过该百分比触发。"
+      },
+      "daily_mission_enabled": {
+        "description": "启用日常未完成提醒",
+        "type": "bool",
+        "default": true
+      },
+      "daily_mission_remind_time": {
+        "description": "日常提醒时间（北京时间）",
+        "type": "string",
+        "default": "21:00",
+        "hint": "格式 HH:MM。若日常积分为 0，超过此时间后按每天一次提醒。"
+      },
+      "alert_prefix": {
+        "description": "玩家提醒消息前缀",
+        "type": "string",
+        "default": "【NIKKE 玩家状态提醒】",
+        "hint": "玩家状态提醒消息前缀，留空则不加。"
+      }
+    }
   }
 }

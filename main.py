@@ -1,88 +1,37 @@
-import asyncio
-import html
-import json
-import re
+﻿import asyncio
+import sys
 from contextlib import suppress
 from datetime import datetime
-from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
 import httpx
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import MessageChain
-import astrbot.api.message_components as Comp
 from astrbot.api.star import Context, Star, StarTools, register
 
+# AstrBot may import plugin entrypoints without adding the plugin folder to sys.path.
+# Ensure sibling modules (config.py, state_store.py, etc.) are importable.
+_PLUGIN_DIR = Path(__file__).resolve().parent
+if str(_PLUGIN_DIR) not in sys.path:
+    sys.path.insert(0, str(_PLUGIN_DIR))
 
-PLUGIN_NAME = "astrbot_plugin_nikke_news"
-OFFICIAL_PLATE_ID = 43
-POST_LIST_URL = (
-    "https://api.blablalink.com/api/ugc/direct/standalonesite/"
-    "Dynamics/GetPostList"
+from config import PluginConfig
+from constants import CST, PLUGIN_NAME, REQUEST_TIMEOUT_SECONDS
+from message_builder import MessageBuilder
+from news_client import NewsClient
+from player_client import PlayerClient
+from state_store import PluginStateStore
+from targets import enabled_targets, parse_push_target
+from time_utils import day_key, is_cookie_invalid_error
+from utils import (
+    clean_html_with_linebreaks,
+    clean_text,
+    format_timestamp,
+    is_video_post,
+    safe_float,
+    safe_int,
 )
-POST_DETAIL_URL = "https://www.blablalink.com/post/detail?post_uuid={post_uuid}"
-MAX_SEEN_POSTS = 500
-SUMMARY_MAX_LENGTH = 300
-REQUEST_TIMEOUT_SECONDS = 60
-CONTENT_MODES = {"none", "summary", "content"}
-
-
-class _ReadableHtmlParser(HTMLParser):
-    _BREAK_TAGS = {"br"}
-    _BLOCK_TAGS = {"div", "p", "section", "article", "header", "footer", "li"}
-    _IGNORED_CONTAINER_TAGS = {"script", "style"}
-    _IGNORED_VOID_TAGS = {"img"}
-
-    def __init__(self):
-        super().__init__(convert_charrefs=False)
-        self._parts: list[str] = []
-        self._ignored_depth = 0
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]):
-        tag = tag.lower()
-        if tag in self._IGNORED_VOID_TAGS:
-            return
-        if tag in self._IGNORED_CONTAINER_TAGS:
-            self._ignored_depth += 1
-            return
-        if self._ignored_depth:
-            return
-        if tag in self._BREAK_TAGS or tag in self._BLOCK_TAGS:
-            self._newline()
-
-    def handle_endtag(self, tag: str):
-        tag = tag.lower()
-        if tag in self._IGNORED_CONTAINER_TAGS and self._ignored_depth:
-            self._ignored_depth -= 1
-            return
-        if self._ignored_depth:
-            return
-        if tag in self._BLOCK_TAGS:
-            self._newline()
-
-    def handle_data(self, data: str):
-        if self._ignored_depth:
-            return
-        self._parts.append(data)
-
-    def handle_entityref(self, name: str):
-        if not self._ignored_depth:
-            self._parts.append(f"&{name};")
-
-    def handle_charref(self, name: str):
-        if not self._ignored_depth:
-            self._parts.append(f"&#{name};")
-
-    def _newline(self):
-        if self._parts and self._parts[-1] != "\n":
-            self._parts.append("\n")
-
-    def text(self) -> str:
-        raw = html.unescape("".join(self._parts))
-        lines = [" ".join(line.split()) for line in raw.splitlines()]
-        compact_lines = [line for line in lines if line]
-        return "\n".join(compact_lines)
 
 
 @register(
@@ -95,13 +44,11 @@ class NikkeNewsPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
         super().__init__(context)
         self.config = config or {}
+        self._plugin_config = PluginConfig(self.config)
         self._client: httpx.AsyncClient | None = None
         self._task: asyncio.Task | None = None
         self._state_path: Path | None = None
-        self._state: dict[str, Any] = {
-            "initialized": False,
-            "seen_post_uuids": [],
-        }
+        self._state: dict[str, Any] = PluginStateStore.default_state()
 
     async def initialize(self):
         if not self._config_bool("enabled", True):
@@ -153,7 +100,13 @@ class NikkeNewsPlugin(Star):
 
     async def _poll_once(self):
         self._state = self._load_state()
+        await self._poll_news_once()
+        try:
+            await self._poll_player_once()
+        except Exception as exc:
+            logger.warning(f"NIKKE 玩家数据轮询异常，将在下次重试：{exc}")
 
+    async def _poll_news_once(self):
         posts = await self._fetch_official_posts()
         if not posts:
             logger.warning("NIKKE 未获取到任何帖子（API 返回空或客户端未就绪）。")
@@ -166,9 +119,7 @@ class NikkeNewsPlugin(Star):
             self._mark_seen(fetched_uuids)
             self._state["initialized"] = True
             self._save_state()
-            logger.info(
-                f"NIKKE 首次初始化完成，已记录 {len(fetched_uuids)} 条历史消息。",
-            )
+            logger.info(f"NIKKE 首次初始化完成，已记录 {len(fetched_uuids)} 条历史消息。")
             return
 
         new_posts = [post for post in posts if post.get("post_uuid") not in seen]
@@ -182,7 +133,7 @@ class NikkeNewsPlugin(Star):
             + ", ".join(
                 f"{post.get('post_uuid')[:8]}…({self._clean_text(post.get('title'))[:30]})"
                 for post in new_posts
-            ),
+            )
         )
         targets = self._enabled_targets()
 
@@ -206,13 +157,11 @@ class NikkeNewsPlugin(Star):
                     )
                     delivered = True
                     logger.info(
-                        f"NIKKE 消息已发送：target={target['target_type']}:{target['target_id']} "
-                        f"uuid={post_uuid}"
+                        f"NIKKE 消息已发送：target={target['target_type']}:{target['target_id']} uuid={post_uuid}"
                     )
                 except Exception as exc:
                     logger.warning(
-                        f"NIKKE 消息发送失败：target={target['target_type']}:{target['target_id']} "
-                        f"error={exc}"
+                        f"NIKKE 消息发送失败：target={target['target_type']}:{target['target_id']} error={exc}"
                     )
 
             if delivered and post_uuid:
@@ -223,254 +172,184 @@ class NikkeNewsPlugin(Star):
             if delay > 0 and idx < len(new_posts) - 1:
                 await asyncio.sleep(delay)
 
+    async def _poll_player_once(self):
+        if not self._plugin_config.player_data_enabled():
+            return
+
+        cookie = self._plugin_config.player_data_cookie()
+        if not cookie:
+            logger.warning("NIKKE 玩家数据功能已启用，但未配置 player_reminder.cookie。")
+            return
+
+        targets = self._enabled_targets()
+        if not targets:
+            logger.warning("NIKKE 玩家数据功能已启用，但未配置推送目标。")
+            return
+
+        player_state = self._state.setdefault("player_alert_state", {})
+        player_state.setdefault("cookie_invalid_notified", False)
+        player_state.setdefault("last_outpost_alert_day_key", "")
+        player_state.setdefault("last_daily_mission_alert_day_key", "")
+
+        try:
+            data = await PlayerClient(self._client).fetch_progress(cookie)
+            if player_state.get("cookie_invalid_notified"):
+                player_state["cookie_invalid_notified"] = False
+                self._save_state()
+        except Exception as exc:
+            if self._is_cookie_invalid_error(exc):
+                if not player_state.get("cookie_invalid_notified", False):
+                    await self._send_player_alert(
+                        targets,
+                        [
+                            "登录态已失效，请更新 player_data_cookie。",
+                            "当前仅首次失效发送聊天提醒，后续将只写日志。",
+                        ],
+                    )
+                    player_state["cookie_invalid_notified"] = True
+                    self._save_state()
+                logger.warning(f"NIKKE 玩家 Cookie 失效：{exc}")
+                return
+            raise
+
+        now = datetime.now(CST)
+        today_key = self._day_key(now)
+        remind_time = self._plugin_config.player_daily_mission_remind_time()
+        remind_dt = datetime.combine(now.date(), remind_time, tzinfo=CST)
+
+        lines: list[str] = []
+        save_needed = False
+
+        threshold = self._plugin_config.outpost_fullness_threshold_percent()
+        if threshold > 0:
+            fullness = self._safe_float(data.get("outpost_battle_storage_fullness"))
+            fullness_percent = fullness * 100
+            last_day = str(player_state.get("last_outpost_alert_day_key", ""))
+            if fullness_percent >= threshold and last_day != today_key:
+                lines.append(
+                    f"前哨基地存储 {fullness_percent:.0f}%，已达到/超过阈值 {threshold}%，建议尽快上线收菜。"
+                )
+                player_state["last_outpost_alert_day_key"] = today_key
+                save_needed = True
+
+        if self._plugin_config.player_remind_daily_mission_enabled():
+            points = self._safe_int(data.get("daily_mission_received_points"))
+            last_day = str(player_state.get("last_daily_mission_alert_day_key", ""))
+            if points == 0 and now >= remind_dt and last_day != today_key:
+                lines.append("今日日常任务积分仍为 0，请记得完成日常。")
+                player_state["last_daily_mission_alert_day_key"] = today_key
+                save_needed = True
+
+        if lines:
+            await self._send_player_alert(targets, lines)
+
+        if save_needed:
+            self._save_state()
+
+    async def _send_player_alert(self, targets: list[dict[str, str]], lines: list[str]):
+        chain = MessageChain().message(MessageBuilder(self._plugin_config).format_player_alert_message(lines))
+        for target in targets:
+            try:
+                await StarTools.send_message_by_id(
+                    target["target_type"],
+                    target["target_id"],
+                    chain,
+                    platform="aiocqhttp",
+                )
+            except Exception as exc:
+                logger.warning(
+                    f"NIKKE 玩家提醒发送失败：target={target['target_type']}:{target['target_id']} error={exc}"
+                )
+
+    # Compatibility wrappers for existing tests/calls
     async def _fetch_official_posts(self) -> list[dict[str, Any]]:
-        if not self._client:
-            return []
-
-        payload = {
-            "page": 1,
-            "page_size": self._fetch_limit(),
-            "plate_id": OFFICIAL_PLATE_ID,
-            "area_id": "global",
-            "lang": self._language(),
-        }
-        resp = await self._client.post(POST_LIST_URL, json=payload)
-        resp.raise_for_status()
-        data = resp.json()
-
-        if data.get("code") != 0:
-            raise RuntimeError(f"Blablalink API 返回错误：{data}")
-
-        items = data.get("data", {}).get("list", [])
-        if not isinstance(items, list):
-            raise RuntimeError(f"Blablalink API 结构异常：{data}")
-
-        return [
-            item
-            for item in items
-            if isinstance(item, dict)
-            and self._safe_int(item.get("plate_id")) == OFFICIAL_PLATE_ID
-            and self._safe_int(item.get("is_official")) == 1
-            and item.get("post_uuid")
-        ]
+        return await NewsClient(self._client, self._plugin_config).fetch_official_posts()
 
     def _format_post_message(self, post: dict[str, Any]) -> str:
-        title = self._clean_text(post.get("title")) or "NIKKE 官方消息"
-        body = self._format_post_body(post)
-
-        created_on = self._format_timestamp(post.get("created_on"))
-        detail_url = POST_DETAIL_URL.format(post_uuid=post.get("post_uuid"))
-
-        prefix = self._push_prefix()
-        parts = [prefix, title] if prefix else [title]
-        if body:
-            parts.append(body)
-        if self._show_publish_time():
-            parts.append(f"发布时间：{created_on}")
-        parts.append(f"链接：{detail_url}")
-        return "\n\n".join(parts)
+        return MessageBuilder(self._plugin_config).format_post_message(post)
 
     def _format_post_message_chain(self, post: dict[str, Any]) -> MessageChain:
-        chain = MessageChain().message(self._format_post_message(post))
-        for image_url in self._post_image_urls(post):
-            chain.chain.append(Comp.Image.fromURL(image_url))
-        return chain
-
-    def _format_post_body(self, post: dict[str, Any]) -> str:
-        mode = self._content_mode()
-        if mode == "none":
-            return ""
-
-        if mode == "content":
-            return self._clean_html_with_linebreaks(post.get("content"))
-
-        summary = self._clean_text(post.get("content_summary"))
-        if len(summary) > SUMMARY_MAX_LENGTH:
-            summary = summary[:SUMMARY_MAX_LENGTH].rstrip() + "..."
-        return summary
+        return MessageBuilder(self._plugin_config).format_post_message_chain(post)
 
     def _post_image_urls(self, post: dict[str, Any]) -> list[str]:
-        if self._is_video_post(post):
-            return []
+        return MessageBuilder(self._plugin_config).post_image_urls(post)
 
-        max_images = self._max_images()
-        if max_images <= 0:
-            return []
+    def _load_state(self) -> dict[str, Any]:
+        return PluginStateStore(self._state_path).load()
 
-        pic_urls = post.get("pic_urls", [])
-        if not isinstance(pic_urls, list):
-            return []
+    def _save_state(self):
+        PluginStateStore(self._state_path).save(self._state)
 
-        urls: list[str] = []
-        for value in pic_urls:
-            url = str(value or "").strip()
-            if not url.startswith(("http://", "https://")) or url in urls:
-                continue
-            urls.append(url)
-            if len(urls) >= max_images:
-                break
-        return urls
+    def _mark_seen(self, post_uuids: list[str]):
+        PluginStateStore.mark_seen(self._state, post_uuids)
 
     def _enabled_targets(self) -> list[dict[str, str]]:
-        enabled: list[dict[str, str]] = []
-        group_targets = self.config.get("scheduled_push_groups", []) or []
-
-        for item in group_targets:
-            item_str = str(item or "").strip()
-            if not item_str:
-                continue
-
-            parsed = self._parse_push_target(item_str)
-            if not parsed:
-                logger.warning(f"NIKKE 跳过无效推送目标：{item_str}")
-                continue
-            enabled.append(parsed)
-
-        if enabled:
-            return enabled
-
-        legacy_targets = self.config.get("targets", []) or []
-        for target in legacy_targets:
-            if not isinstance(target, dict) or not target.get("enabled", True):
-                continue
-
-            target_type = str(target.get("target_type", "")).strip()
-            target_id = str(target.get("target_id", "")).strip()
-            if target_type not in {"GroupMessage", "PrivateMessage", "FriendMessage"} or not target_id:
-                logger.warning(f"NIKKE 跳过无效旧版推送目标：{target}")
-                continue
-
-            enabled.append({"target_type": target_type, "target_id": target_id})
-
-        return enabled
+        return enabled_targets(self._plugin_config.news_config())
 
     @staticmethod
     def _parse_push_target(value: str) -> dict[str, str] | None:
-        if value.isdigit():
-            return {"target_type": "GroupMessage", "target_id": value}
-
-        # unified_msg_origin, e.g. napcat:FriendMessage:2854964693
-        parts = value.split(":")
-        if len(parts) == 3 and parts[2].isdigit():
-            msg_type = parts[1]
-            if msg_type in {"GroupMessage", "PrivateMessage", "FriendMessage"}:
-                return {"target_type": msg_type, "target_id": parts[2]}
-
-        return None
-
-    def _load_state(self) -> dict[str, Any]:
-        if not self._state_path or not self._state_path.exists():
-            return {"initialized": False, "seen_post_uuids": []}
-
-        try:
-            with self._state_path.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-            if not isinstance(data, dict):
-                raise ValueError("state root is not object")
-            seen = data.get("seen_post_uuids", [])
-            if not isinstance(seen, list):
-                seen = []
-            return {
-                "initialized": bool(data.get("initialized", False)),
-                "seen_post_uuids": [str(item) for item in seen if item],
-            }
-        except Exception as exc:
-            logger.warning(f"NIKKE 状态文件读取失败，将重新初始化：{exc}")
-            return {"initialized": False, "seen_post_uuids": []}
-
-    def _save_state(self):
-        if not self._state_path:
-            return
-
-        try:
-            self._state_path.parent.mkdir(parents=True, exist_ok=True)
-            with self._state_path.open("w", encoding="utf-8") as f:
-                json.dump(self._state, f, ensure_ascii=False, indent=2)
-        except Exception as exc:
-            logger.warning(f"NIKKE 状态文件保存失败：{exc}")
-
-    def _mark_seen(self, post_uuids: list[str]):
-        current = [str(item) for item in self._state.get("seen_post_uuids", []) if item]
-        for post_uuid in post_uuids:
-            post_uuid = str(post_uuid)
-            if post_uuid in current:
-                current.remove(post_uuid)
-            current.append(post_uuid)
-        self._state["seen_post_uuids"] = current[-MAX_SEEN_POSTS:]
+        return parse_push_target(value)
 
     def _poll_interval_seconds(self) -> int:
-        return max(60, self._config_int("poll_interval_seconds", 300))
+        return self._plugin_config.poll_interval_seconds()
 
     def _fetch_limit(self) -> int:
-        return min(50, max(1, self._config_int("fetch_limit", 10)))
+        return self._plugin_config.fetch_limit()
 
     def _language(self) -> str:
-        language = str(self.config.get("language", "zh-TW")).strip() or "zh-TW"
-        if language not in {"zh-TW", "en", "ja", "ko", "zh"}:
-            logger.warning(f"NIKKE 语言配置无效，已使用 zh-TW：{language}")
-            return "zh-TW"
-        return language
+        return self._plugin_config.language()
 
     def _config_bool(self, key: str, default: bool) -> bool:
-        value = self.config.get(key, default)
-        if isinstance(value, bool):
-            return value
-        if isinstance(value, str):
-            return value.strip().lower() in {"1", "true", "yes", "on"}
-        return bool(value)
+        return self._plugin_config.config_bool(key, default)
 
     def _config_int(self, key: str, default: int) -> int:
-        try:
-            return int(self.config.get(key, default))
-        except (TypeError, ValueError):
-            logger.warning(f"NIKKE 配置 {key} 非法，已使用默认值 {default}。")
-            return default
+        return self._plugin_config.config_int(key, default)
 
     def _push_delay_seconds(self) -> int:
-        return min(30, max(0, self._config_int("push_delay_seconds", 2)))
+        return self._plugin_config.push_delay_seconds()
 
     def _push_prefix(self) -> str:
-        return str(self.config.get("push_prefix", "") or "").strip()
+        return self._plugin_config.push_prefix()
 
     def _content_mode(self) -> str:
-        mode = str(self.config.get("content_mode", "summary") or "summary").strip()
-        if mode not in CONTENT_MODES:
-            logger.warning(f"NIKKE 内容模式配置无效，已使用 summary：{mode}")
-            return "summary"
-        return mode
+        return self._plugin_config.content_mode()
 
     def _max_images(self) -> int:
-        return min(9, max(0, self._config_int("max_images", 3)))
+        return self._plugin_config.max_images()
 
     def _show_publish_time(self) -> bool:
-        return self._config_bool("show_publish_time", True)
+        return self._plugin_config.show_publish_time()
 
-    def _is_video_post(self, post: dict[str, Any]) -> bool:
-        return self._safe_int(post.get("type")) == 3
+    @staticmethod
+    def _is_video_post(post: dict[str, Any]) -> bool:
+        return is_video_post(post)
 
     @staticmethod
     def _clean_text(value: Any) -> str:
-        text = re.sub(r"<[^>]*>", "", str(value or ""))
-        text = html.unescape(text)
-        return " ".join(text.split())
+        return clean_text(value)
 
     @staticmethod
     def _clean_html_with_linebreaks(value: Any) -> str:
-        parser = _ReadableHtmlParser()
-        parser.feed(str(value or ""))
-        parser.close()
-        return parser.text()
+        return clean_html_with_linebreaks(value)
 
     @staticmethod
     def _safe_int(value: Any) -> int:
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return 0
+        return safe_int(value)
+
+    @staticmethod
+    def _safe_float(value: Any) -> float:
+        return safe_float(value)
 
     @classmethod
     def _format_timestamp(cls, value: Any) -> str:
-        timestamp = cls._safe_int(value)
-        if timestamp <= 0:
-            return "未知"
-        return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M")
+        return format_timestamp(value)
+
+    @staticmethod
+    def _is_cookie_invalid_error(exc: Exception) -> bool:
+        return is_cookie_invalid_error(exc)
+
+    @staticmethod
+    def _day_key(now: datetime) -> str:
+        return day_key(now)
+
+

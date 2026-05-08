@@ -20,7 +20,9 @@ def test_load_state_no_file(tmp_path: Path):
     plugin = make_plugin()
     plugin._state_path = tmp_path / "nonexistent.json"
     state = plugin._load_state()
-    assert state == {"initialized": False, "seen_post_uuids": []}
+    assert state["initialized"] is False
+    assert state["seen_post_uuids"] == []
+    assert "player_alert_state" in state
 
 
 # ---------------------------------------------------------------------------
@@ -48,7 +50,9 @@ def test_load_state_corrupted(caplog, tmp_path: Path):
     plugin = make_plugin()
     plugin._state_path = state_file
     state = plugin._load_state()
-    assert state == {"initialized": False, "seen_post_uuids": []}
+    assert state["initialized"] is False
+    assert state["seen_post_uuids"] == []
+    assert "player_alert_state" in state
     assert "状态文件读取失败" in caplog.text
 
 
@@ -62,7 +66,9 @@ def test_load_state_root_not_dict(caplog, tmp_path: Path):
     plugin = make_plugin()
     plugin._state_path = state_file
     state = plugin._load_state()
-    assert state == {"initialized": False, "seen_post_uuids": []}
+    assert state["initialized"] is False
+    assert state["seen_post_uuids"] == []
+    assert "player_alert_state" in state
     assert "状态文件读取失败" in caplog.text
 
 
@@ -112,7 +118,7 @@ def test_mark_seen_dedup_and_cap():
 # _mark_seen – respects MAX_SEEN_POSTS (500 by default → test with smaller)
 # ---------------------------------------------------------------------------
 def test_mark_seen_cap(monkeypatch):
-    monkeypatch.setattr("main.MAX_SEEN_POSTS", 3)
+    monkeypatch.setattr("state_store.MAX_SEEN_POSTS", 3)
     plugin = make_plugin()
     plugin._state["seen_post_uuids"] = ["a", "b", "c"]
 

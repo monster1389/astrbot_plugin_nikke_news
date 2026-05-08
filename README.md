@@ -23,19 +23,36 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 
 ## 配置
 
-| 配置项 | 说明 | 默认值 |
-|--------|------|--------|
-| `enabled` | 是否启用插件 | `true` |
-| `poll_interval_seconds` | 轮询间隔秒数（最低 60） | `300` |
-| `language` | 消息语言（`zh-TW` / `en` / `ja` / `ko` / `zh`） | `zh-TW` |
-| `fetch_limit` | 每次拉取的消息数量（1–50） | `10` |
-| `content_mode` | 推送内容模式：`none` 仅标题和链接，`summary` 含概览，`content` 正文全文保留换行 | `summary` |
-| `max_images` | 每条推送最多附带图片数（0–9，0 为不发图） | `3` |
-| `show_publish_time` | 是否显示发布时间 | `true` |
-| `scheduled_push_groups` | 推送目标列表，见下方格式说明 | `[]` |
-| `push_delay_seconds` | 多条推送间隔秒数（0–30） | `2` |
-| `push_prefix` | 消息前缀，留空不加前缀 | `【NIKKE 官方消息推送】` |
-| `startup_mode` | 首次启动行为（目前固定 `mark_seen`） | `mark_seen` |
+顶层保留两个通用项：
+
+- `enabled`
+- `poll_interval_seconds`
+
+其余配置改为两组嵌套对象：
+
+- `news_push`：官方新闻推送配置
+- `player_reminder`：玩家数据提醒配置
+
+### `news_push` 关键项
+
+- `language`：`zh-TW` / `en` / `ja` / `ko` / `zh`
+- `fetch_limit`：每次拉取数量（运行时限制 1-50）
+- `content_mode`：`none` / `summary` / `content`
+- `max_images`：每条消息最多图片数（0-9）
+- `show_publish_time`：是否显示发布时间
+- `scheduled_push_groups`：推送目标列表（格式见下文）
+- `push_delay_seconds`：多条推送间隔秒数（0-30）
+- `push_prefix`：消息前缀
+
+### `player_reminder` 关键项
+
+- `enabled`：是否启用玩家提醒
+- `cookie`：玩家请求 Cookie（必须是单行纯 ASCII 的 Cookie header 值）
+- `outpost_fullness_threshold_percent`：前哨阈值 0-100  
+`0` 表示关闭；`1-100` 表示“达到或超过阈值触发”（大于等于）
+- `daily_mission_enabled`：是否启用日常未完成提醒
+- `daily_mission_remind_time`：提醒时间（北京时间 `HH:MM`）
+- `alert_prefix`：玩家提醒消息前缀
 
 ### 推送目标格式
 

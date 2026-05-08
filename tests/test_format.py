@@ -109,7 +109,7 @@ def test_format_post_summary_truncated():
 # _format_post_message – no content
 # ---------------------------------------------------------------------------
 def test_format_post_content_mode_none():
-    plugin = NikkeNewsPlugin(context=None, config={"content_mode": "none"})
+    plugin = NikkeNewsPlugin(context=None, config={"news_push": {"content_mode": "none"}})
     post = {
         "post_uuid": "u",
         "title": "Title",
@@ -128,7 +128,7 @@ def test_format_post_content_mode_none():
 # _format_post_message – content mode preserves linebreaks
 # ---------------------------------------------------------------------------
 def test_format_post_content_mode_body_preserves_linebreaks():
-    plugin = NikkeNewsPlugin(context=None, config={"content_mode": "content"})
+    plugin = NikkeNewsPlugin(context=None, config={"news_push": {"content_mode": "content"}})
     post = {
         "post_uuid": "u",
         "title": "Title",
@@ -145,7 +145,7 @@ def test_format_post_content_mode_body_preserves_linebreaks():
 # _format_post_message – publish time hidden
 # ---------------------------------------------------------------------------
 def test_format_post_hide_publish_time():
-    plugin = NikkeNewsPlugin(context=None, config={"show_publish_time": False})
+    plugin = NikkeNewsPlugin(context=None, config={"news_push": {"show_publish_time": False}})
     post = {
         "post_uuid": "u",
         "title": "Title",
@@ -161,7 +161,7 @@ def test_format_post_hide_publish_time():
 # _format_post_message – with prefix
 # ---------------------------------------------------------------------------
 def test_format_post_with_prefix():
-    plugin = NikkeNewsPlugin(context=None, config={"push_prefix": "【PREFIX】"})
+    plugin = NikkeNewsPlugin(context=None, config={"news_push": {"push_prefix": "【PREFIX】"}})
     post = {
         "post_uuid": "u",
         "title": "Title",

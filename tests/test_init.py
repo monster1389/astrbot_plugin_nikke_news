@@ -7,16 +7,29 @@ from main import NikkeNewsPlugin, PLUGIN_NAME
 
 
 def make_plugin(**config) -> NikkeNewsPlugin:
+    news_keys = {
+        "language",
+        "fetch_limit",
+        "scheduled_push_groups",
+        "push_delay_seconds",
+        "push_prefix",
+    }
     base = {
         "enabled": True,
         "poll_interval_seconds": 300,
-        "language": "zh-TW",
-        "fetch_limit": 10,
-        "scheduled_push_groups": [],
-        "push_delay_seconds": 0,
-        "push_prefix": "",
+        "news_push": {
+            "language": "zh-TW",
+            "fetch_limit": 10,
+            "scheduled_push_groups": [],
+            "push_delay_seconds": 0,
+            "push_prefix": "",
+        },
     }
-    base.update(config)
+    for key, value in config.items():
+        if key in news_keys:
+            base["news_push"][key] = value
+        else:
+            base[key] = value
     return NikkeNewsPlugin(context=None, config=base)
 
 

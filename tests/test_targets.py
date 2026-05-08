@@ -6,11 +6,16 @@ from main import NikkeNewsPlugin
 
 
 def make_plugin(**config) -> NikkeNewsPlugin:
+    news_keys = {"scheduled_push_groups", "targets"}
     base = {
         "enabled": True,
-        "scheduled_push_groups": [],
+        "news_push": {"scheduled_push_groups": []},
     }
-    base.update(config)
+    for key, value in config.items():
+        if key in news_keys:
+            base["news_push"][key] = value
+        else:
+            base[key] = value
     plugin = NikkeNewsPlugin(context=None, config=base)
     return plugin
 
