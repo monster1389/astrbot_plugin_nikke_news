@@ -145,7 +145,6 @@ class NikkeNewsPlugin(Star):
 
         for idx, post in enumerate(new_posts):
             post_uuid = post.get("post_uuid")
-            delivered = False
 
             for target in targets:
                 try:
@@ -155,16 +154,16 @@ class NikkeNewsPlugin(Star):
                         self._format_post_message_chain(post),
                         platform="aiocqhttp",
                     )
-                    delivered = True
                     logger.info(
                         f"NIKKE 消息已发送：target={target['target_type']}:{target['target_id']} uuid={post_uuid}"
                     )
                 except Exception as exc:
                     logger.warning(
-                        f"NIKKE 消息发送失败：target={target['target_type']}:{target['target_id']} error={exc}"
+                        f"NIKKE 消息发送失败：target={target['target_type']}:{target['target_id']} "
+                        f"type={type(exc).__name__} error={exc or '<empty>'}"
                     )
 
-            if delivered and post_uuid:
+            if post_uuid:
                 self._mark_seen([post_uuid])
                 self._save_state()
 
