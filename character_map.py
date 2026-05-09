@@ -9,26 +9,6 @@ _CDN_BASE = "https://sg-tools-cdn.blablalink.com"
 _SS = [224737, 1000639, 2654435761, 2654435769, 1000621, 4294967291]
 _EN_PATH = "character/en/nikke_list_en_v2.json"
 
-_MANUAL_ALIASES: dict[str, str] = {
-    "anis": "Anis: Star",
-    "anis star": "Anis: Star",
-    "star": "Anis: Star",
-    "anis ss": "Anis: Sparkling Summer",
-    "summer anis": "Anis: Sparkling Summer",
-    "scarlet": "Scarlet",
-    "scarlet bs": "Scarlet: Black Shadow",
-    "red hood": "Red Hood",
-    "cindy": "Cinderella",
-    "grave": "Grave",
-    "dorothy": "Dorothy",
-    "rapi": "Rapi",
-    "rapi rh": "Rapi: Red Hood",
-    "neon": "Neon",
-    "marian": "Marian",
-    "modernia": "Modernia",
-}
-
-
 def _tr(path: str, seed: int) -> int:
     n = seed
     for ch in path:
@@ -62,11 +42,17 @@ def _compute_cdn_url(relative_path: str) -> str:
 
 
 class CharacterMap:
-    def __init__(self, data_dir: Path, client: httpx.AsyncClient | None = None):
+    def __init__(
+        self,
+        data_dir: Path,
+        client: httpx.AsyncClient | None = None,
+        aliases: dict[str, list[str]] | None = None,
+    ):
         self._data_dir = data_dir
         self._client = client
         self._cache_path = data_dir / "character_map.json"
         self._name_to_code: dict[str, int] = {}
+        self._aliases = aliases or {}
 
     @property
     def is_loaded(self) -> bool:
@@ -129,14 +115,25 @@ class CharacterMap:
         logger.info(f"NIKKE {msg}")
         return msg
 
+    def _build_alias_map(self) -> dict[str, str]:
+        """Reverse the config aliases (EnglishName → [aliases]) into alias → EnglishName."""
+        result: dict[str, str] = {}
+        for en_name, alias_list in self._aliases.items():
+            for alias in alias_list:
+                key = alias.strip().lower()
+                if key and key not in result:
+                    result[key] = en_name
+        return result
+
     def lookup(self, query: str) -> list[tuple[int, str]]:
         if not query or not query.strip():
             return []
 
         q = query.strip().lower()
+        alias_map = self._build_alias_map()
 
-        # 1. 先查硬编码别名表
-        alias_name = _MANUAL_ALIASES.get(q)
+        # 1. 先查配置别名表
+        alias_name = alias_map.get(q)
         if alias_name and alias_name in self._name_to_code:
             return [(self._name_to_code[alias_name], alias_name)]
 

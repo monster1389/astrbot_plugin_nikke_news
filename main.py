@@ -72,7 +72,9 @@ class NikkeNewsPlugin(Star):
                 ),
             },
         )
-        self._character_map = CharacterMap(data_dir, self._client)
+        self._character_map = CharacterMap(
+            data_dir, self._client, self._plugin_config.character_aliases()
+        )
         if not self._character_map.load_cache():
             logger.info("NIKKE 角色映射缓存不存在，可通过 /nikke refresh 手动刷新。")
 

@@ -1,4 +1,4 @@
-﻿import json
+import json
 from datetime import time
 
 from astrbot.api import AstrBotConfig, logger
@@ -115,6 +115,37 @@ class PluginConfig:
             except (TypeError, ValueError):
                 pass
         return 84
+
+    def character_aliases(self) -> dict[str, list[str]]:
+        """Parse character_alias config into a normalized dict.
+
+        Accepts both a native dict (from JSON config) and a JSON string
+        (from the text editor), mirroring _parse_cookie_json().
+        """
+        cfg = self._player.get("character_alias")
+        if isinstance(cfg, dict):
+            return self._normalize_aliases(cfg)
+        if isinstance(cfg, str) and cfg.strip():
+            try:
+                parsed = json.loads(cfg)
+                if isinstance(parsed, dict):
+                    return self._normalize_aliases(parsed)
+            except json.JSONDecodeError:
+                logger.warning("NIKKE 角色别名 JSON 解析失败，已忽略。")
+        return {}
+
+    @staticmethod
+    def _normalize_aliases(raw: dict) -> dict[str, list[str]]:
+        result: dict[str, list[str]] = {}
+        for name, aliases in raw.items():
+            name_key = str(name).strip()
+            if not name_key:
+                continue
+            if isinstance(aliases, list):
+                result[name_key] = [str(a).strip() for a in aliases if str(a).strip()]
+            elif isinstance(aliases, str):
+                result[name_key] = [aliases.strip()] if aliases.strip() else []
+        return {k: v for k, v in result.items() if v}
 
     def player_remind_daily_mission_enabled(self) -> bool:
         return self._nested_bool(self._player, "daily_mission_enabled", True)

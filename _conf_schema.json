@@ -106,6 +106,14 @@
         "default": "21:00",
         "hint": "格式 HH:MM。若日常积分为 0，超过此时间后按每天一次提醒。"
       },
+      "character_alias": {
+        "description": "角色别名映射",
+        "type": "text",
+        "editor_mode": true,
+        "editor_language": "json",
+        "default": "{\n  \"Anis: Star\": [\"anis\", \"anis star\", \"star\"],\n  \"Anis: Sparkling Summer\": [\"anis ss\", \"summer anis\"],\n  \"Scarlet\": [\"scarlet\"],\n  \"Scarlet: Black Shadow\": [\"scarlet bs\"],\n  \"Red Hood\": [\"red hood\"],\n  \"Cinderella\": [\"cindy\"],\n  \"Grave\": [\"grave\"],\n  \"Dorothy\": [\"dorothy\"],\n  \"Rapi\": [\"rapi\"],\n  \"Rapi: Red Hood\": [\"rapi rh\"],\n  \"Neon\": [\"neon\"],\n  \"Marian\": [\"marian\"],\n  \"Modernia\": [\"modernia\"]\n}",
+        "hint": "格式: {\"英文全名\": [\"别名1\", \"别名2\"]}。英文全名需与 CDN 角色列表一致，别名用于 /nikke 命令的模糊匹配。"
+      },
       "alert_prefix": {
         "description": "玩家提醒消息前缀",
         "type": "string",
