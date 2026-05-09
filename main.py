@@ -73,10 +73,11 @@ class NikkeNewsPlugin(Star):
             },
         )
         self._character_map = CharacterMap(
-            data_dir, self._client, self._plugin_config.character_aliases()
+            _PLUGIN_DIR / "character_map.json",
+            self._plugin_config.character_aliases(),
         )
-        if not self._character_map.load_cache():
-            logger.info("NIKKE 角色映射缓存不存在，可通过 /nikke refresh 手动刷新。")
+        if not self._character_map.load():
+            logger.info("NIKKE 角色映射加载失败，请检查 character_map.json。")
 
         self._news_poller = NewsPoller(
             self._client,
@@ -230,7 +231,7 @@ class NikkeNewsPlugin(Star):
             return
 
         if not self._character_map or not self._character_map.is_loaded:
-            yield event.plain_result("角色数据尚未加载，请先使用 /nikke refresh 从 CDN 拉取角色列表。")
+            yield event.plain_result("角色数据尚未加载，请检查 character_map.json 是否存在，或配置 character_list_url 后执行 /nikke refresh。")
             return
 
         matches = self._character_map.lookup(text)
@@ -277,12 +278,26 @@ class NikkeNewsPlugin(Star):
 
     @filter.command("nikke_refresh")
     async def cmd_nikke_refresh(self, event: AstrMessageEvent):
-        """从 CDN 刷新 NIKKE 角色列表。"""
+        """刷新 NIKKE 角色列表。若配置了 character_list_url 则从 CDN 拉取，否则重载本地打包数据。"""
         if not self._character_map:
             yield event.plain_result("角色映射模块未初始化。")
             return
 
-        msg = await self._character_map.refresh_from_cdn()
+        url = self._plugin_config.character_list_url()
+        if url:
+            msg = await self._character_map.refresh(self._client, url)
+        else:
+            self._character_map.load()
+            count = (
+                len(self._character_map._name_to_code)
+                if self._character_map.is_loaded
+                else 0
+            )
+            msg = (
+                f"已重载本地角色列表，共 {count} 个角色。"
+                if count
+                else "本地角色列表加载失败，请检查 character_map.json。"
+            )
         yield event.plain_result(msg)
 
 
