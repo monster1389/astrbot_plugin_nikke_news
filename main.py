@@ -219,6 +219,11 @@ class NikkeNewsPlugin(Star):
             yield event.plain_result("请提供角色名，例如：/nikke anis")
             return
 
+        if text.strip().lower() == "refresh":
+            async for result in self.cmd_nikke_refresh(event):
+                yield result
+            return
+
         cookie = self._plugin_config.player_data_cookie()
         if not cookie:
             yield event.plain_result("未配置玩家 Cookie，无法查询角色数据。请先在插件配置中设置 player_reminder.cookie。")
