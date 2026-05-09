@@ -17,11 +17,11 @@ if str(_PLUGIN_DIR) not in sys.path:
     sys.path.insert(0, str(_PLUGIN_DIR))
 
 from character_map import CharacterMap
+from character_service import CharacterQueryError, CharacterService
 from config import PluginConfig
 from constants import PLUGIN_NAME, REQUEST_TIMEOUT_SECONDS
 from message_builder import MessageBuilder
 from news_poller import NewsPoller
-from player_client import PlayerClient
 from player_poller import PlayerPoller
 from state_store import PluginStateStore
 from targets import enabled_targets, parse_push_target
@@ -51,6 +51,7 @@ class NikkeNewsPlugin(Star):
         self._news_poller: NewsPoller | None = None
         self._player_poller: PlayerPoller | None = None
         self._character_map: CharacterMap | None = None
+        self._character_service: CharacterService | None = None
         self._task: asyncio.Task | None = None
         self._state_path: Path | None = None
         self._state: dict[str, Any] = PluginStateStore.default_state()
@@ -78,6 +79,10 @@ class NikkeNewsPlugin(Star):
         )
         if not self._character_map.load():
             logger.info("NIKKE 角色映射加载失败，请检查 character_map.json。")
+
+        self._character_service = CharacterService(
+            self._client, self._character_map, self._plugin_config
+        )
 
         self._news_poller = NewsPoller(
             self._client,
@@ -235,56 +240,11 @@ class NikkeNewsPlugin(Star):
                 yield result
             return
 
-        cookie = self._plugin_config.player_data_cookie()
-        if not cookie:
-            yield event.plain_result("未配置玩家 Cookie，无法查询角色数据。请先在插件配置中设置 player_reminder.cookie。")
-            return
-
-        if not self._character_map or not self._character_map.is_loaded:
-            yield event.plain_result("角色数据尚未加载，请检查 character_map.json 是否存在，或配置 character_list_url 后执行 /nikke refresh。")
-            return
-
-        matches = self._character_map.lookup(text)
-        if not matches:
-            yield event.plain_result(f"未找到角色「{text}」，请检查名称是否正确。")
-            return
-
-        if len(matches) > 1:
-            names = "、".join(f"「{n}」" for _, n in matches[:10])
-            hint = "\n请提供更精确的名称。" if len(matches) > 10 else ""
-            yield event.plain_result(f"找到 {len(matches)} 个匹配：\n{names}{hint}")
-            return
-
-        name_code, en_name = matches[0]
-        area_id = self._plugin_config.player_data_area_id()
-        client = PlayerClient(self._client)
-
         try:
-            characters = await client.fetch_characters(cookie, area_id)
-        except Exception as exc:
-            logger.warning(f"NIKKE 角色列表查询失败：{exc}")
-            yield event.plain_result(f"角色列表查询失败：{exc}")
-            return
-
-        char_info = next((c for c in characters if c.get("name_code") == name_code), None)
-        if not char_info:
-            yield event.plain_result(f"未在账号中找到角色「{en_name}」。")
-            return
-
-        try:
-            details, effects = await client.fetch_character_details(cookie, area_id, [name_code])
-        except Exception as exc:
-            logger.warning(f"NIKKE 角色详情查询失败：{exc}")
-            yield event.plain_result(f"角色详情查询失败：{exc}")
-            return
-
-        if not details:
-            yield event.plain_result(f"角色详情数据为空。")
-            return
-
-        name_map = {"en": en_name}
-        result = MessageBuilder.format_character_stats(char_info, details[0], name_map, effects)
-        yield event.plain_result(result)
+            result = await self._character_service.query(text)
+            yield event.plain_result(result)
+        except CharacterQueryError as exc:
+            yield event.plain_result(exc.message)
 
     @filter.command("nikke_refresh")
     async def cmd_nikke_refresh(self, event: AstrMessageEvent):
