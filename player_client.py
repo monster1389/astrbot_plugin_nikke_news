@@ -10,12 +10,16 @@ class PlayerClient:
     def __init__(self, client: httpx.AsyncClient | None):
         self._client = client
 
-    async def fetch_progress(self, cookie: str) -> dict[str, Any]:
+    async def fetch_progress(self, cookie: str, area_id: int = 84) -> dict[str, Any]:
         if not self._client:
             raise RuntimeError("http client not ready")
 
         headers = {"Cookie": cookie} if cookie else {}
-        resp = await self._client.post(PLAYER_PROGRESS_URL, headers=headers, json={})
+        resp = await self._client.post(
+            PLAYER_PROGRESS_URL,
+            headers=headers,
+            json={"nikke_area_id": area_id},
+        )
         resp.raise_for_status()
         data = resp.json()
 
