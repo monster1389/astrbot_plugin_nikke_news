@@ -216,6 +216,16 @@ class NikkeNewsPlugin(Star):
     @filter.command("nikke")
     async def cmd_nikke(self, event: AstrMessageEvent, text: str = ""):
         """查询 NIKKE 角色数据。用法: /nikke <角色名>"""
+        # AstrBot splits command args by spaces and maps one word per
+        # parameter, so multi-word queries like "rapi rh" get truncated
+        # to just "rapi" in `text`. Recover the full query from the raw
+        # message (wake prefix already stripped, e.g. "nikke rapi rh").
+        msg = event.message_str.strip()
+        for prefix in ("/nikke ", "nikke "):
+            if msg.startswith(prefix):
+                text = msg[len(prefix):]
+                break
+
         if not text or not text.strip():
             yield event.plain_result("请提供角色名，例如：/nikke anis")
             return
