@@ -97,9 +97,10 @@ class MessageBuilder:
         skill1 = str(safe_int(char_detail.get("skill1_lv", char_detail.get("s1_lv", "?"))))
         skill2 = str(safe_int(char_detail.get("skill2_lv", char_detail.get("s2_lv", "?"))))
         burst = str(safe_int(
+            char_detail.get("ulti_skill_lv",
             char_detail.get("burst_skill_lv",
             char_detail.get("skill3_lv",
-            char_detail.get("s3_lv", "?")))
+            char_detail.get("s3_lv", "?"))))
         ))
         skills = f"{skill1}/{skill2}/{burst}"
 
