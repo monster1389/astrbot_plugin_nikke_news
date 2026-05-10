@@ -16,7 +16,6 @@ _PLUGIN_DIR = Path(__file__).resolve().parent
 if str(_PLUGIN_DIR) not in sys.path:
     sys.path.insert(0, str(_PLUGIN_DIR))
 
-from character_map import CharacterMap
 from character_service import CharacterQueryError, CharacterService
 from config import PluginConfig
 from constants import PLUGIN_NAME, REQUEST_TIMEOUT_SECONDS
@@ -51,7 +50,6 @@ class NikkeNewsPlugin(Star):
         self._client: httpx.AsyncClient | None = None
         self._news_poller: NewsPoller | None = None
         self._player_poller: PlayerPoller | None = None
-        self._character_map: CharacterMap | None = None
         self._character_service: CharacterService | None = None
         self._mapping_cache: PlayerMappingCache | None = None
         self._task: asyncio.Task | None = None
@@ -77,18 +75,13 @@ class NikkeNewsPlugin(Star):
                 ),
             },
         )
-        self._character_map = CharacterMap(
-            _PLUGIN_DIR / "character_map.json",
-            self._plugin_config.character_aliases(),
-        )
-        if not self._character_map.load():
-            logger.info("NIKKE 角色映射加载失败，请检查 character_map.json。")
-
         self._character_service = CharacterService(
-            self._client, self._character_map, self._plugin_config, self._mapping_cache
+            self._client, self._plugin_config, self._mapping_cache
         )
         if self._mapping_cache.characters:
-            self._character_map.update(self._mapping_cache.characters)
+            self._character_service.update_characters(self._mapping_cache.characters)
+        else:
+            logger.info("NIKKE 角色映射为空，请执行 /nikke refresh 刷新角色列表。")
 
         self._news_poller = NewsPoller(
             self._client,
@@ -264,26 +257,36 @@ class NikkeNewsPlugin(Star):
 
     @filter.command("nikke_refresh")
     async def cmd_nikke_refresh(self, event: AstrMessageEvent):
-        """刷新 NIKKE 角色列表。若配置了 character_list_url 则从 CDN 拉取，否则重载本地打包数据。"""
-        if not self._character_map:
-            yield event.plain_result("角色映射模块未初始化。")
+        """刷新 NIKKE 角色列表。若配置了 character_list_url 则从 CDN 拉取，否则重载本地缓存数据。"""
+        if not self._character_service:
+            yield event.plain_result("角色服务模块未初始化。")
             return
 
         messages: list[str] = []
         url = self._plugin_config.character_list_url()
         if url:
-            messages.append(await self._character_map.refresh(self._client, url))
+            msg, chars = await self._character_service.refresh_from_url(url)
+            messages.append(msg)
+            if chars and self._mapping_cache:
+                self._mapping_cache.save(
+                    language=self._plugin_config.player_mapping_language(),
+                    characters=chars,
+                    state_effect_options=self._mapping_cache.state_effect_options,
+                    sources={},
+                )
         else:
-            self._character_map.load()
+            self._mapping_cache.load()
+            if self._mapping_cache.characters:
+                self._character_service.update_characters(self._mapping_cache.characters)
             count = (
-                self._character_map.count()
-                if self._character_map.is_loaded
+                self._character_service.count()
+                if self._character_service.is_loaded
                 else 0
             )
             messages.append(
                 f"已重载本地角色列表，共 {count} 个角色。"
                 if count
-                else "本地角色列表加载失败，请检查 character_map.json。"
+                else "本地角色列表加载失败，请执行 /nikke refresh 刷新。"
             )
 
         if self._character_service:

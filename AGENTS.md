@@ -76,7 +76,7 @@ Legacy format (`targets`, dictionary-style with `target_type`/`target_id`/`enabl
 
 - Player progress reminders use `PlayerPoller` and `PlayerClient.fetch_progress()`.
 - Character lookup uses `CharacterService.query()`:
-  - resolve user input through `CharacterMap`;
+  - resolve user input through `CharacterService` lookup;
   - call `Game/GetUserCharacters`;
   - call `Game/GetUserCharacterDetails`;
   - format output with `MessageBuilder.format_character_stats()`.
@@ -122,7 +122,7 @@ QQ command /nikke <name>
       ▼
   CharacterService.query()
       │
-      ├─ CharacterMap + PlayerMappingCache → name_code
+      ├─ CharacterService.lookup() + PlayerMappingCache → name_code
       ├─ PlayerClient.fetch_characters()
       ├─ PlayerClient.fetch_character_details()
       ▼
@@ -149,7 +149,7 @@ Mapping refresh:
       ├─ character name → name_code
       └─ state_effect_id → option metadata
       ▼
-  player_mappings.json + character_map.json
+  player_mappings.json
 ```
 
 ## Development commands

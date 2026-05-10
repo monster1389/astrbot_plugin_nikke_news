@@ -3,7 +3,6 @@ from typing import Any
 import httpx
 from astrbot.api import logger
 
-from character_map import CharacterMap
 from config import PluginConfig
 from message_builder import MessageBuilder
 from player_mapping_cache import PlayerMappingCache
@@ -20,14 +19,87 @@ class CharacterService:
     def __init__(
         self,
         client: httpx.AsyncClient,
-        character_map: CharacterMap,
         config: PluginConfig,
         mapping_cache: PlayerMappingCache | None = None,
     ):
         self._client = client
-        self._character_map = character_map
         self._config = config
         self._mapping_cache = mapping_cache
+        self._name_to_code: dict[str, int] = {}
+        self._aliases: dict[str, list[str]] = config.character_aliases()
+
+    @property
+    def is_loaded(self) -> bool:
+        return len(self._name_to_code) > 0
+
+    def update_characters(self, names: dict[str, int]) -> None:
+        for name, code in names.items():
+            if name:
+                self._name_to_code[str(name)] = int(code)
+
+    def count(self) -> int:
+        return len(self._name_to_code)
+
+    def snapshot(self) -> dict[str, int]:
+        return dict(self._name_to_code)
+
+    def _build_alias_map(self) -> dict[str, str]:
+        result: dict[str, str] = {}
+        for en_name, alias_list in self._aliases.items():
+            for alias in alias_list:
+                key = alias.strip().lower()
+                if key and key not in result:
+                    result[key] = en_name
+        return result
+
+    def lookup(self, query: str) -> list[tuple[int, str]]:
+        if not query or not query.strip():
+            return []
+
+        q = query.strip().lower()
+        alias_map = self._build_alias_map()
+
+        alias_name = alias_map.get(q)
+        if alias_name and alias_name in self._name_to_code:
+            return [(self._name_to_code[alias_name], alias_name)]
+
+        for name, code in self._name_to_code.items():
+            if name.lower() == q:
+                return [(code, name)]
+
+        results: list[tuple[int, str]] = []
+        for name, code in self._name_to_code.items():
+            if q in name.lower():
+                results.append((code, name))
+
+        return results
+
+    async def refresh_from_url(self, url: str) -> tuple[str, dict[str, int]]:
+        logger.info(f"NIKKE 正在从 URL 拉取角色列表：{url}")
+        try:
+            resp = await self._client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as exc:
+            msg = f"角色列表下载失败：{exc}"
+            logger.warning(msg)
+            return msg, {}
+
+        if not isinstance(data, list):
+            msg = "角色列表格式异常，请检查 URL 是否指向正确的 JSON。"
+            logger.warning(msg)
+            return msg, {}
+
+        self._name_to_code.clear()
+        for item in data:
+            name = (item.get("name_localkey") or {}).get("name", "")
+            code = item.get("name_code")
+            if name and isinstance(code, int):
+                self._name_to_code[name] = code
+
+        msg = f"角色列表已刷新，共 {len(self._name_to_code)} 个角色。"
+        logger.info(f"NIKKE {msg}")
+        return msg, self.snapshot()
 
     async def refresh_mappings(self) -> str:
         if not self._mapping_cache:
@@ -43,11 +115,10 @@ class CharacterService:
             return str(exc)
 
         if characters:
-            self._character_map.update(characters)
-            self._character_map.save()
+            self.update_characters(characters)
         self._mapping_cache.save(
             language=language,
-            characters=characters or self._character_map.snapshot(),
+            characters=characters or self.snapshot(),
             state_effect_options=options,
             sources=sources,
         )
@@ -64,13 +135,12 @@ class CharacterService:
 
         await self._ensure_mapping_cache()
 
-        if not self._character_map.is_loaded:
+        if not self.is_loaded:
             raise CharacterQueryError(
-                "角色数据尚未加载，请检查 character_map.json 是否存在，"
-                "或配置 character_list_url 后执行 /nikke refresh。"
+                "角色数据尚未加载，请执行 /nikke refresh 刷新角色列表。"
             )
 
-        matches = self._character_map.lookup(name)
+        matches = self.lookup(name)
         if not matches:
             raise CharacterQueryError(f"未找到角色「{name}」，请检查名称是否正确。")
 
@@ -130,7 +200,7 @@ class CharacterService:
         language = self._config.player_mapping_language()
         self._mapping_cache.load()
         if self._mapping_cache.characters:
-            self._character_map.update(self._mapping_cache.characters)
+            self.update_characters(self._mapping_cache.characters)
 
         should_refresh = (
             self._config.player_auto_refresh_mapping()

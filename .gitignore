@@ -211,3 +211,6 @@ __marimo__/
 
 
 .tmp*/
+
+# Plugin runtime data files
+character_map.json
