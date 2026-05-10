@@ -18,7 +18,7 @@
         "description": "消息语言",
         "type": "string",
         "default": "zh-TW",
-        "options": ["zh-TW", "en", "ja", "ko", "zh"]
+        "options": ["zh-TW", "en", "ja", "ko"]
       },
       "fetch_limit": {
         "description": "每次拉取的消息数量",
@@ -107,17 +107,11 @@
         "default": "{\n  \"Anis: Star\": [\"anis\", \"anis star\", \"star\"],\n  \"Anis: Sparkling Summer\": [\"anis ss\", \"summer anis\"],\n  \"Scarlet\": [\"scarlet\"],\n  \"Scarlet: Black Shadow\": [\"scarlet bs\"],\n  \"Red Hood\": [\"red hood\"],\n  \"Cinderella\": [\"cindy\"],\n  \"Grave\": [\"grave\"],\n  \"Dorothy\": [\"dorothy\"],\n  \"Rapi\": [\"rapi\"],\n  \"Rapi: Red Hood\": [\"rapi rh\"],\n  \"Neon\": [\"neon\"],\n  \"Marian\": [\"marian\"],\n  \"Modernia\": [\"modernia\"]\n}",
         "hint": "格式: {\"英文全名\": [\"别名1\", \"别名2\"]}。英文全名需与 CDN 角色列表一致，别名用于 /nikke 命令的模糊匹配。"
       },
-      "character_list_url": {
-        "description": "角色列表 CDN URL",
-        "type": "string",
-        "default": "",
-        "hint": "留空则 /nikke refresh 只重载本地打包数据。填入完整 URL 后可从 CDN 拉取最新角色列表并更新本地文件。"
-      },
-      "mapping_language": {
+"mapping_language": {
         "description": "玩家查询映射语言",
         "type": "string",
         "default": "en",
-        "options": ["en", "zh", "zh-TW", "ja", "ko"],
+        "options": ["en", "zh-TW", "ja", "ko"],
         "hint": "角色名和装备词条映射语言，默认英文。"
       },
       "mapping_cache_ttl_hours": {
