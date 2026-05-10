@@ -56,17 +56,17 @@ def test_poll_interval_normal():
 # ---------------------------------------------------------------------------
 def test_fetch_limit_default():
     plugin = make_plugin()
-    assert plugin._fetch_limit() == 10
+    assert plugin._plugin_config.fetch_limit() == 10
 
 
 def test_fetch_limit_clamped_min():
     plugin = make_plugin(fetch_limit=0)
-    assert plugin._fetch_limit() == 1
+    assert plugin._plugin_config.fetch_limit() == 1
 
 
 def test_fetch_limit_clamped_max():
     plugin = make_plugin(fetch_limit=100)
-    assert plugin._fetch_limit() == 50
+    assert plugin._plugin_config.fetch_limit() == 50
 
 
 # ---------------------------------------------------------------------------
@@ -74,25 +74,25 @@ def test_fetch_limit_clamped_max():
 # ---------------------------------------------------------------------------
 def test_language_default():
     plugin = make_plugin()
-    assert plugin._language() == "zh-TW"
+    assert plugin._plugin_config.language() == "zh-TW"
 
 
 def test_language_valid():
     for lang in ["zh-TW", "en", "ja", "ko", "zh"]:
         plugin = make_plugin(language=lang)
-        assert plugin._language() == lang
+        assert plugin._plugin_config.language() == lang
 
 
 def test_language_invalid(caplog):
     caplog.set_level(logging.WARNING)
     plugin = make_plugin(language="fr")
-    assert plugin._language() == "zh-TW"
+    assert plugin._plugin_config.language() == "zh-TW"
     assert "语言配置无效" in caplog.text
 
 
 def test_language_empty():
     plugin = make_plugin(language="")
-    assert plugin._language() == "zh-TW"
+    assert plugin._plugin_config.language() == "zh-TW"
 
 
 # ---------------------------------------------------------------------------
@@ -100,17 +100,17 @@ def test_language_empty():
 # ---------------------------------------------------------------------------
 def test_push_delay_default():
     plugin = make_plugin()
-    assert plugin._push_delay_seconds() == 2
+    assert plugin._plugin_config.push_delay_seconds() == 2
 
 
 def test_push_delay_clamped_max():
     plugin = make_plugin(push_delay_seconds=60)
-    assert plugin._push_delay_seconds() == 30
+    assert plugin._plugin_config.push_delay_seconds() == 30
 
 
 def test_push_delay_clamped_min():
     plugin = make_plugin(push_delay_seconds=-5)
-    assert plugin._push_delay_seconds() == 0
+    assert plugin._plugin_config.push_delay_seconds() == 0
 
 
 # ---------------------------------------------------------------------------
@@ -143,16 +143,16 @@ def test_config_bool_missing():
 # ---------------------------------------------------------------------------
 def test_config_int_valid():
     plugin = make_plugin(test_key=42)
-    assert plugin._config_int("test_key", 10) == 42
+    assert plugin._plugin_config.config_int("test_key", 10) == 42
 
 
 def test_config_int_invalid(caplog):
     caplog.set_level(logging.WARNING)
     plugin = make_plugin(test_key="abc")
-    assert plugin._config_int("test_key", 10) == 10
+    assert plugin._plugin_config.config_int("test_key", 10) == 10
     assert "配置 test_key 非法" in caplog.text
 
 
 def test_config_int_missing():
     plugin = make_plugin()
-    assert plugin._config_int("missing", 99) == 99
+    assert plugin._plugin_config.config_int("missing", 99) == 99

@@ -1,9 +1,15 @@
-﻿import json
+import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from main import NikkeNewsPlugin
+from player_poller import PlayerPoller
+
+
+def _poll(plugin):
+    poller = PlayerPoller(plugin._client, plugin._plugin_config, plugin._state, plugin._save_state)
+    return poller.poll()
 
 
 def make_plugin(**config) -> NikkeNewsPlugin:
@@ -63,7 +69,7 @@ async def test_player_data_disabled_does_not_call_api():
     plugin._client = MagicMock()
     plugin._client.post = AsyncMock()
 
-    await plugin._poll_player_once()
+    await _poll(plugin)
 
     plugin._client.post.assert_not_called()
 
@@ -73,7 +79,7 @@ async def test_player_alerts_trigger_and_dedupe_same_day(captured):
     plugin = make_plugin()
     _mock_player_client(plugin)
 
-    await plugin._poll_player_once()
+    await _poll(plugin)
     first_count = len(captured)
     assert first_count == 1
     assert "超过阈值" in captured[0]["content"]
@@ -84,10 +90,10 @@ async def test_player_alerts_trigger_and_dedupe_same_day(captured):
 async def test_outpost_threshold_zero_disables_alert(captured):
     plugin = make_plugin(outpost_fullness_threshold_percent=0, daily_mission_enabled=False)
     _mock_player_client(plugin, payload={"outpost_battle_storage_fullness": 0.99, "daily_mission_received_points": 1})
-    await plugin._poll_player_once()
+    await _poll(plugin)
     assert len(captured) == 0
 
-    await plugin._poll_player_once()
+    await _poll(plugin)
     assert len(captured) == 0
 
 
@@ -96,7 +102,7 @@ async def test_player_api_error_does_not_raise():
     plugin = make_plugin()
     _mock_player_client(plugin, code=1234)
 
-    await plugin._poll_player_once()
+    await _poll(plugin)
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,6 @@
 import asyncio
 import sys
 from contextlib import suppress
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -19,21 +18,10 @@ if str(_PLUGIN_DIR) not in sys.path:
 from character_service import CharacterQueryError, CharacterService
 from config import PluginConfig
 from constants import PLUGIN_NAME, REQUEST_TIMEOUT_SECONDS
-from message_builder import MessageBuilder
 from news_poller import NewsPoller
 from player_mapping_cache import PlayerMappingCache
 from player_poller import PlayerPoller
 from state_store import PluginStateStore
-from targets import enabled_targets, parse_push_target
-from time_utils import day_key, is_cookie_invalid_error
-from utils import (
-    clean_html_with_linebreaks,
-    clean_text,
-    format_timestamp,
-    is_video_post,
-    safe_float,
-    safe_int,
-)
 
 
 @register(
@@ -135,20 +123,6 @@ class NikkeNewsPlugin(Star):
         except Exception as exc:
             logger.warning(f"NIKKE 玩家数据轮询异常，将在下次重试：{exc}")
 
-    async def _poll_player_once(self):
-        if not self._player_poller:
-            self._player_poller = PlayerPoller(
-                self._client,
-                self._plugin_config,
-                self._state,
-                self._save_state,
-            )
-        await self._player_poller.poll()
-
-    # Compatibility wrapper for existing tests
-    def _format_post_message(self, post: dict[str, Any]) -> str:
-        return MessageBuilder(self._plugin_config).format_post_message(post)
-
     def _load_state(self) -> dict[str, Any]:
         return PluginStateStore(self._state_path).load()
 
@@ -158,74 +132,11 @@ class NikkeNewsPlugin(Star):
     def _mark_seen(self, post_uuids: list[str]):
         PluginStateStore.mark_seen(self._state, post_uuids)
 
-    def _enabled_targets(self) -> list[dict[str, str]]:
-        return enabled_targets(self._plugin_config.news_config())
-
-    @staticmethod
-    def _parse_push_target(value: str) -> dict[str, str] | None:
-        return parse_push_target(value)
-
     def _poll_interval_seconds(self) -> int:
         return self._plugin_config.poll_interval_seconds()
 
-    def _fetch_limit(self) -> int:
-        return self._plugin_config.fetch_limit()
-
-    def _language(self) -> str:
-        return self._plugin_config.language()
-
     def _config_bool(self, key: str, default: bool) -> bool:
         return self._plugin_config.config_bool(key, default)
-
-    def _config_int(self, key: str, default: int) -> int:
-        return self._plugin_config.config_int(key, default)
-
-    def _push_delay_seconds(self) -> int:
-        return self._plugin_config.push_delay_seconds()
-
-    def _push_prefix(self) -> str:
-        return self._plugin_config.push_prefix()
-
-    def _content_mode(self) -> str:
-        return self._plugin_config.content_mode()
-
-    def _max_images(self) -> int:
-        return self._plugin_config.max_images()
-
-    def _show_publish_time(self) -> bool:
-        return self._plugin_config.show_publish_time()
-
-    @staticmethod
-    def _is_video_post(post: dict[str, Any]) -> bool:
-        return is_video_post(post)
-
-    @staticmethod
-    def _clean_text(value: Any) -> str:
-        return clean_text(value)
-
-    @staticmethod
-    def _clean_html_with_linebreaks(value: Any) -> str:
-        return clean_html_with_linebreaks(value)
-
-    @staticmethod
-    def _safe_int(value: Any) -> int:
-        return safe_int(value)
-
-    @staticmethod
-    def _safe_float(value: Any) -> float:
-        return safe_float(value)
-
-    @classmethod
-    def _format_timestamp(cls, value: Any) -> str:
-        return format_timestamp(value)
-
-    @staticmethod
-    def _is_cookie_invalid_error(exc: Exception) -> bool:
-        return is_cookie_invalid_error(exc)
-
-    @staticmethod
-    def _day_key(now: datetime) -> str:
-        return day_key(now)
 
     @filter.command("nikke")
     async def cmd_nikke(self, event: AstrMessageEvent, text: str = ""):

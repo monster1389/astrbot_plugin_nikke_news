@@ -3,6 +3,7 @@ import logging
 import pytest
 
 from main import NikkeNewsPlugin
+from targets import enabled_targets, parse_push_target
 
 
 def make_plugin(**config) -> NikkeNewsPlugin:
@@ -21,7 +22,7 @@ def make_plugin(**config) -> NikkeNewsPlugin:
 
 
 # ---------------------------------------------------------------------------
-# _parse_push_target
+# parse_push_target
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "value, expected",
@@ -46,36 +47,36 @@ def make_plugin(**config) -> NikkeNewsPlugin:
     ],
 )
 def test_parse_push_target(value, expected):
-    result = NikkeNewsPlugin._parse_push_target(value)
+    result = parse_push_target(value)
     assert result == expected
 
 
 # ---------------------------------------------------------------------------
-# _enabled_targets – new format
+# enabled_targets – new format
 # ---------------------------------------------------------------------------
 def test_enabled_targets_new_format():
     plugin = make_plugin(
         scheduled_push_groups=["111", "222", "napcat:FriendMessage:333"]
     )
-    targets = plugin._enabled_targets()
+    targets = enabled_targets(plugin._plugin_config.news_config())
     assert len(targets) == 3
     assert targets[0] == {"target_type": "GroupMessage", "target_id": "111"}
     assert targets[2] == {"target_type": "FriendMessage", "target_id": "333"}
 
 
 # ---------------------------------------------------------------------------
-# _enabled_targets – invalid entries skipped
+# enabled_targets – invalid entries skipped
 # ---------------------------------------------------------------------------
 def test_enabled_targets_skips_invalid(caplog):
     caplog.set_level(logging.WARNING)
     plugin = make_plugin(scheduled_push_groups=["111", "badformat", ""])
-    targets = plugin._enabled_targets()
+    targets = enabled_targets(plugin._plugin_config.news_config())
     assert len(targets) == 1
     assert "跳过无效推送目标" in caplog.text
 
 
 # ---------------------------------------------------------------------------
-# _enabled_targets – legacy format fallback
+# enabled_targets – legacy format fallback
 # ---------------------------------------------------------------------------
 def test_enabled_targets_legacy():
     plugin = make_plugin(
@@ -85,12 +86,12 @@ def test_enabled_targets_legacy():
             {"target_type": "PrivateMessage", "target_id": "222", "enabled": True},
         ],
     )
-    targets = plugin._enabled_targets()
+    targets = enabled_targets(plugin._plugin_config.news_config())
     assert len(targets) == 2
 
 
 # ---------------------------------------------------------------------------
-# _enabled_targets – legacy disabled skipped
+# enabled_targets – legacy disabled skipped
 # ---------------------------------------------------------------------------
 def test_enabled_targets_legacy_disabled():
     plugin = make_plugin(
@@ -99,5 +100,5 @@ def test_enabled_targets_legacy_disabled():
             {"target_type": "GroupMessage", "target_id": "111", "enabled": False},
         ],
     )
-    targets = plugin._enabled_targets()
+    targets = enabled_targets(plugin._plugin_config.news_config())
     assert len(targets) == 0

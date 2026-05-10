@@ -6,7 +6,7 @@ import astrbot.api.message_components as Comp
 
 from config import PluginConfig
 from constants import CST, POST_DETAIL_URL, SUMMARY_MAX_LENGTH
-from utils import clean_html_with_linebreaks, clean_text, format_timestamp, is_video_post
+from utils import clean_html_with_linebreaks, clean_text, format_timestamp, is_video_post, safe_float, safe_int
 
 
 class MessageBuilder:
@@ -94,19 +94,19 @@ class MessageBuilder:
 
         combat = char_info.get("combat", "?")
 
-        skill1 = str(_safe_int(char_detail.get("skill1_lv", char_detail.get("s1_lv", "?"))))
-        skill2 = str(_safe_int(char_detail.get("skill2_lv", char_detail.get("s2_lv", "?"))))
-        burst = str(_safe_int(
+        skill1 = str(safe_int(char_detail.get("skill1_lv", char_detail.get("s1_lv", "?"))))
+        skill2 = str(safe_int(char_detail.get("skill2_lv", char_detail.get("s2_lv", "?"))))
+        burst = str(safe_int(
             char_detail.get("burst_skill_lv",
             char_detail.get("skill3_lv",
             char_detail.get("s3_lv", "?")))
         ))
         skills = f"{skill1}/{skill2}/{burst}"
 
-        head_lv = _safe_int(char_detail.get("head_equip_lv", 0))
-        arm_lv = _safe_int(char_detail.get("arm_equip_lv", 0))
-        torso_lv = _safe_int(char_detail.get("torso_equip_lv", 0))
-        leg_lv = _safe_int(char_detail.get("leg_equip_lv", 0))
+        head_lv = safe_int(char_detail.get("head_equip_lv", 0))
+        arm_lv = safe_int(char_detail.get("arm_equip_lv", 0))
+        torso_lv = safe_int(char_detail.get("torso_equip_lv", 0))
+        leg_lv = safe_int(char_detail.get("leg_equip_lv", 0))
         equips = f"{head_lv}/{arm_lv}/{torso_lv}/{leg_lv}"
 
         option_lines = _extract_equip_options(
@@ -118,12 +118,6 @@ class MessageBuilder:
 
         return "\n".join(lines)
 
-
-def _safe_int(value: Any) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return 0
 
 
 def _extract_equip_options(
@@ -170,21 +164,21 @@ def _extract_equip_options(
                 raw_value = detail.get(
                     "function_value", se.get("function_value", detail.get("value", 0))
                 )
-                value = _safe_float(raw_value)
+                value = safe_float(raw_value)
                 if not text:
                     continue
                 if function_type in entries:
                     entries[function_type]["value"] += abs(value)
                     entries[function_type]["level"] = max(
                         entries[function_type]["level"],
-                        _safe_int(detail.get("level", 0)),
+                        safe_int(detail.get("level", 0)),
                     )
                     continue
                 entries[function_type] = {
                     "text": text,
                     "value": abs(value),
-                    "level": _safe_int(detail.get("level", 0)),
-                    "group_id": _safe_int(detail.get("group_id", meta.get("group_id", 0))),
+                    "level": safe_int(detail.get("level", 0)),
+                    "group_id": safe_int(detail.get("group_id", meta.get("group_id", 0))),
                     "function_type": function_type,
                 }
 
@@ -204,12 +198,6 @@ def _extract_equip_options(
 
     return lines
 
-
-def _safe_float(value: Any) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return 0.0
 
 
 def _option_description(

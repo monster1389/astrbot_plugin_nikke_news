@@ -5,7 +5,7 @@ from astrbot.api import AstrBotConfig, logger
 
 from constants import CONTENT_MODES, SUPPORTED_LANGUAGES
 
-PLAYER_MAPPING_LANGUAGES = {"en", "zh", "zh-TW", "ja", "ko"}
+_PLAYER_MAPPING_LANGUAGES = {"en", "zh", "zh-TW", "ja", "ko"}
 
 
 class PluginConfig:
@@ -134,7 +134,7 @@ class PluginConfig:
 
     def player_mapping_language(self) -> str:
         language = str(self._player.get("mapping_language", "en") or "en").strip()
-        if language not in PLAYER_MAPPING_LANGUAGES:
+        if language not in _PLAYER_MAPPING_LANGUAGES:
             logger.warning(f"NIKKE 玩家映射语言配置无效，已使用 en：{language}")
             return "en"
         return language

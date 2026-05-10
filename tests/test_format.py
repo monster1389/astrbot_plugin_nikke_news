@@ -1,54 +1,56 @@
 from main import NikkeNewsPlugin
+from message_builder import MessageBuilder
+from utils import clean_html_with_linebreaks, clean_text, format_timestamp, safe_int
 
 PLUGIN = NikkeNewsPlugin(context=None, config={})
 
 
 # ---------------------------------------------------------------------------
-# _clean_text – HTML stripped
+# clean_text – HTML stripped
 # ---------------------------------------------------------------------------
 def test_clean_text_strips_html():
     raw = '1. Follow <span>@NIKKE_en</span> on <a href="https://x.com">X</a>!'
-    result = PLUGIN._clean_text(raw)
+    result = clean_text(raw)
     assert "<span>" not in result
     assert "<a" not in result
     assert "Follow @NIKKE_en on X!" in result
 
 
 # ---------------------------------------------------------------------------
-# _clean_text – HTML entities unescaped
+# clean_text – HTML entities unescaped
 # ---------------------------------------------------------------------------
 def test_clean_text_unescapes():
     raw = "Hello &amp; welcome &lt;3"
-    result = PLUGIN._clean_text(raw)
+    result = clean_text(raw)
     assert "Hello & welcome <3" in result
 
 
 # ---------------------------------------------------------------------------
-# _clean_text – whitespace collapsed
+# clean_text – whitespace collapsed
 # ---------------------------------------------------------------------------
 def test_clean_text_collapse_whitespace():
     raw = "Hello    world\n\nnew  line"
-    result = PLUGIN._clean_text(raw)
+    result = clean_text(raw)
     assert result == "Hello world new line"
 
 
 # ---------------------------------------------------------------------------
-# _clean_text – None/empty
+# clean_text – None/empty
 # ---------------------------------------------------------------------------
 def test_clean_text_none():
-    assert PLUGIN._clean_text(None) == ""
-    assert PLUGIN._clean_text("") == ""
+    assert clean_text(None) == ""
+    assert clean_text("") == ""
 
 
 # ---------------------------------------------------------------------------
-# _clean_html_with_linebreaks – block tags preserved
+# clean_html_with_linebreaks – block tags preserved
 # ---------------------------------------------------------------------------
 def test_clean_html_with_linebreaks():
     raw = (
         "<div>Line one</div><div>Line <b>two</b><br>Line three</div>"
         '<div><img src="https://example.com/a.png">After image</div>'
     )
-    result = PLUGIN._clean_html_with_linebreaks(raw)
+    result = clean_html_with_linebreaks(raw)
     assert result == "Line one\nLine two\nLine three\nAfter image"
 
 
@@ -63,7 +65,7 @@ def test_format_post_full():
         "content_summary": "This is a summary.",
         "created_on": 1712345678,
     }
-    msg = plugin._format_post_message(post)
+    msg = MessageBuilder(plugin._plugin_config).format_post_message(post)
     assert msg.startswith("My Title")
     assert "This is a summary." in msg
     assert "发布时间：" in msg
@@ -82,7 +84,7 @@ def test_format_post_no_summary():
         "content_summary": "",
         "created_on": 0,
     }
-    msg = plugin._format_post_message(post)
+    msg = MessageBuilder(plugin._plugin_config).format_post_message(post)
     assert "Title Only" in msg
     assert "发布时间：未知" in msg
     assert "链接：" in msg
@@ -100,7 +102,7 @@ def test_format_post_summary_truncated():
         "content_summary": long_summary,
         "created_on": 1,
     }
-    msg = plugin._format_post_message(post)
+    msg = MessageBuilder(plugin._plugin_config).format_post_message(post)
     assert len(msg) < len(long_summary) + 200
     assert "..." in msg
 
@@ -117,7 +119,7 @@ def test_format_post_content_mode_none():
         "content": "<div>Body</div>",
         "created_on": 1,
     }
-    msg = plugin._format_post_message(post)
+    msg = MessageBuilder(plugin._plugin_config).format_post_message(post)
     assert "Title" in msg
     assert "Summary" not in msg
     assert "Body" not in msg
@@ -136,7 +138,7 @@ def test_format_post_content_mode_body_preserves_linebreaks():
         "content": "<div>First paragraph</div><div>Second<br>line</div>",
         "created_on": 1,
     }
-    msg = plugin._format_post_message(post)
+    msg = MessageBuilder(plugin._plugin_config).format_post_message(post)
     assert "Summary" not in msg
     assert "First paragraph\nSecond\nline" in msg
 
@@ -152,7 +154,7 @@ def test_format_post_hide_publish_time():
         "content_summary": "Summary",
         "created_on": 1,
     }
-    msg = plugin._format_post_message(post)
+    msg = MessageBuilder(plugin._plugin_config).format_post_message(post)
     assert "发布时间：" not in msg
     assert "链接：" in msg
 
@@ -168,7 +170,7 @@ def test_format_post_with_prefix():
         "content_summary": "Summary",
         "created_on": 1,
     }
-    msg = plugin._format_post_message(post)
+    msg = MessageBuilder(plugin._plugin_config).format_post_message(post)
     assert msg.startswith("【PREFIX】")
 
 
@@ -183,7 +185,7 @@ def test_format_post_html_title_cleaned():
         "content_summary": "<i>Italic</i> summary",
         "created_on": 1,
     }
-    msg = plugin._format_post_message(post)
+    msg = MessageBuilder(plugin._plugin_config).format_post_message(post)
     assert "<b>" not in msg
     assert "<i>" not in msg
     assert "Bold Title" in msg
@@ -191,23 +193,23 @@ def test_format_post_html_title_cleaned():
 
 
 # ---------------------------------------------------------------------------
-# _safe_int
+# safe_int
 # ---------------------------------------------------------------------------
 def test_safe_int():
-    assert PLUGIN._safe_int("123") == 123
-    assert PLUGIN._safe_int(None) == 0
-    assert PLUGIN._safe_int("abc") == 0
-    assert PLUGIN._safe_int(0) == 0
-    assert PLUGIN._safe_int(-5) == -5
+    assert safe_int("123") == 123
+    assert safe_int(None) == 0
+    assert safe_int("abc") == 0
+    assert safe_int(0) == 0
+    assert safe_int(-5) == -5
 
 
 # ---------------------------------------------------------------------------
-# _format_timestamp
+# format_timestamp
 # ---------------------------------------------------------------------------
 def test_format_timestamp():
-    result = PLUGIN._format_timestamp(1712345678)
+    result = format_timestamp(1712345678)
     assert "2024" in result
     assert "-" in result
 
-    assert PLUGIN._format_timestamp(0) == "未知"
-    assert PLUGIN._format_timestamp(None) == "未知"
+    assert format_timestamp(0) == "未知"
+    assert format_timestamp(None) == "未知"

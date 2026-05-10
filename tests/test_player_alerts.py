@@ -1,8 +1,9 @@
-﻿from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from main import NikkeNewsPlugin
+from player_poller import PlayerPoller
 
 
 def make_plugin(**config) -> NikkeNewsPlugin:
@@ -38,6 +39,11 @@ def make_plugin(**config) -> NikkeNewsPlugin:
     return plugin
 
 
+def _poll(plugin):
+    poller = PlayerPoller(plugin._client, plugin._plugin_config, plugin._state, plugin._save_state)
+    return poller.poll()
+
+
 def _response(code=0):
     resp = MagicMock()
     resp.raise_for_status = MagicMock()
@@ -60,11 +66,11 @@ async def test_cookie_invalid_first_chat_then_log_only(captured):
     plugin._client = MagicMock()
     plugin._client.post = AsyncMock(return_value=_response(code=1001))
 
-    await plugin._poll_player_once()
+    await _poll(plugin)
     assert len(captured) == 1
     assert "登录态已失效" in captured[0]["content"]
 
-    await plugin._poll_player_once()
+    await _poll(plugin)
     assert len(captured) == 1
 
 
@@ -80,9 +86,9 @@ async def test_cookie_invalid_resets_after_recovery(captured):
         ]
     )
 
-    await plugin._poll_player_once()
-    await plugin._poll_player_once()
-    await plugin._poll_player_once()
+    await _poll(plugin)
+    await _poll(plugin)
+    await _poll(plugin)
 
     assert len(captured) == 2
     assert "登录态已失效" in captured[0]["content"]
@@ -90,11 +96,12 @@ async def test_cookie_invalid_resets_after_recovery(captured):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_day_key_uses_4am_boundary():
-    plugin = make_plugin()
-
     from datetime import datetime, timedelta, timezone
 
+    from time_utils import day_key
+
     cst = timezone(timedelta(hours=8))
-    assert plugin._day_key(datetime(2026, 5, 8, 3, 59, tzinfo=cst)) == "2026-05-07"
-    assert plugin._day_key(datetime(2026, 5, 8, 4, 0, tzinfo=cst)) == "2026-05-08"
+    assert day_key(datetime(2026, 5, 8, 3, 59, tzinfo=cst)) == "2026-05-07"
+    assert day_key(datetime(2026, 5, 8, 4, 0, tzinfo=cst)) == "2026-05-08"

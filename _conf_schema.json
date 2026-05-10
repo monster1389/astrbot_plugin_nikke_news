@@ -50,13 +50,6 @@
         "hint": "直接填写群号即可，如：[\"957880653\", \"123456789\"]。也支持 unified_msg_origin 格式",
         "default": []
       },
-      "startup_mode": {
-        "description": "首次启动行为",
-        "type": "string",
-        "default": "mark_seen",
-        "options": ["mark_seen"],
-        "hint": "当前版本固定为首次启动只记录已有消息，不补发历史消息。"
-      },
       "push_delay_seconds": {
         "description": "消息推送间隔秒数",
         "type": "int",
