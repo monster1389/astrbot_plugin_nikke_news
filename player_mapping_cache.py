@@ -118,12 +118,14 @@ class PlayerMappingCache:
         return datetime.now(timezone.utc) - updated_at > timedelta(hours=ttl_hours)
 
     def has_useful_data(self, language: str) -> bool:
-        return (
+        core = (
             self.language_matches(language)
             and bool(self.characters)
-            and bool(self.character_names)
             and bool(self.state_effect_options)
         )
+        if language != "en":
+            core = core and bool(self.character_names)
+        return core
 
     def summary(self) -> str:
         return (
