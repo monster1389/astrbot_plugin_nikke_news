@@ -4,20 +4,30 @@ from datetime import datetime, timedelta, timezone
 from message_builder import MessageBuilder
 from player_mapping_cache import PlayerMappingCache
 from player_mapping_refresher import (
-    extract_character_map,
+    extract_character_names,
     extract_state_effect_options,
 )
 
 
-def test_extract_character_map_from_cdn_list():
+def test_extract_character_names_from_localized_data():
+    """Pre-localized CDN data: name_localkey uses {"name": "Anis"} single-key format."""
     data = [
         {"name_code": 101, "name_localkey": {"name": "Anis"}},
         {"name_code": 102, "name_localkey": {"name": "Rapi"}},
     ]
 
-    en_map, display_map = extract_character_map(data)
-    assert en_map == {"Anis": 101, "Rapi": 102}
-    assert display_map == {}
+    result = extract_character_names(data)
+    assert result == {101: "Anis", 102: "Rapi"}
+
+
+def test_extract_character_names_with_string_localkey():
+    data = [
+        {"name_code": 101, "name_localkey": "Anis"},
+        {"name_code": 102, "name_localkey": "Rapi"},
+    ]
+
+    result = extract_character_names(data)
+    assert result == {101: "Anis", 102: "Rapi"}
 
 
 def test_extract_state_effect_options_from_equip_table():
@@ -33,6 +43,20 @@ def test_extract_state_effect_options_from_equip_table():
 
     assert result["9001"]["description"] == "ATK"
     assert result["9002"]["group_id"] == 10
+
+
+def test_extract_state_effect_options_with_string_desc():
+    """CDN returns plain string descriptions like \"【攻擊力增加】\"."""
+    data = [
+        {
+            "state_effect_id_list": [9310101],
+            "description_localkey": "【攻擊力增加】",
+            "state_effect_group_id": 1,
+        }
+    ]
+
+    result = extract_state_effect_options(data)
+    assert result["9310101"]["description"] == "【攻擊力增加】"
 
 
 def test_equipment_option_value_uses_frontend_percent_logic():
@@ -90,16 +114,29 @@ def test_equipment_option_value_abs_and_aggregate_same_type():
     assert "ATK: 3.50%" in msg
 
 
-def test_mapping_cache_stale_and_language(tmp_path):
-    path = tmp_path / "player_mappings.json"
+def test_mapping_cache_name_to_code_reverses_character_names():
+    cache = PlayerMappingCache(None)
+    cache.save(
+        language="en",
+        character_names={101: "Anis", 102: "Rapi"},
+        state_effect_options={"9001": {"description": "ATK"}},
+    )
+
+    assert cache.has_useful_data() is True
+    assert cache.name_to_code() == {"Anis": 101, "Rapi": 102}
+
+
+def test_mapping_cache_stale(tmp_path):
+    path = tmp_path / "player_mappings_en.json"
     path.write_text(
         json.dumps(
             {
+                "version": 2,
                 "language": "en",
                 "updated_at": (
                     datetime.now(timezone.utc) - timedelta(hours=200)
                 ).isoformat(),
-                "characters": {"Anis": 101},
+                "character_names": {"101": "Anis"},
                 "state_effect_options": {"9001": {"description": "ATK"}},
             }
         ),
@@ -108,6 +145,11 @@ def test_mapping_cache_stale_and_language(tmp_path):
 
     cache = PlayerMappingCache(path)
     assert cache.load() is True
-    assert cache.has_useful_data("en") is True
-    assert cache.has_useful_data("ja") is False
+    assert cache.has_useful_data() is True
     assert cache.is_stale(168) is True
+
+
+def test_mapping_cache_empty_has_no_useful_data():
+    cache = PlayerMappingCache(None)
+    assert cache.has_useful_data() is False
+    assert cache.name_to_code() == {}

@@ -39,7 +39,8 @@ class NikkeNewsPlugin(Star):
         self._news_poller: NewsPoller | None = None
         self._player_poller: PlayerPoller | None = None
         self._character_service: CharacterService | None = None
-        self._mapping_cache: PlayerMappingCache | None = None
+        self._en_cache: PlayerMappingCache | None = None
+        self._target_cache: PlayerMappingCache | None = None
         self._task: asyncio.Task | None = None
         self._state_path: Path | None = None
         self._state: dict[str, Any] = PluginStateStore.default_state()
@@ -51,8 +52,14 @@ class NikkeNewsPlugin(Star):
 
         data_dir = StarTools.get_data_dir(PLUGIN_NAME)
         self._state_path = data_dir / "state.json"
-        self._mapping_cache = PlayerMappingCache(data_dir / "player_mappings.json")
-        self._mapping_cache.load()
+        en_cache = PlayerMappingCache(data_dir / "player_mappings_en.json")
+        mapping_lang = self._plugin_config.player_mapping_language()
+        target_cache = (
+            PlayerMappingCache(data_dir / f"player_mappings_{mapping_lang}.json")
+            if mapping_lang != "en"
+            else None
+        )
+        en_cache.load()
         self._state = self._load_state()
         self._client = httpx.AsyncClient(
             timeout=REQUEST_TIMEOUT_SECONDS,
@@ -64,11 +71,10 @@ class NikkeNewsPlugin(Star):
             },
         )
         self._character_service = CharacterService(
-            self._client, self._plugin_config, self._mapping_cache
+            self._client, self._plugin_config, en_cache, target_cache
         )
-        if self._mapping_cache.characters:
-            self._character_service.update_characters(self._mapping_cache.characters)
-        else:
+        self._character_service._load_caches()
+        if not self._character_service.is_loaded:
             logger.info("NIKKE 角色映射为空，请执行 /nikke refresh 刷新角色列表。")
 
         self._news_poller = NewsPoller(
@@ -175,25 +181,15 @@ class NikkeNewsPlugin(Star):
             return
 
         messages: list[str] = []
-        self._mapping_cache.load()
-        if self._mapping_cache.characters:
-            self._character_service.update_characters(
-                self._mapping_cache.characters,
-                self._mapping_cache.character_names,
-            )
-        count = (
-            self._character_service.count()
-            if self._character_service.is_loaded
-            else 0
-        )
+        self._character_service._load_caches()
+        count = self._character_service.count()
         messages.append(
             f"已重载本地角色列表，共 {count} 个角色。"
             if count
             else "本地角色列表加载失败，请执行 /nikke refresh 刷新。"
         )
 
-        if self._character_service:
-            messages.append(await self._character_service.refresh_mappings())
+        messages.append(await self._character_service.refresh_mappings())
 
         yield event.plain_result("\n".join(messages))
 

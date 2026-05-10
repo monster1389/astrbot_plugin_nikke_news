@@ -6,7 +6,7 @@ from typing import Any
 from astrbot.api import logger
 
 
-MAPPING_CACHE_VERSION = 1
+MAPPING_CACHE_VERSION = 2
 
 
 class PlayerMappingCache:
@@ -21,23 +21,9 @@ class PlayerMappingCache:
             "language": "en",
             "updated_at": "",
             "sources": {},
-            "characters": {},
             "character_names": {},
             "state_effect_options": {},
         }
-
-    @property
-    def characters(self) -> dict[str, int]:
-        raw = self._data.get("characters", {})
-        if not isinstance(raw, dict):
-            return {}
-        result: dict[str, int] = {}
-        for name, code in raw.items():
-            try:
-                result[str(name)] = int(code)
-            except (TypeError, ValueError):
-                continue
-        return result
 
     @property
     def character_names(self) -> dict[int, str]:
@@ -50,6 +36,13 @@ class PlayerMappingCache:
                 result[int(code)] = str(name)
             except (TypeError, ValueError):
                 continue
+        return result
+
+    def name_to_code(self) -> dict[str, int]:
+        result: dict[str, int] = {}
+        for code, name in self.character_names.items():
+            if name:
+                result[name] = code
         return result
 
     @property
@@ -65,6 +58,13 @@ class PlayerMappingCache:
             data = json.loads(self._path.read_text(encoding="utf-8"))
             if not isinstance(data, dict):
                 raise ValueError("cache root is not an object")
+            if data.get("version") != MAPPING_CACHE_VERSION:
+                logger.info(
+                    f"NIKKE 玩家映射缓存版本不匹配，将重新刷新："
+                    f"{data.get('version')} != {MAPPING_CACHE_VERSION}"
+                )
+                self._data = self._empty_data()
+                return False
             self._data = self._empty_data()
             self._data.update(data)
             return True
@@ -77,7 +77,6 @@ class PlayerMappingCache:
         self,
         *,
         language: str,
-        characters: dict[str, int],
         character_names: dict[int, str],
         state_effect_options: dict[str, dict[str, Any]],
         sources: dict[str, dict[str, str]] | None = None,
@@ -87,7 +86,6 @@ class PlayerMappingCache:
             "language": language,
             "updated_at": datetime.now(timezone.utc).isoformat(),
             "sources": sources or {},
-            "characters": {name: int(code) for name, code in characters.items()},
             "character_names": {int(code): str(name) for code, name in character_names.items()},
             "state_effect_options": state_effect_options,
         }
@@ -102,9 +100,6 @@ class PlayerMappingCache:
         except Exception as exc:
             logger.warning(f"NIKKE 玩家映射缓存保存失败：{exc}")
 
-    def language_matches(self, language: str) -> bool:
-        return str(self._data.get("language", "") or "") == language
-
     def is_stale(self, ttl_hours: int) -> bool:
         raw = str(self._data.get("updated_at", "") or "")
         if not raw:
@@ -117,18 +112,11 @@ class PlayerMappingCache:
             return True
         return datetime.now(timezone.utc) - updated_at > timedelta(hours=ttl_hours)
 
-    def has_useful_data(self, language: str) -> bool:
-        core = (
-            self.language_matches(language)
-            and bool(self.characters)
-            and bool(self.state_effect_options)
-        )
-        if language != "en":
-            core = core and bool(self.character_names)
-        return core
+    def has_useful_data(self) -> bool:
+        return bool(self.character_names) and bool(self.state_effect_options)
 
     def summary(self) -> str:
         return (
-            f"角色 {len(self.characters)} 个，"
+            f"角色 {len(self.character_names)} 个，"
             f"词条 {len(self.state_effect_options)} 个"
         )

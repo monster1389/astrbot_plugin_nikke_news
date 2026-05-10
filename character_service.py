@@ -20,33 +20,42 @@ class CharacterService:
         self,
         client: httpx.AsyncClient,
         config: PluginConfig,
-        mapping_cache: PlayerMappingCache | None = None,
+        en_cache: PlayerMappingCache | None = None,
+        target_cache: PlayerMappingCache | None = None,
     ):
         self._client = client
         self._config = config
-        self._mapping_cache = mapping_cache
+        self._en_cache = en_cache
+        self._target_cache = target_cache
         self._name_to_code: dict[str, int] = {}
         self._code_to_name: dict[int, str] = {}
+        self._state_effect_options: dict[str, dict[str, Any]] = {}
         self._aliases: dict[str, list[str]] = config.character_aliases()
 
     @property
     def is_loaded(self) -> bool:
         return len(self._name_to_code) > 0
 
-    def update_characters(self, names: dict[str, int], display_names: dict[int, str] | None = None) -> None:
-        for name, code in names.items():
-            if name:
-                self._name_to_code[str(name)] = int(code)
-        if display_names:
-            for code, display_name in display_names.items():
-                if display_name:
-                    self._code_to_name[int(code)] = str(display_name)
-
     def count(self) -> int:
         return len(self._name_to_code)
 
-    def snapshot(self) -> dict[str, int]:
-        return dict(self._name_to_code)
+    def _load_caches(self) -> None:
+        if not self._en_cache:
+            return
+
+        self._en_cache.load()
+        self._name_to_code = self._en_cache.name_to_code()
+        self._state_effect_options = dict(self._en_cache.state_effect_options)
+
+        language = self._config.player_mapping_language()
+        if language != "en" and self._target_cache:
+            self._target_cache.load()
+            self._code_to_name = dict(self._target_cache.character_names)
+            target_options = self._target_cache.state_effect_options
+            if target_options:
+                self._state_effect_options.update(target_options)
+        else:
+            self._code_to_name = {}
 
     def _build_alias_map(self) -> dict[str, str]:
         result: dict[str, str] = {}
@@ -95,29 +104,63 @@ class CharacterService:
         return results
 
     async def refresh_mappings(self) -> str:
-        if not self._mapping_cache:
+        if not self._en_cache:
             return "玩家映射缓存未初始化。"
 
-        language = self._config.player_mapping_language()
-        try:
-            characters, character_names, options, sources = await refresh_player_mappings(
-                cookie_header=self._config.player_data_cookie(),
-                language=language,
-            )
-        except PlayerMappingRefreshError as exc:
-            return str(exc)
+        cookie = self._config.player_data_cookie()
+        target_lang = self._config.player_mapping_language()
+        ttl = self._config.player_mapping_cache_ttl_hours()
+        messages: list[str] = []
 
-        if characters:
-            self.update_characters(characters, character_names)
-        self._mapping_cache.save(
-            language=language,
-            characters=characters or self.snapshot(),
-            character_names=character_names or self._code_to_name,
-            state_effect_options=options,
-            sources=sources,
+        # Always refresh en first
+        en_stale = (
+            not self._en_cache.has_useful_data()
+            or self._en_cache.is_stale(ttl)
         )
-        self._mapping_cache.load()
-        return f"玩家映射已刷新：{self._mapping_cache.summary()}。"
+        if en_stale:
+            try:
+                names, options, sources = await refresh_player_mappings(
+                    cookie_header=cookie,
+                    language="en",
+                )
+            except PlayerMappingRefreshError as exc:
+                messages.append(str(exc))
+            else:
+                self._en_cache.save(
+                    language="en",
+                    character_names=names,
+                    state_effect_options=options,
+                    sources=sources,
+                )
+                messages.append(f"英文映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。")
+
+        # Refresh target language if different from en
+        if target_lang != "en" and self._target_cache:
+            target_stale = (
+                not self._target_cache.has_useful_data()
+                or self._target_cache.is_stale(ttl)
+            )
+            if target_stale:
+                try:
+                    names, options, sources = await refresh_player_mappings(
+                        cookie_header=cookie,
+                        language=target_lang,
+                    )
+                except PlayerMappingRefreshError as exc:
+                    messages.append(str(exc))
+                else:
+                    self._target_cache.save(
+                        language=target_lang,
+                        character_names=names,
+                        state_effect_options=options,
+                        sources=sources,
+                    )
+                    messages.append(
+                        f"{target_lang} 映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。"
+                    )
+
+        self._load_caches()
+        return "\n".join(messages) if messages else "映射缓存均为最新，无需刷新。"
 
     async def query(self, name: str) -> str:
         cookie = self._config.player_data_cookie()
@@ -184,33 +227,42 @@ class CharacterService:
             details[0],
             {"en": display_name},
             effects,
-            self._mapping_cache.state_effect_options if self._mapping_cache else {},
+            self._state_effect_options,
         )
 
     async def _ensure_mapping_cache(self) -> None:
-        if not self._mapping_cache:
+        if not self._en_cache:
             return
 
-        language = self._config.player_mapping_language()
-        self._mapping_cache.load()
-        if self._mapping_cache.characters:
-            self.update_characters(
-                self._mapping_cache.characters,
-                self._mapping_cache.character_names,
+        self._load_caches()
+
+        ttl = self._config.player_mapping_cache_ttl_hours()
+        target_lang = self._config.player_mapping_language()
+
+        en_stale = (
+            not self._en_cache.has_useful_data()
+            or self._en_cache.is_stale(ttl)
+        )
+        target_stale = (
+            target_lang != "en"
+            and self._target_cache is not None
+            and (
+                not self._target_cache.has_useful_data()
+                or self._target_cache.is_stale(ttl)
             )
+        )
 
         should_refresh = (
             self._config.player_auto_refresh_mapping()
-            and (
-                not self._mapping_cache.has_useful_data(language)
-                or self._mapping_cache.is_stale(
-                    self._config.player_mapping_cache_ttl_hours()
-                )
-            )
+            and (en_stale or target_stale)
         )
         if not should_refresh:
             return
 
         msg = await self.refresh_mappings()
-        if not self._mapping_cache.has_useful_data(language):
+        self._load_caches()
+
+        if not self._en_cache.has_useful_data():
+            raise CharacterQueryError(f"{msg}\n请稍后重试或执行 /nikke refresh。")
+        if target_lang != "en" and self._target_cache and not self._target_cache.has_useful_data():
             raise CharacterQueryError(f"{msg}\n请稍后重试或执行 /nikke refresh。")

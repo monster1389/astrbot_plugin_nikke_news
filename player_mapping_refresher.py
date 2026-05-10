@@ -11,29 +11,25 @@ class PlayerMappingRefreshError(Exception):
     pass
 
 
-def extract_character_map(data: Any, language: str = "en") -> tuple[dict[str, int], dict[int, str]]:
+def extract_character_names(data: Any) -> dict[int, str]:
+    """Extract name_code → character name from pre-localized CDN JSON."""
     if not isinstance(data, list):
-        return {}, {}
+        return {}
 
-    en_map: dict[str, int] = {}
-    display_map: dict[int, str] = {}
+    result: dict[int, str] = {}
     for item in data:
         if not isinstance(item, dict):
             continue
         code = item.get("name_code")
         if not isinstance(code, int):
             continue
-        localkey = item.get("name_localkey")
-        en_name = _localized_text(localkey, "en")
-        display_name = _localized_text(localkey, language)
-        if en_name:
-            en_map[en_name] = code
-        if display_name and display_name != en_name:
-            display_map[code] = display_name
-    return en_map, display_map
+        name = _localized_text(item.get("name_localkey"))
+        if name:
+            result[code] = name
+    return result
 
 
-def extract_state_effect_options(data: Any, language: str = "en") -> dict[str, dict[str, Any]]:
+def extract_state_effect_options(data: Any) -> dict[str, dict[str, Any]]:
     rows: list[dict[str, Any]]
     if isinstance(data, dict) and isinstance(data.get("records"), list):
         rows = [item for item in data["records"] if isinstance(item, dict)]
@@ -50,7 +46,7 @@ def extract_state_effect_options(data: Any, language: str = "en") -> dict[str, d
         if not isinstance(effect_ids, list):
             continue
 
-        description = _localized_text(item.get("description_localkey"), language)
+        description = _localized_text(item.get("description_localkey"))
         group_id = item.get("state_effect_group_id", item.get("group_id", 0))
         function_type = item.get("function_type", "")
         metadata = {
@@ -68,9 +64,9 @@ def extract_state_effect_options(data: Any, language: str = "en") -> dict[str, d
 async def refresh_player_mappings(
     *,
     cookie_header: str,
-    language: str,
+    language: str = "en",
     timeout_ms: int = 30000,
-) -> tuple[dict[str, int], dict[int, str], dict[str, dict[str, Any]], dict[str, dict[str, str]]]:
+) -> tuple[dict[int, str], dict[str, dict[str, Any]], dict[str, dict[str, str]]]:
     try:
         from playwright.async_api import async_playwright
     except ImportError as exc:
@@ -78,7 +74,6 @@ async def refresh_player_mappings(
             "当前环境未安装 Playwright，无法刷新玩家映射。"
         ) from exc
 
-    characters: dict[str, int] = {}
     character_names: dict[int, str] = {}
     options: dict[str, dict[str, Any]] = {}
     sources: dict[str, dict[str, str]] = {}
@@ -93,9 +88,9 @@ async def refresh_player_mappings(
         except Exception:
             return
 
-        found_characters, found_names = extract_character_map(data, language)
-        found_options = extract_state_effect_options(data, language)
-        if not found_characters and not found_options:
+        found_names = extract_character_names(data)
+        found_options = extract_state_effect_options(data)
+        if not found_names and not found_options:
             return
 
         headers = await response.all_headers()
@@ -103,8 +98,6 @@ async def refresh_player_mappings(
             "etag": headers.get("etag", ""),
             "last_modified": headers.get("last-modified", ""),
         }
-        if found_characters:
-            characters.update(found_characters)
         if found_names:
             character_names.update(found_names)
         if found_options:
@@ -144,23 +137,22 @@ async def refresh_player_mappings(
         logger.warning(f"NIKKE Playwright 刷新玩家映射失败：{exc}")
         raise PlayerMappingRefreshError(f"Chromium 刷新玩家映射失败：{exc}") from exc
 
-    if not characters and not options:
+    if not character_names and not options:
         raise PlayerMappingRefreshError(
             "未从页面网络响应中捕获到角色或词条映射，请确认登录态和页面是否可访问。"
         )
 
     logger.info(
-        f"NIKKE 玩家映射刷新完成：角色 {len(characters)} 个，词条 {len(options)} 个"
+        f"NIKKE 玩家映射刷新完成：角色 {len(character_names)} 个，词条 {len(options)} 个"
     )
-    return characters, character_names, options, sources
+    return character_names, options, sources
 
 
-def _localized_text(value: Any, language: str = "en") -> str:
+def _localized_text(value: Any) -> str:
     if isinstance(value, str):
         return value.strip()
     if isinstance(value, dict):
-        keys = [language] + [k for k in ("name", "description", "en", "zh-TW", "ja", "ko") if k != language]
-        for key in keys:
+        for key in ("name", "description", "en", "zh-TW", "ja", "ko"):
             text = str(value.get(key, "") or "").strip()
             if text:
                 return text
