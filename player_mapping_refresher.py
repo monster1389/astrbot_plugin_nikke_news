@@ -110,6 +110,7 @@ async def refresh_player_mappings(
         if found_options:
             options.update(found_options)
 
+    logger.info(f"NIKKE Chromium 刷新玩家映射启动（语言：{language}）...")
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
@@ -148,6 +149,9 @@ async def refresh_player_mappings(
             "未从页面网络响应中捕获到角色或词条映射，请确认登录态和页面是否可访问。"
         )
 
+    logger.info(
+        f"NIKKE 玩家映射刷新完成：角色 {len(characters)} 个，词条 {len(options)} 个"
+    )
     return characters, character_names, options, sources
 
 
