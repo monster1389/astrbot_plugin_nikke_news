@@ -125,8 +125,12 @@ async def refresh_player_mappings(
                     task.add_done_callback(tasks.discard)
 
                 page.on("response", on_response)
-                await page.goto(SHIFTYSPAD_NIKKE_LIST_URL, wait_until="networkidle")
-                await page.wait_for_timeout(3000)
+                await page.goto(
+                    SHIFTYSPAD_NIKKE_LIST_URL,
+                    wait_until="load",
+                    timeout=timeout_ms,
+                )
+                await page.wait_for_timeout(8000)
                 if tasks:
                     await asyncio.gather(*tasks, return_exceptions=True)
             finally:
