@@ -169,37 +169,25 @@ class NikkeNewsPlugin(Star):
 
     @filter.command("nikke_refresh")
     async def cmd_nikke_refresh(self, event: AstrMessageEvent):
-        """刷新 NIKKE 角色列表。若配置了 character_list_url 则从 CDN 拉取，否则重载本地缓存数据。"""
+        """刷新 NIKKE 角色列表，并执行玩家映射刷新。"""
         if not self._character_service:
             yield event.plain_result("角色服务模块未初始化。")
             return
 
         messages: list[str] = []
-        url = self._plugin_config.character_list_url()
-        if url:
-            msg, chars = await self._character_service.refresh_from_url(url)
-            messages.append(msg)
-            if chars and self._mapping_cache:
-                self._mapping_cache.save(
-                    language=self._plugin_config.player_mapping_language(),
-                    characters=chars,
-                    state_effect_options=self._mapping_cache.state_effect_options,
-                    sources={},
-                )
-        else:
-            self._mapping_cache.load()
-            if self._mapping_cache.characters:
-                self._character_service.update_characters(self._mapping_cache.characters)
-            count = (
-                self._character_service.count()
-                if self._character_service.is_loaded
-                else 0
-            )
-            messages.append(
-                f"已重载本地角色列表，共 {count} 个角色。"
-                if count
-                else "本地角色列表加载失败，请执行 /nikke refresh 刷新。"
-            )
+        self._mapping_cache.load()
+        if self._mapping_cache.characters:
+            self._character_service.update_characters(self._mapping_cache.characters)
+        count = (
+            self._character_service.count()
+            if self._character_service.is_loaded
+            else 0
+        )
+        messages.append(
+            f"已重载本地角色列表，共 {count} 个角色。"
+            if count
+            else "本地角色列表加载失败，请执行 /nikke refresh 刷新。"
+        )
 
         if self._character_service:
             messages.append(await self._character_service.refresh_mappings())

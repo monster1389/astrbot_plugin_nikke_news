@@ -5,7 +5,7 @@ from astrbot.api import AstrBotConfig, logger
 
 from constants import CONTENT_MODES, SUPPORTED_LANGUAGES
 
-_PLAYER_MAPPING_LANGUAGES = {"en", "zh", "zh-TW", "ja", "ko"}
+_PLAYER_MAPPING_LANGUAGES = {"en", "zh-TW", "ja", "ko"}
 
 
 class PluginConfig:
@@ -144,9 +144,6 @@ class PluginConfig:
 
     def player_auto_refresh_mapping(self) -> bool:
         return self._nested_bool(self._player, "auto_refresh_mapping", True)
-
-    def character_list_url(self) -> str:
-        return str(self._player.get("character_list_url", "") or "").strip()
 
     def character_aliases(self) -> dict[str, list[str]]:
         """Parse character_alias config into a normalized dict.

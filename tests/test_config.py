@@ -78,7 +78,7 @@ def test_language_default():
 
 
 def test_language_valid():
-    for lang in ["zh-TW", "en", "ja", "ko", "zh"]:
+    for lang in ["zh-TW", "en", "ja", "ko"]:
         plugin = make_plugin(language=lang)
         assert plugin._plugin_config.language() == lang
 

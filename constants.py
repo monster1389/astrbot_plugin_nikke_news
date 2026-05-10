@@ -23,6 +23,6 @@ MAX_SEEN_POSTS = 500
 SUMMARY_MAX_LENGTH = 300
 REQUEST_TIMEOUT_SECONDS = 60
 CONTENT_MODES = {"none", "summary", "content"}
-SUPPORTED_LANGUAGES = {"zh-TW", "en", "ja", "ko", "zh"}
+SUPPORTED_LANGUAGES = {"zh-TW", "en", "ja", "ko"}
 SUPPORTED_TARGET_TYPES = {"GroupMessage", "PrivateMessage", "FriendMessage"}
 CST = timezone(timedelta(hours=8))

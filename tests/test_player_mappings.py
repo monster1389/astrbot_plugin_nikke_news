@@ -107,5 +107,5 @@ def test_mapping_cache_stale_and_language(tmp_path):
     cache = PlayerMappingCache(path)
     assert cache.load() is True
     assert cache.has_useful_data("en") is True
-    assert cache.has_useful_data("zh") is False
+    assert cache.has_useful_data("ja") is False
     assert cache.is_stale(168) is True

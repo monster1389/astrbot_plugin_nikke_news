@@ -74,33 +74,6 @@ class CharacterService:
 
         return results
 
-    async def refresh_from_url(self, url: str) -> tuple[str, dict[str, int]]:
-        logger.info(f"NIKKE 正在从 URL 拉取角色列表：{url}")
-        try:
-            resp = await self._client.get(url)
-            resp.raise_for_status()
-            data = resp.json()
-        except Exception as exc:
-            msg = f"角色列表下载失败：{exc}"
-            logger.warning(msg)
-            return msg, {}
-
-        if not isinstance(data, list):
-            msg = "角色列表格式异常，请检查 URL 是否指向正确的 JSON。"
-            logger.warning(msg)
-            return msg, {}
-
-        self._name_to_code.clear()
-        for item in data:
-            name = (item.get("name_localkey") or {}).get("name", "")
-            code = item.get("name_code")
-            if name and isinstance(code, int):
-                self._name_to_code[name] = code
-
-        msg = f"角色列表已刷新，共 {len(self._name_to_code)} 个角色。"
-        logger.info(f"NIKKE {msg}")
-        return msg, self.snapshot()
-
     async def refresh_mappings(self) -> str:
         if not self._mapping_cache:
             return "玩家映射缓存未初始化。"
