@@ -38,7 +38,7 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 
 | 键 | 类型 | 默认值 | 说明 |
 |---|------|--------|------|
-| `language` | string | `zh-TW` | 消息语言：`zh-TW` / `en` / `ja` / `ko` / `zh` |
+| `language` | string | `zh-TW` | 消息语言：`zh-TW` / `en` / `ja` / `ko` |
 | `fetch_limit` | int | `10` | 每次拉取数量（1-50） |
 | `content_mode` | string | `summary` | `none` 仅标题+链接 / `summary` 概览 / `content` 正文 |
 | `max_images` | int | `3` | 每条推送最多图片数（0-9，视频帖不发送图片） |
@@ -101,7 +101,7 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 
 查询流程：
 
-1. 使用 `character_map.json` 和 `player_mappings.json` 将输入角色名匹配到 `name_code`。
+1. 使用 `player_mappings.json` 将输入角色名匹配到 `name_code`。
 2. 调用 `Game/GetUserCharacters` 确认该角色在账号中存在。
 3. 调用 `Game/GetUserCharacterDetails` 获取技能等级、装备等级、装备词条 ID 和 `state_effects`。
 4. 使用 `player_mappings.json` 中的词条映射把词条 ID 转为可读名称。
@@ -120,7 +120,8 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 - `language`：映射语言，默认 `en`。
 - `updated_at`：刷新时间。
 - `sources`：刷新时捕获到的 CDN JSON URL、ETag、Last-Modified。
-- `characters`：角色显示名到 `name_code` 的映射。
+- `characters`：英文角色名到 `name_code` 的映射。
+- `character_names`：`name_code` 到目标语言显示名的映射（英文时为空）。
 - `state_effect_options`：装备词条 `state_effect_id` 到描述、分组、类型的映射。
 
 刷新策略：
