@@ -15,7 +15,9 @@ def test_extract_character_map_from_cdn_list():
         {"name_code": 102, "name_localkey": {"name": "Rapi"}},
     ]
 
-    assert extract_character_map(data) == {"Anis": 101, "Rapi": 102}
+    en_map, display_map = extract_character_map(data)
+    assert en_map == {"Anis": 101, "Rapi": 102}
+    assert display_map == {}
 
 
 def test_extract_state_effect_options_from_equip_table():

@@ -22,6 +22,7 @@ class PlayerMappingCache:
             "updated_at": "",
             "sources": {},
             "characters": {},
+            "character_names": {},
             "state_effect_options": {},
         }
 
@@ -34,6 +35,19 @@ class PlayerMappingCache:
         for name, code in raw.items():
             try:
                 result[str(name)] = int(code)
+            except (TypeError, ValueError):
+                continue
+        return result
+
+    @property
+    def character_names(self) -> dict[int, str]:
+        raw = self._data.get("character_names", {})
+        if not isinstance(raw, dict):
+            return {}
+        result: dict[int, str] = {}
+        for code, name in raw.items():
+            try:
+                result[int(code)] = str(name)
             except (TypeError, ValueError):
                 continue
         return result
@@ -64,6 +78,7 @@ class PlayerMappingCache:
         *,
         language: str,
         characters: dict[str, int],
+        character_names: dict[int, str],
         state_effect_options: dict[str, dict[str, Any]],
         sources: dict[str, dict[str, str]] | None = None,
     ) -> None:
@@ -73,6 +88,7 @@ class PlayerMappingCache:
             "updated_at": datetime.now(timezone.utc).isoformat(),
             "sources": sources or {},
             "characters": {name: int(code) for name, code in characters.items()},
+            "character_names": {int(code): str(name) for code, name in character_names.items()},
             "state_effect_options": state_effect_options,
         }
         if not self._path:
@@ -105,6 +121,7 @@ class PlayerMappingCache:
         return (
             self.language_matches(language)
             and bool(self.characters)
+            and bool(self.character_names)
             and bool(self.state_effect_options)
         )
 

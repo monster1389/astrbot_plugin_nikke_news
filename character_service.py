@@ -26,16 +26,21 @@ class CharacterService:
         self._config = config
         self._mapping_cache = mapping_cache
         self._name_to_code: dict[str, int] = {}
+        self._code_to_name: dict[int, str] = {}
         self._aliases: dict[str, list[str]] = config.character_aliases()
 
     @property
     def is_loaded(self) -> bool:
         return len(self._name_to_code) > 0
 
-    def update_characters(self, names: dict[str, int]) -> None:
+    def update_characters(self, names: dict[str, int], display_names: dict[int, str] | None = None) -> None:
         for name, code in names.items():
             if name:
                 self._name_to_code[str(name)] = int(code)
+        if display_names:
+            for code, display_name in display_names.items():
+                if display_name:
+                    self._code_to_name[int(code)] = str(display_name)
 
     def count(self) -> int:
         return len(self._name_to_code)
@@ -52,6 +57,9 @@ class CharacterService:
                     result[key] = en_name
         return result
 
+    def _display_name(self, code: int, fallback: str) -> str:
+        return self._code_to_name.get(code) or fallback
+
     def lookup(self, query: str) -> list[tuple[int, str]]:
         if not query or not query.strip():
             return []
@@ -61,16 +69,28 @@ class CharacterService:
 
         alias_name = alias_map.get(q)
         if alias_name and alias_name in self._name_to_code:
-            return [(self._name_to_code[alias_name], alias_name)]
+            code = self._name_to_code[alias_name]
+            return [(code, self._display_name(code, alias_name))]
 
         for name, code in self._name_to_code.items():
             if name.lower() == q:
-                return [(code, name)]
+                return [(code, self._display_name(code, name))]
+
+        for code, display_name in self._code_to_name.items():
+            if display_name.lower() == q:
+                return [(code, display_name)]
 
         results: list[tuple[int, str]] = []
+        seen: set[int] = set()
+
         for name, code in self._name_to_code.items():
             if q in name.lower():
-                results.append((code, name))
+                results.append((code, self._display_name(code, name)))
+                seen.add(code)
+
+        for code, display_name in self._code_to_name.items():
+            if code not in seen and q in display_name.lower():
+                results.append((code, display_name))
 
         return results
 
@@ -80,7 +100,7 @@ class CharacterService:
 
         language = self._config.player_mapping_language()
         try:
-            characters, options, sources = await refresh_player_mappings(
+            characters, character_names, options, sources = await refresh_player_mappings(
                 cookie_header=self._config.player_data_cookie(),
                 language=language,
             )
@@ -88,10 +108,11 @@ class CharacterService:
             return str(exc)
 
         if characters:
-            self.update_characters(characters)
+            self.update_characters(characters, character_names)
         self._mapping_cache.save(
             language=language,
             characters=characters or self.snapshot(),
+            character_names=character_names or self._code_to_name,
             state_effect_options=options,
             sources=sources,
         )
@@ -122,7 +143,7 @@ class CharacterService:
             hint = "\n请提供更精确的名称。" if len(matches) > 10 else ""
             raise CharacterQueryError(f"找到 {len(matches)} 个匹配：\n{names}{hint}")
 
-        name_code, en_name = matches[0]
+        name_code, display_name = matches[0]
         area_id = self._config.player_data_area_id()
         language = self._config.player_mapping_language()
         game_id = self._config.player_game_id()
@@ -140,7 +161,7 @@ class CharacterService:
             (c for c in characters if c.get("name_code") == name_code), None
         )
         if not char_info:
-            raise CharacterQueryError(f"未在账号中找到角色「{en_name}」。")
+            raise CharacterQueryError(f"未在账号中找到角色「{display_name}」。")
 
         try:
             details, effects = await player.fetch_character_details(
@@ -161,7 +182,7 @@ class CharacterService:
         return MessageBuilder.format_character_stats(
             char_info,
             details[0],
-            {"en": en_name},
+            {"en": display_name},
             effects,
             self._mapping_cache.state_effect_options if self._mapping_cache else {},
         )
@@ -173,7 +194,10 @@ class CharacterService:
         language = self._config.player_mapping_language()
         self._mapping_cache.load()
         if self._mapping_cache.characters:
-            self.update_characters(self._mapping_cache.characters)
+            self.update_characters(
+                self._mapping_cache.characters,
+                self._mapping_cache.character_names,
+            )
 
         should_refresh = (
             self._config.player_auto_refresh_mapping()

@@ -177,7 +177,10 @@ class NikkeNewsPlugin(Star):
         messages: list[str] = []
         self._mapping_cache.load()
         if self._mapping_cache.characters:
-            self._character_service.update_characters(self._mapping_cache.characters)
+            self._character_service.update_characters(
+                self._mapping_cache.characters,
+                self._mapping_cache.character_names,
+            )
         count = (
             self._character_service.count()
             if self._character_service.is_loaded
