@@ -83,6 +83,7 @@ class MessageBuilder:
         char_detail: dict[str, Any],
         name_map: dict[str, str],
         state_effects: list[dict[str, Any]] | None = None,
+        state_effect_options: dict[str, dict[str, Any]] | None = None,
     ) -> str:
         en_name = name_map.get("en", "")
         zh_name = name_map.get("zh", "")
@@ -108,7 +109,9 @@ class MessageBuilder:
         leg_lv = _safe_int(char_detail.get("leg_equip_lv", 0))
         equips = f"{head_lv}/{arm_lv}/{torso_lv}/{leg_lv}"
 
-        option_lines = _extract_equip_options(char_detail, state_effects or [])
+        option_lines = _extract_equip_options(
+            char_detail, state_effects or [], state_effect_options or {}
+        )
 
         lines = [name_line, f"Power: {combat}", f"Skills: {skills}", f"Equipments: {equips}"]
         lines.extend(option_lines)
@@ -124,7 +127,9 @@ def _safe_int(value: Any) -> int:
 
 
 def _extract_equip_options(
-    char_detail: dict[str, Any], state_effects: list[dict[str, Any]]
+    char_detail: dict[str, Any],
+    state_effects: list[dict[str, Any]],
+    state_effect_options: dict[str, dict[str, Any]] | None = None,
 ) -> list[str]:
     effect_map: dict[str, dict[str, Any]] = {}
     for se in state_effects:
@@ -132,7 +137,9 @@ def _extract_equip_options(
         if sid:
             effect_map[sid] = se
 
-    lines: list[str] = []
+    option_meta = state_effect_options or {}
+    entries: dict[str, dict[str, Any]] = {}
+    loose_lines: list[str] = []
     slots = ["head", "arm", "torso", "leg"]
     for slot in slots:
         for idx in (1, 2, 3):
@@ -141,13 +148,102 @@ def _extract_equip_options(
             if not opt_id or opt_id == "0":
                 continue
             se = effect_map.get(opt_id)
-            if se:
-                text = se.get("function_description", se.get("text", ""))
-                value = se.get("function_value", se.get("value", ""))
+            meta = option_meta.get(opt_id, {})
+            if not se:
+                text = str(meta.get("description", "") or "").strip()
                 if text:
-                    line = str(text)
-                    if value:
-                        line += f": {value}"
-                    lines.append(line)
+                    loose_lines.append(text)
+                continue
+
+            details = se.get("function_details")
+            if not isinstance(details, list) or not details:
+                details = [se]
+
+            for detail in details:
+                if not isinstance(detail, dict):
+                    continue
+                function_type = str(
+                    detail.get("function_type", meta.get("function_type", ""))
+                    or f"{slot}_{idx}_{opt_id}"
+                )
+                text = _option_description(detail, se, meta)
+                raw_value = detail.get(
+                    "function_value", se.get("function_value", detail.get("value", 0))
+                )
+                value = _safe_float(raw_value)
+                if not text:
+                    continue
+                if function_type in entries:
+                    entries[function_type]["value"] += abs(value)
+                    entries[function_type]["level"] = max(
+                        entries[function_type]["level"],
+                        _safe_int(detail.get("level", 0)),
+                    )
+                    continue
+                entries[function_type] = {
+                    "text": text,
+                    "value": abs(value),
+                    "level": _safe_int(detail.get("level", 0)),
+                    "group_id": _safe_int(detail.get("group_id", meta.get("group_id", 0))),
+                    "function_type": function_type,
+                }
+
+    sorted_entries = sorted(
+        entries.values(),
+        key=lambda item: (
+            _OPTION_PRIORITY.get(str(item["function_type"]), 999),
+            item["group_id"],
+            item["text"],
+        ),
+    )
+    lines = [
+        f"{entry['text']}: {_format_option_value(entry['value'])}"
+        for entry in sorted_entries
+    ]
+    lines.extend(loose_lines)
 
     return lines
+
+
+def _safe_float(value: Any) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _option_description(
+    detail: dict[str, Any], state_effect: dict[str, Any], meta: dict[str, Any]
+) -> str:
+    for value in (
+        detail.get("name_localvalues"),
+        meta.get("description"),
+        state_effect.get("function_description"),
+        state_effect.get("text"),
+        detail.get("function_description"),
+        detail.get("text"),
+        detail.get("function_type"),
+    ):
+        text = str(value or "").strip()
+        if text:
+            return text
+    return ""
+
+
+def _format_option_value(raw_value: float) -> str:
+    return f"{raw_value / 100:.2f}%"
+
+
+_OPTION_PRIORITY = {
+    "IncElementDmg": 0,
+    "StatAtk": 1,
+    "StatAmmoLoad": 2,
+    "StatAmmo": 2,
+    "StatChargeTime": 3,
+    "StatChargeDamage": 4,
+    "StatAccuracyCircle": 5,
+    "OnHitRatio": 5,
+    "StatCritical": 6,
+    "StatCriticalDamage": 7,
+    "StatDef": 8,
+}

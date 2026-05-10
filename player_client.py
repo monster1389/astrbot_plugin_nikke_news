@@ -41,12 +41,17 @@ class PlayerClient:
         return payload
 
     async def fetch_characters(
-        self, cookie: str, area_id: int = 84
+        self,
+        cookie: str,
+        area_id: int = 84,
+        *,
+        language: str = "en",
+        game_id: str = "29080",
     ) -> list[dict[str, Any]]:
         if not self._client:
             raise RuntimeError("http client not ready")
 
-        headers = {"Cookie": cookie} if cookie else {}
+        headers = _player_headers(cookie, language, game_id)
         resp = await self._client.post(
             GET_USER_CHARACTERS_URL,
             headers=headers,
@@ -69,16 +74,26 @@ class PlayerClient:
         return characters
 
     async def fetch_character_details(
-        self, cookie: str, area_id: int, name_codes: list[int]
+        self,
+        cookie: str,
+        area_id: int,
+        name_codes: list[int],
+        *,
+        intl_open_id: str = "",
+        language: str = "en",
+        game_id: str = "29080",
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         if not self._client:
             raise RuntimeError("http client not ready")
 
-        headers = {"Cookie": cookie} if cookie else {}
+        headers = _player_headers(cookie, language, game_id)
+        payload: dict[str, Any] = {"nikke_area_id": area_id, "name_codes": name_codes}
+        if intl_open_id:
+            payload["intl_open_id"] = intl_open_id
         resp = await self._client.post(
             GET_USER_CHARACTER_DETAILS_URL,
             headers=headers,
-            json={"nikke_area_id": area_id, "name_codes": name_codes},
+            json=payload,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -103,3 +118,22 @@ class PlayerClient:
             effects = []
 
         return details, effects
+
+
+def _player_headers(cookie: str, language: str, game_id: str) -> dict[str, str]:
+    headers = {
+        "x-language": language,
+        "x-channel-type": "2",
+        "x-common-params": (
+            '{"game_id":"16","area_id":"global","source":"pc_web",'
+            f'"intl_game_id":"{game_id or "29080"}","language":"{language}",'
+            '"env":"prod","data_statistics_scene":"outer",'
+            '"data_statistics_page_id":"https://www.blablalink.com/shiftyspad/nikke-list",'
+            '"data_statistics_client_type":"pc_web",'
+            f'"data_statistics_lang":"{language}"'
+            "}"
+        ),
+    }
+    if cookie:
+        headers["Cookie"] = cookie
+    return headers

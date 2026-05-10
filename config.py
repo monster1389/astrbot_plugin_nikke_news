@@ -5,6 +5,8 @@ from astrbot.api import AstrBotConfig, logger
 
 from constants import CONTENT_MODES, SUPPORTED_LANGUAGES
 
+PLAYER_MAPPING_LANGUAGES = {"en", "zh", "zh-TW", "ja", "ko"}
+
 
 class PluginConfig:
     def __init__(self, config: AstrBotConfig | None):
@@ -116,6 +118,33 @@ class PluginConfig:
                 pass
         return 84
 
+    def player_open_id(self) -> str:
+        cfg = self._parse_cookie_json()
+        value = str(cfg.get("game_openid", "") or "").strip() if cfg else ""
+        if value:
+            return value
+        return self._cookie_header_value("game_openid")
+
+    def player_game_id(self) -> str:
+        cfg = self._parse_cookie_json()
+        value = str(cfg.get("game_gameid", "") or "").strip() if cfg else ""
+        if value:
+            return value
+        return self._cookie_header_value("game_gameid") or "29080"
+
+    def player_mapping_language(self) -> str:
+        language = str(self._player.get("mapping_language", "en") or "en").strip()
+        if language not in PLAYER_MAPPING_LANGUAGES:
+            logger.warning(f"NIKKE 玩家映射语言配置无效，已使用 en：{language}")
+            return "en"
+        return language
+
+    def player_mapping_cache_ttl_hours(self) -> int:
+        return max(1, self._player_int("mapping_cache_ttl_hours", 168))
+
+    def player_auto_refresh_mapping(self) -> bool:
+        return self._nested_bool(self._player, "auto_refresh_mapping", True)
+
     def character_list_url(self) -> str:
         return str(self._player.get("character_list_url", "") or "").strip()
 
@@ -172,6 +201,16 @@ class PluginConfig:
 
     def player_alert_prefix(self) -> str:
         return str(self._player.get("alert_prefix", "【NIKKE 玩家状态提醒】") or "").strip()
+
+    def _cookie_header_value(self, key: str) -> str:
+        cookie = self.player_data_cookie()
+        for part in cookie.split(";"):
+            if "=" not in part:
+                continue
+            name, value = part.split("=", 1)
+            if name.strip() == key:
+                return value.strip()
+        return ""
 
     def _nested_bool(self, source: dict, key: str, default: bool) -> bool:
         value = source.get(key, default)

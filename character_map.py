@@ -72,6 +72,17 @@ class CharacterMap:
         logger.info(f"NIKKE {msg}")
         return msg
 
+    def update(self, names: dict[str, int]) -> None:
+        for name, code in names.items():
+            if name:
+                self._name_to_code[str(name)] = int(code)
+
+    def count(self) -> int:
+        return len(self._name_to_code)
+
+    def snapshot(self) -> dict[str, int]:
+        return dict(self._name_to_code)
+
     def _build_alias_map(self) -> dict[str, str]:
         """Reverse the config aliases (EnglishName → [aliases]) into alias → EnglishName."""
         result: dict[str, str] = {}

@@ -88,7 +88,7 @@ async def test_outpost_threshold_zero_disables_alert(captured):
     assert len(captured) == 0
 
     await plugin._poll_player_once()
-    assert len(captured) == first_count
+    assert len(captured) == 0
 
 
 @pytest.mark.asyncio

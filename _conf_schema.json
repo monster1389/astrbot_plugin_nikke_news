@@ -120,6 +120,25 @@
         "default": "",
         "hint": "留空则 /nikke refresh 只重载本地打包数据。填入完整 URL 后可从 CDN 拉取最新角色列表并更新本地文件。"
       },
+      "mapping_language": {
+        "description": "玩家查询映射语言",
+        "type": "string",
+        "default": "en",
+        "options": ["en", "zh", "zh-TW", "ja", "ko"],
+        "hint": "角色名和装备词条映射语言，默认英文。"
+      },
+      "mapping_cache_ttl_hours": {
+        "description": "玩家映射缓存有效期（小时）",
+        "type": "int",
+        "default": 168,
+        "hint": "超过有效期后，下一次玩家查询会按需尝试用 Chromium 刷新映射。"
+      },
+      "auto_refresh_mapping": {
+        "description": "自动刷新玩家映射",
+        "type": "bool",
+        "default": true,
+        "hint": "缓存缺失或过期时，查询会尝试启动 Chromium 刷新；关闭后仅 /nikke refresh 刷新。"
+      },
       "alert_prefix": {
         "description": "玩家提醒消息前缀",
         "type": "string",

@@ -22,6 +22,7 @@ from config import PluginConfig
 from constants import PLUGIN_NAME, REQUEST_TIMEOUT_SECONDS
 from message_builder import MessageBuilder
 from news_poller import NewsPoller
+from player_mapping_cache import PlayerMappingCache
 from player_poller import PlayerPoller
 from state_store import PluginStateStore
 from targets import enabled_targets, parse_push_target
@@ -39,8 +40,8 @@ from utils import (
 @register(
     PLUGIN_NAME,
     "monster1389",
-    "轮询 Blablalink NIKKE 官方消息并通过 NapCat QQ 主动推送。",
-    "v1.2.0",
+    "轮询 Blablalink NIKKE 官方消息，并支持玩家角色查询。",
+    "v1.3.0",
 )
 class NikkeNewsPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
@@ -52,6 +53,7 @@ class NikkeNewsPlugin(Star):
         self._player_poller: PlayerPoller | None = None
         self._character_map: CharacterMap | None = None
         self._character_service: CharacterService | None = None
+        self._mapping_cache: PlayerMappingCache | None = None
         self._task: asyncio.Task | None = None
         self._state_path: Path | None = None
         self._state: dict[str, Any] = PluginStateStore.default_state()
@@ -63,6 +65,8 @@ class NikkeNewsPlugin(Star):
 
         data_dir = StarTools.get_data_dir(PLUGIN_NAME)
         self._state_path = data_dir / "state.json"
+        self._mapping_cache = PlayerMappingCache(data_dir / "player_mappings.json")
+        self._mapping_cache.load()
         self._state = self._load_state()
         self._client = httpx.AsyncClient(
             timeout=REQUEST_TIMEOUT_SECONDS,
@@ -81,8 +85,10 @@ class NikkeNewsPlugin(Star):
             logger.info("NIKKE 角色映射加载失败，请检查 character_map.json。")
 
         self._character_service = CharacterService(
-            self._client, self._character_map, self._plugin_config
+            self._client, self._character_map, self._plugin_config, self._mapping_cache
         )
+        if self._mapping_cache.characters:
+            self._character_map.update(self._mapping_cache.characters)
 
         self._news_poller = NewsPoller(
             self._client,
@@ -135,6 +141,16 @@ class NikkeNewsPlugin(Star):
             await self._player_poller.poll()
         except Exception as exc:
             logger.warning(f"NIKKE 玩家数据轮询异常，将在下次重试：{exc}")
+
+    async def _poll_player_once(self):
+        if not self._player_poller:
+            self._player_poller = PlayerPoller(
+                self._client,
+                self._plugin_config,
+                self._state,
+                self._save_state,
+            )
+        await self._player_poller.poll()
 
     # Compatibility wrapper for existing tests
     def _format_post_message(self, post: dict[str, Any]) -> str:
@@ -253,21 +269,26 @@ class NikkeNewsPlugin(Star):
             yield event.plain_result("角色映射模块未初始化。")
             return
 
+        messages: list[str] = []
         url = self._plugin_config.character_list_url()
         if url:
-            msg = await self._character_map.refresh(self._client, url)
+            messages.append(await self._character_map.refresh(self._client, url))
         else:
             self._character_map.load()
             count = (
-                len(self._character_map._name_to_code)
+                self._character_map.count()
                 if self._character_map.is_loaded
                 else 0
             )
-            msg = (
+            messages.append(
                 f"已重载本地角色列表，共 {count} 个角色。"
                 if count
                 else "本地角色列表加载失败，请检查 character_map.json。"
             )
-        yield event.plain_result(msg)
+
+        if self._character_service:
+            messages.append(await self._character_service.refresh_mappings())
+
+        yield event.plain_result("\n".join(messages))
 
 

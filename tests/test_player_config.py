@@ -22,6 +22,12 @@ def make_plugin(**config) -> NikkeNewsPlugin:
             base["player_reminder"]["daily_mission_remind_time"] = value
         elif key == "player_outpost_threshold":
             base["player_reminder"]["outpost_fullness_threshold_percent"] = value
+        elif key in {
+            "mapping_language",
+            "mapping_cache_ttl_hours",
+            "auto_refresh_mapping",
+        }:
+            base["player_reminder"][key] = value
         else:
             base[key] = value
     return NikkeNewsPlugin(context=None, config=base)
@@ -53,3 +59,14 @@ def test_outpost_threshold_clamped():
     assert plugin._plugin_config.outpost_fullness_threshold_percent() == 100
     plugin = make_plugin(player_outpost_threshold=-5)
     assert plugin._plugin_config.outpost_fullness_threshold_percent() == 0
+
+
+def test_player_mapping_defaults_and_clamps():
+    plugin = make_plugin()
+    assert plugin._plugin_config.player_mapping_language() == "en"
+    assert plugin._plugin_config.player_mapping_cache_ttl_hours() == 168
+    assert plugin._plugin_config.player_auto_refresh_mapping() is True
+
+    plugin = make_plugin(mapping_language="bad", mapping_cache_ttl_hours=-3)
+    assert plugin._plugin_config.player_mapping_language() == "en"
+    assert plugin._plugin_config.player_mapping_cache_ttl_hours() == 1
