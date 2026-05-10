@@ -204,8 +204,8 @@ def _option_description(
     detail: dict[str, Any], state_effect: dict[str, Any], meta: dict[str, Any]
 ) -> str:
     for value in (
-        detail.get("name_localvalues"),
         meta.get("description"),
+        detail.get("name_localvalues"),
         state_effect.get("function_description"),
         state_effect.get("text"),
         detail.get("function_description"),
