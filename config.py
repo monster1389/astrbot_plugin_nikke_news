@@ -116,6 +116,9 @@ class PluginConfig:
                 pass
         return 84
 
+    def character_list_url(self) -> str:
+        return str(self._player.get("character_list_url", "") or "").strip()
+
     def character_aliases(self) -> dict[str, list[str]]:
         """Parse character_alias config into a normalized dict.
 
