@@ -116,7 +116,8 @@ class NikkeNewsPlugin(Star):
             await asyncio.sleep(self._poll_interval_seconds())
 
     async def _poll_once(self):
-        self._state = self._load_state()
+        self._state.clear()
+        self._state.update(self._load_state())
         await self._news_poller.poll()
         try:
             await self._player_poller.poll()

@@ -218,6 +218,35 @@ async def test_poll_rereads_state_from_disk(caplog, captured, tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# second poll cycle does not re-detect already-seen posts (regression for stale state reference)
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_poll_second_cycle_does_not_redetect(caplog, captured, tmp_path):
+    caplog.set_level(logging.INFO)
+    plugin = make_plugin()
+    plugin._state_path = tmp_path / "state.json"
+    plugin._state_path.write_text(
+        json.dumps({"initialized": True, "seen_post_uuids": ["aaa1", "ccc3"]})
+    )
+
+    _mock_client(plugin)
+
+    # First poll: only bbb2 is new
+    await plugin._poll_once()
+    assert "发现新帖" in caplog.text
+    assert len(captured) == 1
+    assert "Post B" in captured[0]["content"]
+
+    captured.clear()
+    caplog.clear()
+
+    # Second poll: same API response, no new posts expected
+    await plugin._poll_once()
+    assert "无新帖" in caplog.text
+    assert len(captured) == 0
+
+
+# ---------------------------------------------------------------------------
 # filters non-official / wrong plate_id posts
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
