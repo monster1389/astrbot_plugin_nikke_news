@@ -181,6 +181,16 @@ class NikkeNewsPlugin(Star):
                 yield result
             return
 
+        if text.strip().lower() in ("help", "--help", "-h", "帮助"):
+            yield event.plain_result(
+                "NIKKE 插件命令列表\n\n"
+                "/nikke <角色名>  查询角色战力、技能、装备\n"
+                "/nikke refresh  刷新角色名称和词条映射\n"
+                "/nikke portrait_refresh  下载/刷新所有角色头像\n"
+                "/nikke help  显示本帮助"
+            )
+            return
+
         try:
             result_text, name_code = await self._character_service.query(text)
 
