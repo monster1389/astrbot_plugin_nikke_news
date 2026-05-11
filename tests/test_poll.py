@@ -57,7 +57,7 @@ def make_plugin(**config) -> NikkeNewsPlugin:
         "新闻": {
             "enabled": True,
             "poll_interval_seconds": 300,
-            "language": "zh-TW",
+            "language": "en",
             "fetch_limit": 10,
             "scheduled_push_groups": ["123456"],
             "push_delay_seconds": 0,

@@ -7,9 +7,9 @@ def make_plugin(**config) -> NikkeNewsPlugin:
     base = {
         "新闻": {"enabled": True},
         "玩家": {
+            "cookie": "cookie=abc",
             "状态提醒": {
                 "enabled": False,
-                "cookie": "cookie=abc",
                 "daily_mission_remind_time": "21:00",
                 "outpost_fullness_threshold_percent": 90,
             },
@@ -20,7 +20,7 @@ def make_plugin(**config) -> NikkeNewsPlugin:
         if key == "player_data_enabled":
             base["玩家"]["状态提醒"]["enabled"] = value
         elif key == "player_data_cookie":
-            base["玩家"]["状态提醒"]["cookie"] = value
+            base["玩家"]["cookie"] = value
         elif key == "player_daily_mission_remind_time":
             base["玩家"]["状态提醒"]["daily_mission_remind_time"] = value
         elif key == "player_outpost_threshold":
@@ -67,12 +67,12 @@ def test_outpost_threshold_clamped():
 
 def test_player_mapping_defaults_and_clamps():
     plugin = make_plugin()
-    assert plugin._plugin_config.player_mapping_language() == "en"
+    assert plugin._plugin_config.player_mapping_language() == "zh-TW"
     assert plugin._plugin_config.player_mapping_cache_ttl_hours() == 168
     assert plugin._plugin_config.player_auto_refresh_mapping() is True
 
     plugin = make_plugin(mapping_language="bad", mapping_cache_ttl_hours=-3)
-    assert plugin._plugin_config.player_mapping_language() == "en"
+    assert plugin._plugin_config.player_mapping_language() == "zh-TW"
     assert plugin._plugin_config.player_mapping_cache_ttl_hours() == 1
 
 

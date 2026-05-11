@@ -20,7 +20,7 @@ def make_plugin(**config) -> NikkeNewsPlugin:
     base = {
         "新闻": {
             "enabled": True,
-            "language": "zh-TW",
+            "language": "en",
             "fetch_limit": 10,
             "push_delay_seconds": 2,
         },
@@ -74,7 +74,7 @@ def test_fetch_limit_clamped_max():
 # ---------------------------------------------------------------------------
 def test_language_default():
     plugin = make_plugin()
-    assert plugin._plugin_config.language() == "zh-TW"
+    assert plugin._plugin_config.language() == "en"
 
 
 def test_language_valid():
@@ -86,13 +86,13 @@ def test_language_valid():
 def test_language_invalid(caplog):
     caplog.set_level(logging.WARNING)
     plugin = make_plugin(language="fr")
-    assert plugin._plugin_config.language() == "zh-TW"
+    assert plugin._plugin_config.language() == "en"
     assert "语言配置无效" in caplog.text
 
 
 def test_language_empty():
     plugin = make_plugin(language="")
-    assert plugin._plugin_config.language() == "zh-TW"
+    assert plugin._plugin_config.language() == "en"
 
 
 # ---------------------------------------------------------------------------

@@ -14,6 +14,9 @@ class PluginConfig:
         self._news = self._as_dict(self._config.get("新闻"))
         player_section = self._as_dict(self._config.get("玩家"))
         self._player: dict[str, Any] = {}
+        for key, value in player_section.items():
+            if not isinstance(value, dict):
+                self._player[key] = value
         self._player.update(self._as_dict(player_section.get("状态提醒")))
         self._player.update(self._as_dict(player_section.get("nikke查询")))
         if self._config.get("新闻") is not None and not isinstance(
@@ -59,10 +62,10 @@ class PluginConfig:
         return min(50, max(1, self._news_int("fetch_limit", 10)))
 
     def language(self) -> str:
-        language = str(self._news.get("language", "zh-TW")).strip() or "zh-TW"
+        language = str(self._news.get("language", "en")).strip() or "en"
         if language not in SUPPORTED_LANGUAGES:
-            logger.warning(f"NIKKE 语言配置无效，已使用 zh-TW：{language}")
-            return "zh-TW"
+            logger.warning(f"NIKKE 语言配置无效，已使用 en：{language}")
+            return "en"
         return language
 
     def push_delay_seconds(self) -> int:
@@ -141,10 +144,10 @@ class PluginConfig:
         return self._cookie_header_value("game_gameid") or "29080"
 
     def player_mapping_language(self) -> str:
-        language = str(self._player.get("mapping_language", "en") or "en").strip()
+        language = str(self._player.get("mapping_language", "zh-TW") or "zh-TW").strip()
         if language not in _PLAYER_MAPPING_LANGUAGES:
-            logger.warning(f"NIKKE 玩家映射语言配置无效，已使用 en：{language}")
-            return "en"
+            logger.warning(f"NIKKE 玩家映射语言配置无效，已使用 zh-TW：{language}")
+            return "zh-TW"
         return language
 
     def player_mapping_cache_ttl_hours(self) -> int:

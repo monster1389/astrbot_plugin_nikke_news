@@ -19,9 +19,9 @@ def make_plugin(**config) -> NikkeNewsPlugin:
     base = {
         "新闻": {"enabled": True, "scheduled_push_groups": ["123456"]},
         "玩家": {
+            "cookie": "cookie=abc",
             "状态提醒": {
                 "enabled": True,
-                "cookie": "cookie=abc",
                 "daily_mission_remind_time": "00:00",
                 "outpost_fullness_threshold_percent": 90,
                 "daily_mission_enabled": True,
@@ -35,7 +35,7 @@ def make_plugin(**config) -> NikkeNewsPlugin:
         elif key == "player_data_enabled":
             base["玩家"]["状态提醒"]["enabled"] = value
         elif key == "player_data_cookie":
-            base["玩家"]["状态提醒"]["cookie"] = value
+            base["玩家"]["cookie"] = value
         elif key == "player_daily_mission_remind_time":
             base["玩家"]["状态提醒"]["daily_mission_remind_time"] = value
         elif key == "outpost_fullness_threshold_percent":
