@@ -15,6 +15,8 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 - 每轮轮询自动从磁盘重读状态，手动删 `state.json` 无需重启。
 - 已推送状态保存在 AstrBot 插件数据目录，避免重复推送。
 - 支持 `/nikke <角色名>` 查询玩家角色数据。
+- 支持 `/nikke portrait_refresh` 下载/刷新角色头像，查询时附图展示。
+- 支持 `/nikke help` 查看所有命令。
 - 支持用 Playwright/Chromium 按需刷新角色名和装备词条映射。
 
 ## 前置要求
@@ -61,6 +63,7 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 | `mapping_cache_ttl_hours` | int | `168` | 玩家映射缓存有效期，过期后按需刷新 |
 | `auto_refresh_mapping` | bool | `true` | 查询时缓存缺失/过期则尝试启动 Chromium 刷新 |
 | `alert_prefix` | string | `【NIKKE 玩家状态提醒】` | 玩家提醒消息前缀，留空则不添加 |
+| `show_character_portrait` | bool | `true` | `/nikke` 查询时是否附带角色头像图片 |
 
 **`cookie` JSON 格式**（从浏览器 Cookie 中提取对应字段填入）：
 
@@ -88,8 +91,12 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 
 - `/nikke <角色名>` 查询账号内角色战力、技能、装备等级和 T10 词条。
 - `/nikke refresh` 或 `/nikke_refresh` 刷新角色名和词条映射。
+- `/nikke portrait_refresh` 用 Playwright 抓取角色头像并缓存到本地（首次启动自动缓存前 30 个）。
+- `/nikke help` 查看所有命令。
+- 查询角色时，若启用了 `show_character_portrait` 且头像已缓存，会附带角色头像图片；未缓存时会提示执行 `portrait_refresh`。
+- 头像缓存保存在 AstrBot 插件数据目录的 `portraits/` 文件夹，文件以 `name_code.webp` 命名。
 - 词条映射刷新会按需使用运行环境中的 Playwright/Chromium 打开 Blablalink 页面并监听静态 JSON；未安装 Playwright 时会返回明确提示。
-- 玩家映射缓存保存在 AstrBot 插件数据目录的 `player_mappings.json`。
+- 玩家映射缓存保存在 AstrBot 插件数据目录的 `player_mappings_{lang}.json`。
 
 查询示例：
 
@@ -97,6 +104,8 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 /nikke anis
 /nikke rapi rh
 /nikke refresh
+/nikke portrait_refresh
+/nikke help
 ```
 
 查询流程：

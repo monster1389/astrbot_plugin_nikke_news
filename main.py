@@ -30,7 +30,7 @@ from player.portrait_service import PortraitService
     PLUGIN_NAME,
     "monster1389",
     "轮询 Blablalink NIKKE 官方消息，并支持玩家角色查询。",
-    "v1.4.0",
+    "v1.5.0",
 )
 class NikkeNewsPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):

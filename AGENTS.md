@@ -8,7 +8,7 @@ This is an [AstrBot](https://github.com/AstrBotDevs/AstrBot) plugin. The plugin 
 - **Core modules**: the plugin is organised into three packages:
   - `core/` — config, constants, state, targets, time_utils, utils, message_builder, poll_coordinator
   - `news/` — news_client, news_poller
-  - `player/` — player_client, player_poller, character_service, player_mapping_cache, player_mapping_refresher
+  - `player/` — player_client, player_poller, character_service, player_mapping_cache, player_mapping_refresher, portrait_service
   Keep new code in the closest existing module instead of growing `main.py`.
 - **Metadata**: `metadata.yaml` — plugin identity (name, version, author, repo)
 - **Config schema**: `_conf_schema.json` — declares plugin configuration fields for the AstrBot admin UI
@@ -23,6 +23,8 @@ It also exposes user-facing async-generator commands for player character lookup
 
 - `/nikke <character>`: query a character owned by the configured Blablalink account.
 - `/nikke refresh` or `/nikke_refresh`: reload local character data and refresh player mapping cache.
+- `/nikke portrait_refresh`: scrape and download all character portraits into `portraits/` directory.
+- `/nikke help`: show command list.
 
 - On startup (`initialize()`), it creates a background `asyncio.Task` that runs `PollCoordinator.run()` loop every `poll_interval_seconds` (minimum 60s, default 300s). The PollCoordinator (`core/poll_coordinator.py`) owns the poll cycle; the plugin class delegates to it.
 - **First poll**: marks all currently available posts as "seen" without pushing anything.
@@ -59,6 +61,7 @@ Nested `player_reminder` keys:
 | `mapping_language` | string | `"en"` | Mapping language for player lookup |
 | `mapping_cache_ttl_hours` | int | `168` | Cache TTL; clamped to at least 1 hour |
 | `auto_refresh_mapping` | bool | `true` | Auto-refresh mappings when missing/stale |
+| `show_character_portrait` | bool | `true` | Include character portrait image in `/nikke` response |
 
 ### Push target format
 
@@ -94,10 +97,10 @@ Legacy format (`targets`, dictionary-style with `target_type`/`target_id`/`enabl
 
 - The `@register(name, author, desc, version)` decorator in `main.py` and the fields in `metadata.yaml` **must match**. If you change one, update the other.
 - The `name` in `metadata.yaml` should follow the `astrbot_plugin_*` prefix convention matching the repo/directory name.
-- Command handlers must be **async generators**: use `yield event.plain_result(...)` to send replies, not `return`.
+- Command handlers must be **async generators**: use `yield event.plain_result(...)` to send text-only replies, or `yield event.chain_result([Comp.Image.fromFileSystem(...), Comp.Plain(...)])` to send a message with an attached local image.
 - Plugin lifecycle: `__init__` → `initialize()` (async) → handlers / poll loop run → `terminate()` (async, on unload/disable).
 - Messages are sent via `StarTools.send_message_by_id()`, bypassing the LLM reply pipeline; they are invisible to model context.
-- Messages are built as `MessageChain` with `chain.chain.append(Comp.Image.fromURL(...))` for image attachment.
+- Messages are built as `MessageChain` with `chain.chain.append(Comp.Image.fromURL(...))` for image attachment (remote URLs) or `Comp.Image.fromFileSystem(...)` for local files.
 
 ## Data flow
 
@@ -132,7 +135,9 @@ QQ command /nikke <name>
   MessageBuilder.format_character_stats()
       │
       ▼
-  event.plain_result(...)
+  PortraitService.exists(name_code)?
+      ├─ yes → event.chain_result([Image.fromFileSystem(path), Plain(text)])
+      └─ no  → event.plain_result(text + hint to run portrait_refresh)
 ```
 
 Mapping refresh:
