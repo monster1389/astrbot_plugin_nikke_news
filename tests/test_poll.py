@@ -7,7 +7,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import pytest_asyncio
 
+from core.poll_coordinator import PollCoordinator
 from main import NikkeNewsPlugin
+from news.news_poller import NewsPoller
+from player.player_poller import PlayerPoller
 
 API_RESPONSE = {
     "code": 0,
@@ -82,6 +85,24 @@ def _mock_client(plugin, response=None, error=None):
         plugin._client.post = AsyncMock(return_value=mock_resp)
 
 
+def _setup_coordinator(plugin):
+    plugin._news_poller = NewsPoller(
+        plugin._client, plugin._plugin_config,
+        plugin._state, plugin._save_state, plugin._mark_seen,
+    )
+    plugin._player_poller = PlayerPoller(
+        plugin._client, plugin._plugin_config,
+        plugin._state, plugin._save_state,
+    )
+    plugin._coordinator = PollCoordinator(
+        news_poller=plugin._news_poller,
+        player_poller=plugin._player_poller,
+        state=plugin._state,
+        state_path=plugin._state_path,
+        poll_interval_seconds=300,
+    )
+
+
 # ---------------------------------------------------------------------------
 # first poll: initialized=false → mark all as seen, no push
 # ---------------------------------------------------------------------------
@@ -94,6 +115,7 @@ async def test_first_poll_initializes(caplog, captured, tmp_path):
     assert plugin._state["initialized"] is False
 
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
 
@@ -117,6 +139,7 @@ async def test_poll_no_new_posts(caplog, captured, tmp_path):
     )
 
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
 
@@ -137,6 +160,7 @@ async def test_poll_new_posts_pushes(caplog, captured, tmp_path):
     )
 
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
 
@@ -157,6 +181,7 @@ async def test_poll_api_timeout(caplog, tmp_path):
         json.dumps({"initialized": True, "seen_post_uuids": []})
     )
     _mock_client(plugin, error=Exception("ReadTimeout"))
+    _setup_coordinator(plugin)
 
     with pytest.raises(Exception, match="ReadTimeout"):
         await plugin._poll_once()
@@ -174,6 +199,7 @@ async def test_poll_api_empty_list(caplog, tmp_path):
         json.dumps({"initialized": True, "seen_post_uuids": []})
     )
     _mock_client(plugin, response={"code": 0, "data": {"list": []}})
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
     assert "未获取到任何帖子" in caplog.text
@@ -192,6 +218,7 @@ async def test_poll_api_error_code(tmp_path):
     _mock_client(
         plugin, response={"code": 500, "msg": "error"}
     )
+    _setup_coordinator(plugin)
 
     with pytest.raises(RuntimeError, match="Blablalink API 返回错误"):
         await plugin._poll_once()
@@ -210,6 +237,7 @@ async def test_poll_rereads_state_from_disk(caplog, captured, tmp_path):
     )
 
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
 
@@ -230,6 +258,7 @@ async def test_poll_second_cycle_does_not_redetect(caplog, captured, tmp_path):
     )
 
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     # First poll: only bbb2 is new
     await plugin._poll_once()
@@ -291,6 +320,7 @@ async def test_poll_filters_non_official(caplog, captured, tmp_path):
         },
     }
     _mock_client(plugin, response=mixed)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
     assert len(captured) == 1

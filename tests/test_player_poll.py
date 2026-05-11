@@ -3,7 +3,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from core.poll_coordinator import PollCoordinator
 from main import NikkeNewsPlugin
+from news.news_poller import NewsPoller
 from player.player_poller import PlayerPoller
 
 
@@ -65,6 +67,24 @@ def _mock_player_client(plugin, code=0, payload=None):
     )
     plugin._client = MagicMock()
     plugin._client.post = AsyncMock(return_value=mock_resp)
+
+
+def _setup_coordinator(plugin):
+    plugin._news_poller = NewsPoller(
+        plugin._client, plugin._plugin_config,
+        plugin._state, plugin._save_state, plugin._mark_seen,
+    )
+    plugin._player_poller = PlayerPoller(
+        plugin._client, plugin._plugin_config,
+        plugin._state, plugin._save_state,
+    )
+    plugin._coordinator = PollCoordinator(
+        news_poller=plugin._news_poller,
+        player_poller=plugin._player_poller,
+        state=plugin._state,
+        state_path=plugin._state_path,
+        poll_interval_seconds=300,
+    )
 
 
 @pytest.mark.asyncio
@@ -139,6 +159,7 @@ async def test_player_poll_exception_does_not_break_news_flow(captured, tmp_path
 
     plugin._client = MagicMock()
     plugin._client.post = AsyncMock(side_effect=[news_resp, Exception("player err")])
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
 

@@ -5,7 +5,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import pytest_asyncio
 
+from core.poll_coordinator import PollCoordinator
 from main import NikkeNewsPlugin
+from news.news_poller import NewsPoller
+from player.player_poller import PlayerPoller
 
 API_RESPONSE = {
     "code": 0,
@@ -84,6 +87,24 @@ def _write_state(tmp_path, seen):
     )
 
 
+def _setup_coordinator(plugin):
+    plugin._news_poller = NewsPoller(
+        plugin._client, plugin._plugin_config,
+        plugin._state, plugin._save_state, plugin._mark_seen,
+    )
+    plugin._player_poller = PlayerPoller(
+        plugin._client, plugin._plugin_config,
+        plugin._state, plugin._save_state,
+    )
+    plugin._coordinator = PollCoordinator(
+        news_poller=plugin._news_poller,
+        player_poller=plugin._player_poller,
+        state=plugin._state,
+        state_path=plugin._state_path,
+        poll_interval_seconds=300,
+    )
+
+
 # ---------------------------------------------------------------------------
 # image push – defaults to at most 3 images
 # ---------------------------------------------------------------------------
@@ -94,6 +115,7 @@ async def test_push_images_default_max_three(captured, tmp_path):
     plugin._state_path = state_path
     _write_state(state_path, ["bbb2"])
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
 
@@ -114,6 +136,7 @@ async def test_push_images_respects_max_images(captured, tmp_path):
     plugin._state_path = state_path
     _write_state(state_path, ["bbb2"])
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
 
@@ -127,6 +150,7 @@ async def test_push_images_can_be_disabled(captured, tmp_path):
     plugin._state_path = state_path
     _write_state(state_path, ["bbb2"])
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
 
@@ -161,6 +185,7 @@ async def test_push_video_post_skips_images(captured, tmp_path):
         },
     }
     _mock_client(plugin, response=response)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
 
@@ -177,6 +202,7 @@ async def test_push_no_delay(captured, tmp_path):
     plugin._state_path = state_path
     _write_state(state_path, [])
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
     assert len(captured) == 2
@@ -192,6 +218,7 @@ async def test_push_with_delay(tmp_path):
     plugin._state_path = state_path
     _write_state(state_path, [])
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     import main as mod
 
@@ -216,6 +243,7 @@ async def test_push_prefix(captured, tmp_path):
     plugin._state_path = state_path
     _write_state(state_path, [])
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
     assert captured[0]["content"].startswith("【TEST】")
@@ -231,6 +259,7 @@ async def test_push_prefix_empty(captured, tmp_path):
     plugin._state_path = state_path
     _write_state(state_path, [])
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
     assert captured[0]["content"].startswith("Post A")
@@ -246,6 +275,7 @@ async def test_push_friend_message(captured, tmp_path):
     plugin._state_path = state_path
     _write_state(state_path, [])
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
     assert captured[0]["target_type"] == "FriendMessage"
@@ -262,6 +292,7 @@ async def test_push_multiple_targets(captured, tmp_path):
     plugin._state_path = state_path
     _write_state(state_path, [])
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
     assert len(captured) == 4
@@ -280,6 +311,7 @@ async def test_push_no_targets(caplog, captured, tmp_path):
     plugin._state_path = state_path
     _write_state(state_path, [])
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     await plugin._poll_once()
     assert "未配置推送目标" in caplog.text
@@ -298,6 +330,7 @@ async def test_push_partial_failure(caplog, captured, tmp_path):
     plugin._state_path = state_path
     _write_state(state_path, [])
     _mock_client(plugin)
+    _setup_coordinator(plugin)
 
     import main as mod
 

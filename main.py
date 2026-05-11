@@ -1,4 +1,6 @@
 import asyncio
+import os
+import sys
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
@@ -7,6 +9,10 @@ import httpx
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star, StarTools, register
+
+_plugin_dir = os.path.dirname(os.path.abspath(__file__))
+if _plugin_dir not in sys.path:
+    sys.path.insert(0, _plugin_dir)
 
 from core.config import PluginConfig
 from core.constants import PLUGIN_NAME, REQUEST_TIMEOUT_SECONDS
@@ -127,31 +133,7 @@ class NikkeNewsPlugin(Star):
         return self._plugin_config.config_bool(key, default)
 
     async def _poll_once(self):
-        if self._coordinator:
-            await self._coordinator._poll_once()
-        else:
-            self._state.clear()
-            self._state.update(self._load_state())
-            np = NewsPoller(
-                self._client,
-                self._plugin_config,
-                self._state,
-                self._save_state,
-                self._mark_seen,
-            )
-            await np.poll()
-            pp = PlayerPoller(
-                self._client,
-                self._plugin_config,
-                self._state,
-                self._save_state,
-            )
-            try:
-                await pp.poll()
-            except Exception as exc:
-                logger.warning(
-                    f"NIKKE 玩家数据轮询异常，将在下次重试：{exc}"
-                )
+        await self._coordinator._poll_once()
 
     @filter.command("nikke")
     async def cmd_nikke(self, event: AstrMessageEvent, text: str = ""):
