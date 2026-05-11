@@ -131,6 +131,12 @@
         "type": "string",
         "default": "【NIKKE 玩家状态提醒】",
         "hint": "玩家状态提醒消息前缀，留空则不加。"
+      },
+      "show_character_portrait": {
+        "description": "在角色查询响应中显示角色头像",
+        "type": "bool",
+        "default": true,
+        "hint": "启用后 /nikke <角色> 会同时返回角色头像图片。"
       }
     }
   }

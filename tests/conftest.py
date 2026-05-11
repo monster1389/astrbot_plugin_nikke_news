@@ -1,10 +1,15 @@
 import logging
+import os
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
+_plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _plugin_dir not in sys.path:
+    sys.path.insert(0, _plugin_dir)
 
 
 def _make_module(name: str, **attrs: object) -> ModuleType:
@@ -46,6 +51,10 @@ class Image:
         if not url.startswith(("http://", "https://")):
             raise Exception("not a valid url")
         return Image(url)
+
+    @staticmethod
+    def fromFileSystem(path: str) -> "Image":
+        return Image(path)
 
 
 class MessageChain:
@@ -147,6 +156,9 @@ class AstrMessageEvent:
 
     def plain_result(self, text: str):
         return text
+
+    def chain_result(self, chain: list):
+        return chain
 
     @staticmethod
     def make_result(text: str):

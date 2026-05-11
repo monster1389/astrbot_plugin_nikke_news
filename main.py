@@ -7,6 +7,7 @@ from typing import Any
 
 import httpx
 from astrbot.api import AstrBotConfig, logger
+import astrbot.api.message_components as Comp
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star, StarTools, register
 
@@ -22,6 +23,7 @@ from news.news_poller import NewsPoller
 from player.character_service import CharacterQueryError, CharacterService
 from player.player_mapping_cache import PlayerMappingCache
 from player.player_poller import PlayerPoller
+from player.portrait_service import PortraitService
 
 
 @register(
@@ -39,6 +41,7 @@ class NikkeNewsPlugin(Star):
         self._news_poller: NewsPoller | None = None
         self._player_poller: PlayerPoller | None = None
         self._character_service: CharacterService | None = None
+        self._portrait_service: PortraitService | None = None
         self._en_cache: PlayerMappingCache | None = None
         self._target_cache: PlayerMappingCache | None = None
         self._coordinator: PollCoordinator | None = None
@@ -77,6 +80,16 @@ class NikkeNewsPlugin(Star):
         self._character_service._load_caches()
         if not self._character_service.is_loaded:
             logger.info("NIKKE 角色映射为空，请执行 /nikke refresh 刷新角色列表。")
+
+        self._portrait_service = PortraitService(data_dir, self._client)
+        cached = self._portrait_service.cached_count()
+        if cached == 0 and self._plugin_config.player_data_enabled():
+            cookie = self._plugin_config.player_data_cookie()
+            if cookie:
+                asyncio.create_task(
+                    self._seed_portraits(cookie),
+                    name=f"{PLUGIN_NAME}_portrait_seed",
+                )
 
         self._news_poller = NewsPoller(
             self._client,
@@ -135,6 +148,11 @@ class NikkeNewsPlugin(Star):
     async def _poll_once(self):
         await self._coordinator._poll_once()
 
+    async def _seed_portraits(self, cookie: str):
+        logger.info("NIKKE 开始初始头像缓存（前 30 个角色）...")
+        msg = await self._portrait_service.refresh_first_n(30, cookie)
+        logger.info(f"NIKKE {msg}")
+
     @filter.command("nikke")
     async def cmd_nikke(self, event: AstrMessageEvent, text: str = ""):
         """查询 NIKKE 角色数据。用法: /nikke <角色名>"""
@@ -157,9 +175,31 @@ class NikkeNewsPlugin(Star):
                 yield result
             return
 
+        if text.strip().lower() in ("portrait_refresh", "refresh_portrait",
+                                     "portrait refresh", "refresh portrait"):
+            async for result in self.cmd_nikke_portrait_refresh(event):
+                yield result
+            return
+
         try:
-            result = await self._character_service.query(text)
-            yield event.plain_result(result)
+            result_text, name_code = await self._character_service.query(text)
+
+            if self._plugin_config.show_character_portrait() and self._portrait_service:
+                path = self._portrait_service.portrait_path(name_code)
+                if path.exists():
+                    chain = [
+                        Comp.Image.fromFileSystem(str(path)),
+                        Comp.Plain(result_text),
+                    ]
+                    yield event.chain_result(chain)
+                    return
+                yield event.plain_result(
+                    result_text
+                    + "\n\n（未找到角色头像，请执行 /nikke portrait_refresh 下载头像缓存。）"
+                )
+                return
+
+            yield event.plain_result(result_text)
         except CharacterQueryError as exc:
             yield event.plain_result(exc.message)
 
@@ -182,5 +222,21 @@ class NikkeNewsPlugin(Star):
         messages.append(await self._character_service.refresh_mappings())
 
         yield event.plain_result("\n".join(messages))
+
+    async def cmd_nikke_portrait_refresh(self, event: AstrMessageEvent):
+        """刷新所有角色头像缓存。"""
+        if not self._portrait_service:
+            yield event.plain_result("头像服务未初始化。")
+            return
+        cookie = self._plugin_config.player_data_cookie()
+        if not cookie:
+            yield event.plain_result(
+                "未配置玩家 Cookie，无法获取角色头像。"
+                "请先在插件配置中设置 player_reminder.cookie。"
+            )
+            return
+        yield event.plain_result("正在抓取角色头像列表并下载...")
+        msg = await self._portrait_service.refresh_all(cookie)
+        yield event.plain_result(msg)
 
 

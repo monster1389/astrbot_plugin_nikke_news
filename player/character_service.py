@@ -162,7 +162,7 @@ class CharacterService:
         self._load_caches()
         return "\n".join(messages) if messages else "映射缓存均为最新，无需刷新。"
 
-    async def query(self, name: str) -> str:
+    async def query(self, name: str) -> tuple[str, int]:
         cookie = self._config.player_data_cookie()
         if not cookie:
             raise CharacterQueryError(
@@ -222,13 +222,14 @@ class CharacterService:
         if not details:
             raise CharacterQueryError("角色详情数据为空。")
 
-        return MessageBuilder.format_character_stats(
+        text = MessageBuilder.format_character_stats(
             char_info,
             details[0],
             {"en": display_name},
             effects,
             self._state_effect_options,
         )
+        return text, name_code
 
     async def _ensure_mapping_cache(self) -> None:
         if not self._en_cache:

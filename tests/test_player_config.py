@@ -26,6 +26,7 @@ def make_plugin(**config) -> NikkeNewsPlugin:
             "mapping_language",
             "mapping_cache_ttl_hours",
             "auto_refresh_mapping",
+            "show_character_portrait",
         }:
             base["player_reminder"][key] = value
         else:
@@ -70,3 +71,13 @@ def test_player_mapping_defaults_and_clamps():
     plugin = make_plugin(mapping_language="bad", mapping_cache_ttl_hours=-3)
     assert plugin._plugin_config.player_mapping_language() == "en"
     assert plugin._plugin_config.player_mapping_cache_ttl_hours() == 1
+
+
+def test_show_character_portrait_default():
+    plugin = make_plugin()
+    assert plugin._plugin_config.show_character_portrait() is True
+
+
+def test_show_character_portrait_false():
+    plugin = make_plugin(show_character_portrait=False)
+    assert plugin._plugin_config.show_character_portrait() is False
