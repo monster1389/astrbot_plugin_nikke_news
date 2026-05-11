@@ -1,6 +1,6 @@
 ﻿from astrbot.api import logger
 
-from constants import SUPPORTED_TARGET_TYPES
+from .constants import SUPPORTED_TARGET_TYPES
 
 
 def parse_push_target(value: str) -> dict[str, str] | None:

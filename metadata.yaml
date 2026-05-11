@@ -1,7 +1,7 @@
 name: astrbot_plugin_nikke_news
 display_name: NIKKE 官方消息与玩家查询
 desc: 轮询 Blablalink NIKKE Official 板块，主动推送 QQ 消息，并支持玩家角色查询。
-version: v1.3.0
+version: v1.4.0
 author: monster1389
 repo: "https://github.com/monster1389/astrbot_plugin_nikke_news"
 support_platforms:

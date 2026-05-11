@@ -1,6 +1,6 @@
 from main import NikkeNewsPlugin
-from message_builder import MessageBuilder
-from utils import clean_html_with_linebreaks, clean_text, format_timestamp, safe_int
+from core.message_builder import MessageBuilder
+from core.utils import clean_html_with_linebreaks, clean_text, format_timestamp, safe_int
 
 PLUGIN = NikkeNewsPlugin(context=None, config={})
 

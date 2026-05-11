@@ -241,6 +241,7 @@ async def test_poll_second_cycle_does_not_redetect(caplog, captured, tmp_path):
     caplog.clear()
 
     # Second poll: same API response, no new posts expected
+    caplog.set_level(logging.DEBUG)
     await plugin._poll_once()
     assert "无新帖" in caplog.text
     assert len(captured) == 0

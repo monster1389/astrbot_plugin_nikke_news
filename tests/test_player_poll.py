@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from main import NikkeNewsPlugin
-from player_poller import PlayerPoller
+from player.player_poller import PlayerPoller
 
 
 def _poll(plugin):
@@ -54,8 +54,12 @@ def _mock_player_client(plugin, code=0, payload=None):
             "msg": "err" if code else "ok",
             "data": payload
             or {
-                "outpost_battle_storage_fullness": 0.95,
-                "daily_mission_received_points": 0,
+                "daily_progress": [
+                    {
+                        "outpost_battle_storage_fullness": 0.95,
+                        "daily_mission_received_points": 0,
+                    }
+                ]
             },
         }
     )

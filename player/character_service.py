@@ -3,11 +3,11 @@ from typing import Any
 import httpx
 from astrbot.api import logger
 
-from config import PluginConfig
-from message_builder import MessageBuilder
-from player_mapping_cache import PlayerMappingCache
-from player_mapping_refresher import PlayerMappingRefreshError, refresh_player_mappings
-from player_client import PlayerClient
+from core.config import PluginConfig
+from core.message_builder import MessageBuilder
+from player.player_mapping_cache import PlayerMappingCache
+from player.player_mapping_refresher import PlayerMappingRefreshError, refresh_player_mappings
+from player.player_client import PlayerClient
 
 
 class CharacterQueryError(Exception):

@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from main import NikkeNewsPlugin
-from player_poller import PlayerPoller
+from player.player_poller import PlayerPoller
 
 
 def make_plugin(**config) -> NikkeNewsPlugin:
@@ -100,7 +100,7 @@ async def test_cookie_invalid_resets_after_recovery(captured):
 async def test_day_key_uses_4am_boundary():
     from datetime import datetime, timedelta, timezone
 
-    from time_utils import day_key
+    from core.time_utils import day_key
 
     cst = timezone(timedelta(hours=8))
     assert day_key(datetime(2026, 5, 8, 3, 59, tzinfo=cst)) == "2026-05-07"

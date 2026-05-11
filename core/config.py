@@ -3,7 +3,7 @@ from datetime import time
 
 from astrbot.api import AstrBotConfig, logger
 
-from constants import CONTENT_MODES, SUPPORTED_LANGUAGES
+from .constants import CONTENT_MODES, SUPPORTED_LANGUAGES
 
 _PLAYER_MAPPING_LANGUAGES = {"en", "zh-TW", "ja", "ko"}
 

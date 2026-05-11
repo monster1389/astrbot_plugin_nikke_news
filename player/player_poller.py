@@ -6,13 +6,13 @@ from astrbot.api import logger
 from astrbot.api.event import MessageChain
 from astrbot.api.star import StarTools
 
-from config import PluginConfig
-from constants import CST
-from message_builder import MessageBuilder
-from player_client import PlayerClient
-from targets import enabled_targets
-from time_utils import day_key, is_cookie_invalid_error
-from utils import safe_float, safe_int
+from core.config import PluginConfig
+from core.constants import CST
+from core.message_builder import MessageBuilder
+from player.player_client import PlayerClient
+from core.targets import enabled_targets
+from core.time_utils import day_key, is_cookie_invalid_error
+from core.utils import safe_float, safe_int
 
 
 class PlayerPoller:

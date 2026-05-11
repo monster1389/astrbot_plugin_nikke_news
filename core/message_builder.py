@@ -4,9 +4,9 @@ from typing import Any
 from astrbot.api.event import MessageChain
 import astrbot.api.message_components as Comp
 
-from config import PluginConfig
-from constants import CST, POST_DETAIL_URL, SUMMARY_MAX_LENGTH
-from utils import clean_html_with_linebreaks, clean_text, format_timestamp, is_video_post, safe_float, safe_int
+from .config import PluginConfig
+from .constants import CST, POST_DETAIL_URL, SUMMARY_MAX_LENGTH
+from .utils import clean_html_with_linebreaks, clean_text, format_timestamp, is_video_post, safe_float, safe_int
 
 
 class MessageBuilder:

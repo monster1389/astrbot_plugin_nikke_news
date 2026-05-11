@@ -141,7 +141,33 @@ _mock_api.__dict__.update(
     AstrBotConfig=AstrBotConfig,
     logger=_logger,
 )
-_mock_api_event.__dict__.update(MessageChain=MessageChain)
+class AstrMessageEvent:
+    def __init__(self, message_str: str = ""):
+        self.message_str = message_str
+
+    def plain_result(self, text: str):
+        return text
+
+    @staticmethod
+    def make_result(text: str):
+        return text
+
+
+class _Filter:
+    @staticmethod
+    def command(name: str):
+        def deco(func):
+            func._command_name = name
+            return func
+        return deco
+
+
+filter = _Filter()
+_mock_api_event.__dict__.update(
+    MessageChain=MessageChain,
+    AstrMessageEvent=AstrMessageEvent,
+    filter=filter,
+)
 _mock_api_message_components.__dict__.update(Plain=Plain, Image=Image)
 _mock_api_star.__dict__.update(
     Context=Context,

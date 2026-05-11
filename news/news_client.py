@@ -2,9 +2,9 @@
 
 import httpx
 
-from config import PluginConfig
-from constants import OFFICIAL_PLATE_ID, POST_LIST_URL
-from utils import safe_int
+from core.config import PluginConfig
+from core.constants import OFFICIAL_PLATE_ID, POST_LIST_URL
+from core.utils import safe_int
 
 
 class NewsClient:

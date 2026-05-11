@@ -5,11 +5,11 @@ import httpx
 from astrbot.api import logger
 from astrbot.api.star import StarTools
 
-from config import PluginConfig
-from message_builder import MessageBuilder
-from news_client import NewsClient
-from targets import enabled_targets
-from utils import clean_text, safe_int
+from core.config import PluginConfig
+from core.message_builder import MessageBuilder
+from news.news_client import NewsClient
+from core.targets import enabled_targets
+from core.utils import clean_text, safe_int
 
 
 class NewsPoller:

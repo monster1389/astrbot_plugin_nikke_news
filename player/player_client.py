@@ -2,12 +2,12 @@ from typing import Any
 
 import httpx
 
-from constants import (
+from core.constants import (
     GET_USER_CHARACTERS_URL,
     GET_USER_CHARACTER_DETAILS_URL,
     PLAYER_PROGRESS_URL,
 )
-from utils import safe_int
+from core.utils import safe_int
 
 
 class PlayerClient:

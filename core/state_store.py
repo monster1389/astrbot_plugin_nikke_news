@@ -4,7 +4,7 @@ from typing import Any
 
 from astrbot.api import logger
 
-from constants import MAX_SEEN_POSTS
+from .constants import MAX_SEEN_POSTS
 
 
 class PluginStateStore:

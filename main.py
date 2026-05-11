@@ -1,5 +1,4 @@
 import asyncio
-import sys
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
@@ -9,26 +8,21 @@ from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star, StarTools, register
 
-# AstrBot may import plugin entrypoints without adding the plugin folder to sys.path.
-# Ensure sibling modules (config.py, state_store.py, etc.) are importable.
-_PLUGIN_DIR = Path(__file__).resolve().parent
-if str(_PLUGIN_DIR) not in sys.path:
-    sys.path.insert(0, str(_PLUGIN_DIR))
-
-from character_service import CharacterQueryError, CharacterService
-from config import PluginConfig
-from constants import PLUGIN_NAME, REQUEST_TIMEOUT_SECONDS
-from news_poller import NewsPoller
-from player_mapping_cache import PlayerMappingCache
-from player_poller import PlayerPoller
-from state_store import PluginStateStore
+from core.config import PluginConfig
+from core.constants import PLUGIN_NAME, REQUEST_TIMEOUT_SECONDS
+from core.poll_coordinator import PollCoordinator
+from core.state_store import PluginStateStore
+from news.news_poller import NewsPoller
+from player.character_service import CharacterQueryError, CharacterService
+from player.player_mapping_cache import PlayerMappingCache
+from player.player_poller import PlayerPoller
 
 
 @register(
     PLUGIN_NAME,
     "monster1389",
     "轮询 Blablalink NIKKE 官方消息，并支持玩家角色查询。",
-    "v1.3.1",
+    "v1.4.0",
 )
 class NikkeNewsPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
@@ -41,6 +35,7 @@ class NikkeNewsPlugin(Star):
         self._character_service: CharacterService | None = None
         self._en_cache: PlayerMappingCache | None = None
         self._target_cache: PlayerMappingCache | None = None
+        self._coordinator: PollCoordinator | None = None
         self._task: asyncio.Task | None = None
         self._state_path: Path | None = None
         self._state: dict[str, Any] = PluginStateStore.default_state()
@@ -90,7 +85,16 @@ class NikkeNewsPlugin(Star):
             self._state,
             self._save_state,
         )
-        self._task = asyncio.create_task(self._poll_loop(), name=f"{PLUGIN_NAME}_poll")
+        self._coordinator = PollCoordinator(
+            news_poller=self._news_poller,
+            player_poller=self._player_poller,
+            state=self._state,
+            state_path=self._state_path,
+            poll_interval_seconds=self._poll_interval_seconds(),
+        )
+        self._task = asyncio.create_task(
+            self._coordinator.run(), name=f"{PLUGIN_NAME}_poll"
+        )
         logger.info("NIKKE 官方消息推送插件已启动。")
 
     async def terminate(self):
@@ -107,29 +111,6 @@ class NikkeNewsPlugin(Star):
         self._save_state()
         logger.info("NIKKE 官方消息推送插件已停止。")
 
-    async def _poll_loop(self):
-        logger.info("NIKKE 轮询循环已开始。")
-        while True:
-            try:
-                await self._poll_once()
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:
-                logger.warning(
-                    f"NIKKE 轮询异常（{type(exc).__name__}），将在下次重试：{exc}"
-                )
-
-            await asyncio.sleep(self._poll_interval_seconds())
-
-    async def _poll_once(self):
-        self._state.clear()
-        self._state.update(self._load_state())
-        await self._news_poller.poll()
-        try:
-            await self._player_poller.poll()
-        except Exception as exc:
-            logger.warning(f"NIKKE 玩家数据轮询异常，将在下次重试：{exc}")
-
     def _load_state(self) -> dict[str, Any]:
         return PluginStateStore(self._state_path).load()
 
@@ -144,6 +125,33 @@ class NikkeNewsPlugin(Star):
 
     def _config_bool(self, key: str, default: bool) -> bool:
         return self._plugin_config.config_bool(key, default)
+
+    async def _poll_once(self):
+        if self._coordinator:
+            await self._coordinator._poll_once()
+        else:
+            self._state.clear()
+            self._state.update(self._load_state())
+            np = NewsPoller(
+                self._client,
+                self._plugin_config,
+                self._state,
+                self._save_state,
+                self._mark_seen,
+            )
+            await np.poll()
+            pp = PlayerPoller(
+                self._client,
+                self._plugin_config,
+                self._state,
+                self._save_state,
+            )
+            try:
+                await pp.poll()
+            except Exception as exc:
+                logger.warning(
+                    f"NIKKE 玩家数据轮询异常，将在下次重试：{exc}"
+                )
 
     @filter.command("nikke")
     async def cmd_nikke(self, event: AstrMessageEvent, text: str = ""):

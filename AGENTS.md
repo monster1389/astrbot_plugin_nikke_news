@@ -5,7 +5,11 @@
 This is an [AstrBot](https://github.com/AstrBotDevs/AstrBot) plugin. The plugin runs inside the AstrBot framework — it is not a standalone app.
 
 - **Entrypoint**: `main.py` — AstrBot loads the plugin from here
-- **Core modules**: the plugin is now split into focused modules (`news_client.py`, `news_poller.py`, `player_client.py`, `player_poller.py`, `character_service.py`, `message_builder.py`, `player_mapping_cache.py`, `player_mapping_refresher.py`, etc.). Keep new code in the closest existing module instead of growing `main.py`.
+- **Core modules**: the plugin is organised into three packages:
+  - `core/` — config, constants, state, targets, time_utils, utils, message_builder, poll_coordinator
+  - `news/` — news_client, news_poller
+  - `player/` — player_client, player_poller, character_service, player_mapping_cache, player_mapping_refresher
+  Keep new code in the closest existing module instead of growing `main.py`.
 - **Metadata**: `metadata.yaml` — plugin identity (name, version, author, repo)
 - **Config schema**: `_conf_schema.json` — declares plugin configuration fields for the AstrBot admin UI
 - **Framework SDK**: `astrbot.api.*` (not locally installed; provided by the AstrBot runtime)
@@ -20,12 +24,12 @@ It also exposes user-facing async-generator commands for player character lookup
 - `/nikke <character>`: query a character owned by the configured Blablalink account.
 - `/nikke refresh` or `/nikke_refresh`: reload local character data and refresh player mapping cache.
 
-- On startup (`initialize()`), it creates a background `asyncio.Task` that loops `_poll_once()` every `poll_interval_seconds` (minimum 60s, default 300s).
+- On startup (`initialize()`), it creates a background `asyncio.Task` that runs `PollCoordinator.run()` loop every `poll_interval_seconds` (minimum 60s, default 300s). The PollCoordinator (`core/poll_coordinator.py`) owns the poll cycle; the plugin class delegates to it.
 - **First poll**: marks all currently available posts as "seen" without pushing anything.
 - **Subsequent polls**: detects new posts (by UUID) and pushes them to `scheduled_push_groups`.
 - **Per-poll state reload**: `_poll_once()` calls `_load_state()` at the top of every cycle, so manually editing `state.json` takes effect on the next poll without a plugin restart.
 - State (seen post UUIDs + initialized flag) is persisted to `data/astrbot_plugin_nikke_news/state.json` via `StarTools.get_data_dir()`.
-- Player mapping cache is persisted to `data/astrbot_plugin_nikke_news/player_mappings.json`.
+- Player mapping cache is persisted to `data/astrbot_plugin_nikke_news/player_mappings_{lang}.json` per language (e.g. `player_mappings_en.json`, `player_mappings_zh-TW.json`). Both en and the configured `mapping_language` are cached independently.
 - `terminate()` cancels the poll task, closes the `httpx.AsyncClient`, and saves state.
 
 ### Configuration keys (`_conf_schema.json`)
@@ -101,14 +105,13 @@ Legacy format (`targets`, dictionary-style with `target_type`/`target_id`/`enabl
 [Blablalink API]
       │  POST /Dynamics/GetPostList
       ▼
-  main.py::_fetch_official_posts()
+  news/news_client.py::NewsClient.fetch_official_posts()
       │  filters: plate_id==43, is_official==1
       ▼
-  main.py::_poll_once()
-      │  _load_state() ← disk (every poll)
+  news/news_poller.py::NewsPoller.poll()
       │  diff vs state["seen_post_uuids"]
       ▼
-  main.py::_format_post_message_chain()
+  core/message_builder.py::MessageBuilder.format_post_message_chain()
       │  MessageChain(message + Image.fromURL(pic_urls))
       ▼
   StarTools.send_message_by_id()  →  NapCat / aiocqhttp  →  QQ targets
@@ -138,18 +141,19 @@ Mapping refresh:
 /nikke refresh
       │
       ▼
-  CharacterService.refresh_mappings()
-      │
+  player/character_service.py::CharacterService.refresh_mappings()
+      │  en first, then target language
       ▼
-  Playwright Chromium → shiftyspad/nikke-list?type=combat
-      │
+  player/player_mapping_refresher.py::refresh_player_mappings()
+      │  Playwright Chromium with locale=language
+      │  navigates to shiftyspad/nikke-list?type=combat
       ▼
-  capture CDN JSON responses
+  capture pre-localized CDN JSON responses (navigator.language driven)
       │
       ├─ character name → name_code
       └─ state_effect_id → option metadata
       ▼
-  player_mappings.json
+  player_mappings_en.json + player_mappings_{target}.json
 ```
 
 ## Development commands

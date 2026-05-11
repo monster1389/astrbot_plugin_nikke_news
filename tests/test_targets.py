@@ -3,7 +3,7 @@ import logging
 import pytest
 
 from main import NikkeNewsPlugin
-from targets import enabled_targets, parse_push_target
+from core.targets import enabled_targets, parse_push_target
 
 
 def make_plugin(**config) -> NikkeNewsPlugin:
