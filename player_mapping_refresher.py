@@ -109,6 +109,7 @@ async def refresh_player_mappings(
             browser = await p.chromium.launch(headless=True)
             try:
                 context = await browser.new_context(
+                    locale=language,
                     extra_http_headers={
                         "Accept-Language": _accept_language(language),
                         "x-language": language,
