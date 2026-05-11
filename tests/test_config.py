@@ -18,8 +18,8 @@ def make_plugin(**config) -> NikkeNewsPlugin:
         "push_prefix",
     }
     base = {
-        "enabled": True,
-        "news_push": {
+        "新闻": {
+            "enabled": True,
             "language": "zh-TW",
             "fetch_limit": 10,
             "push_delay_seconds": 2,
@@ -27,7 +27,7 @@ def make_plugin(**config) -> NikkeNewsPlugin:
     }
     for key, value in config.items():
         if key in news_keys:
-            base["news_push"][key] = value
+            base["新闻"][key] = value
         else:
             base[key] = value
     return NikkeNewsPlugin(context=None, config=base)

@@ -9,12 +9,11 @@ from core.targets import enabled_targets, parse_push_target
 def make_plugin(**config) -> NikkeNewsPlugin:
     news_keys = {"scheduled_push_groups", "targets"}
     base = {
-        "enabled": True,
-        "news_push": {"scheduled_push_groups": []},
+        "新闻": {"enabled": True, "scheduled_push_groups": []},
     }
     for key, value in config.items():
         if key in news_keys:
-            base["news_push"][key] = value
+            base["新闻"][key] = value
         else:
             base[key] = value
     plugin = NikkeNewsPlugin(context=None, config=base)

@@ -34,7 +34,7 @@ class PlayerPoller:
 
         cookie = self._config.player_data_cookie()
         if not cookie:
-            logger.warning("NIKKE 玩家数据功能已启用，但未配置 player_reminder.cookie。")
+            logger.warning("NIKKE 玩家数据功能已启用，但未配置玩家状态提醒的 Cookie。")
             return
 
         targets = enabled_targets(self._config.news_config())

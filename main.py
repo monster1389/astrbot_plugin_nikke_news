@@ -242,7 +242,7 @@ class NikkeNewsPlugin(Star):
         if not cookie:
             yield event.plain_result(
                 "未配置玩家 Cookie，无法获取角色头像。"
-                "请先在插件配置中设置 player_reminder.cookie。"
+                "请先在插件配置中设置玩家状态提醒的 Cookie。"
             )
             return
         yield event.plain_result("正在抓取角色头像列表并下载...")

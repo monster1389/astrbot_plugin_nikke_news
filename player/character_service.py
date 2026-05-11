@@ -167,7 +167,7 @@ class CharacterService:
         if not cookie:
             raise CharacterQueryError(
                 "未配置玩家 Cookie，无法查询角色数据。"
-                "请先在插件配置中设置 player_reminder.cookie。"
+                "请先在插件配置中设置玩家状态提醒的 Cookie。"
             )
 
         await self._ensure_mapping_cache()

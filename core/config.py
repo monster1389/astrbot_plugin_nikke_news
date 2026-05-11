@@ -11,16 +11,19 @@ _PLAYER_MAPPING_LANGUAGES = {"en", "zh-TW", "ja", "ko"}
 class PluginConfig:
     def __init__(self, config: AstrBotConfig | None):
         self._config = config or {}
-        self._news = self._as_dict(self._config.get("news_push"))
-        self._player = self._as_dict(self._config.get("player_reminder"))
-        if self._config.get("news_push") is not None and not isinstance(
-            self._config.get("news_push"), dict
+        self._news = self._as_dict(self._config.get("新闻"))
+        player_section = self._as_dict(self._config.get("玩家"))
+        self._player: dict[str, Any] = {}
+        self._player.update(self._as_dict(player_section.get("状态提醒")))
+        self._player.update(self._as_dict(player_section.get("nikke查询")))
+        if self._config.get("新闻") is not None and not isinstance(
+            self._config.get("新闻"), dict
         ):
-            logger.warning("NIKKE 配置 news_push 结构无效，已使用默认值。")
-        if self._config.get("player_reminder") is not None and not isinstance(
-            self._config.get("player_reminder"), dict
+            logger.warning("NIKKE 配置 新闻 结构无效，已使用默认值。")
+        if self._config.get("玩家") is not None and not isinstance(
+            self._config.get("玩家"), dict
         ):
-            logger.warning("NIKKE 配置 player_reminder 结构无效，已使用默认值。")
+            logger.warning("NIKKE 配置 玩家 结构无效，已使用默认值。")
 
     @staticmethod
     def _as_dict(value: object) -> dict:
@@ -30,7 +33,9 @@ class PluginConfig:
         return self._news
 
     def config_bool(self, key: str, default: bool) -> bool:
-        value = self._config.get(key, default)
+        value = self._config.get(key)
+        if value is None:
+            value = self._news.get(key, default)
         if isinstance(value, bool):
             return value
         if isinstance(value, str):
@@ -39,7 +44,10 @@ class PluginConfig:
 
     def config_int(self, key: str, default: int) -> int:
         try:
-            return int(self._config.get(key, default))
+            value = self._config.get(key)
+            if value is None:
+                value = self._news.get(key, default)
+            return int(value)
         except (TypeError, ValueError):
             logger.warning(f"NIKKE 配置 {key} 非法，已使用默认值 {default}。")
             return default
@@ -228,7 +236,7 @@ class PluginConfig:
             return default
 
     def _news_int(self, key: str, default: int) -> int:
-        return self._nested_int(self._news, key, default, f"news_push.{key}")
+        return self._nested_int(self._news, key, default, f"新闻.{key}")
 
     def _player_int(self, key: str, default: int) -> int:
-        return self._nested_int(self._player, key, default, f"player_reminder.{key}")
+        return self._nested_int(self._player, key, default, f"玩家.{key}")

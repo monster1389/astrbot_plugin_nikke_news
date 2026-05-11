@@ -1,19 +1,19 @@
 {
-  "enabled": {
-    "description": "启用 NIKKE 官方消息推送",
-    "type": "bool",
-    "default": true
-  },
-  "poll_interval_seconds": {
-    "description": "轮询间隔秒数",
-    "type": "int",
-    "default": 300,
-    "hint": "实际运行时最低为 60 秒，避免过于频繁请求 Blablalink。"
-  },
-  "news_push": {
-    "description": "官方新闻推送配置",
+  "新闻": {
+    "description": "NIKKE 官方新闻推送配置",
     "type": "object",
     "items": {
+      "enabled": {
+        "description": "启用 NIKKE 官方消息推送",
+        "type": "bool",
+        "default": true
+      },
+      "poll_interval_seconds": {
+        "description": "轮询间隔秒数",
+        "type": "int",
+        "default": 300,
+        "hint": "实际运行时最低为 60 秒，避免过于频繁请求 Blablalink。"
+      },
       "language": {
         "description": "消息语言",
         "type": "string",
@@ -64,79 +64,91 @@
       }
     }
   },
-  "player_reminder": {
-    "description": "玩家数据提醒配置",
+  "玩家": {
+    "description": "玩家数据相关配置",
     "type": "object",
     "items": {
-      "enabled": {
-        "description": "启用玩家数据提醒",
-        "type": "bool",
-        "default": false,
-        "hint": "启用后将使用 Cookie 拉取玩家进度并按规则提醒。"
+      "状态提醒": {
+        "description": "玩家状态提醒配置",
+        "type": "object",
+        "items": {
+          "enabled": {
+            "description": "启用玩家数据提醒",
+            "type": "bool",
+            "default": false,
+            "hint": "启用后将使用 Cookie 拉取玩家进度并按规则提醒。"
+          },
+          "cookie": {
+            "description": "玩家登录凭据",
+            "type": "text",
+            "editor_mode": true,
+            "editor_language": "json",
+            "default": "{\n  \"game_token\": \"\",\n  \"game_openid\": \"\",\n  \"game_channelid\": \"\",\n  \"game_gameid\": \"\",\n  \"nikke_area_id\": 84\n}",
+            "hint": "从浏览器 Cookie 中提取对应字段填入。日服 area_id=81，韩服=83，国际服=84，东南亚=85。"
+          },
+          "outpost_fullness_threshold_percent": {
+            "description": "前哨基地满仓提醒阈值（0-100）",
+            "type": "int",
+            "default": 90,
+            "hint": "0=关闭提醒；1-100 表示达到或超过该百分比触发。"
+          },
+          "daily_mission_enabled": {
+            "description": "启用日常未完成提醒",
+            "type": "bool",
+            "default": true
+          },
+          "daily_mission_remind_time": {
+            "description": "日常提醒时间（北京时间）",
+            "type": "string",
+            "default": "21:00",
+            "hint": "格式 HH:MM。若日常积分为 0，超过此时间后按每天一次提醒。"
+          },
+          "alert_prefix": {
+            "description": "玩家提醒消息前缀",
+            "type": "string",
+            "default": "【NIKKE 玩家状态提醒】",
+            "hint": "玩家状态提醒消息前缀，留空则不加。"
+          }
+        }
       },
-      "cookie": {
-        "description": "玩家登录凭据",
-        "type": "text",
-        "editor_mode": true,
-        "editor_language": "json",
-        "default": "{\n  \"game_token\": \"\",\n  \"game_openid\": \"\",\n  \"game_channelid\": \"\",\n  \"game_gameid\": \"\",\n  \"nikke_area_id\": 84\n}",
-        "hint": "从浏览器 Cookie 中提取对应字段填入。日服 area_id=81，韩服=83，国际服=84，东南亚=85。"
-      },
-      "outpost_fullness_threshold_percent": {
-        "description": "前哨基地满仓提醒阈值（0-100）",
-        "type": "int",
-        "default": 90,
-        "hint": "0=关闭提醒；1-100 表示达到或超过该百分比触发。"
-      },
-      "daily_mission_enabled": {
-        "description": "启用日常未完成提醒",
-        "type": "bool",
-        "default": true
-      },
-      "daily_mission_remind_time": {
-        "description": "日常提醒时间（北京时间）",
-        "type": "string",
-        "default": "21:00",
-        "hint": "格式 HH:MM。若日常积分为 0，超过此时间后按每天一次提醒。"
-      },
-      "character_alias": {
-        "description": "角色别名映射",
-        "type": "text",
-        "editor_mode": true,
-        "editor_language": "json",
-        "default": "{\n  \"Anis: Star\": [\"anis\", \"anis star\", \"star\"],\n  \"Anis: Sparkling Summer\": [\"anis ss\", \"summer anis\"],\n  \"Scarlet\": [\"scarlet\"],\n  \"Scarlet: Black Shadow\": [\"scarlet bs\"],\n  \"Red Hood\": [\"red hood\"],\n  \"Cinderella\": [\"cindy\"],\n  \"Grave\": [\"grave\"],\n  \"Dorothy\": [\"dorothy\"],\n  \"Rapi\": [\"rapi\"],\n  \"Rapi: Red Hood\": [\"rapi rh\"],\n  \"Neon\": [\"neon\"],\n  \"Marian\": [\"marian\"],\n  \"Modernia\": [\"modernia\"]\n}",
-        "hint": "格式: {\"英文全名\": [\"别名1\", \"别名2\"]}。英文全名需与 CDN 角色列表一致，别名用于 /nikke 命令的模糊匹配。"
-      },
-"mapping_language": {
-        "description": "玩家查询映射语言",
-        "type": "string",
-        "default": "en",
-        "options": ["en", "zh-TW", "ja", "ko"],
-        "hint": "角色名和装备词条映射语言，默认英文。"
-      },
-      "mapping_cache_ttl_hours": {
-        "description": "玩家映射缓存有效期（小时）",
-        "type": "int",
-        "default": 168,
-        "hint": "超过有效期后，下一次玩家查询会按需尝试用 Chromium 刷新映射。"
-      },
-      "auto_refresh_mapping": {
-        "description": "自动刷新玩家映射",
-        "type": "bool",
-        "default": true,
-        "hint": "缓存缺失或过期时，查询会尝试启动 Chromium 刷新；关闭后仅 /nikke refresh 刷新。"
-      },
-      "alert_prefix": {
-        "description": "玩家提醒消息前缀",
-        "type": "string",
-        "default": "【NIKKE 玩家状态提醒】",
-        "hint": "玩家状态提醒消息前缀，留空则不加。"
-      },
-      "show_character_portrait": {
-        "description": "在角色查询响应中显示角色头像",
-        "type": "bool",
-        "default": true,
-        "hint": "启用后 /nikke <角色> 会同时返回角色头像图片。"
+      "nikke查询": {
+        "description": "NIKKE 角色查询配置",
+        "type": "object",
+        "items": {
+          "character_alias": {
+            "description": "角色别名映射",
+            "type": "text",
+            "editor_mode": true,
+            "editor_language": "json",
+            "default": "{\n  \"Anis: Star\": [\"anis\", \"anis star\", \"star\"],\n  \"Anis: Sparkling Summer\": [\"anis ss\", \"summer anis\"],\n  \"Scarlet\": [\"scarlet\"],\n  \"Scarlet: Black Shadow\": [\"scarlet bs\"],\n  \"Red Hood\": [\"red hood\"],\n  \"Cinderella\": [\"cindy\"],\n  \"Grave\": [\"grave\"],\n  \"Dorothy\": [\"dorothy\"],\n  \"Rapi\": [\"rapi\"],\n  \"Rapi: Red Hood\": [\"rapi rh\"],\n  \"Neon\": [\"neon\"],\n  \"Marian\": [\"marian\"],\n  \"Modernia\": [\"modernia\"]\n}",
+            "hint": "格式: {\"英文全名\": [\"别名1\", \"别名2\"]}。英文全名需与 CDN 角色列表一致，别名用于 /nikke 命令的模糊匹配。"
+          },
+          "mapping_language": {
+            "description": "玩家查询映射语言",
+            "type": "string",
+            "default": "en",
+            "options": ["en", "zh-TW", "ja", "ko"],
+            "hint": "角色名和装备词条映射语言，默认英文。"
+          },
+          "mapping_cache_ttl_hours": {
+            "description": "玩家映射缓存有效期（小时）",
+            "type": "int",
+            "default": 168,
+            "hint": "超过有效期后，下一次玩家查询会按需尝试用 Chromium 刷新映射。"
+          },
+          "auto_refresh_mapping": {
+            "description": "自动刷新玩家映射",
+            "type": "bool",
+            "default": true,
+            "hint": "缓存缺失或过期时，查询会尝试启动 Chromium 刷新；关闭后仅 /nikke refresh 刷新。"
+          },
+          "show_character_portrait": {
+            "description": "在角色查询响应中显示角色头像",
+            "type": "bool",
+            "default": true,
+            "hint": "启用后 /nikke <角色> 会同时返回角色头像图片。"
+          }
+        }
       }
     }
   }

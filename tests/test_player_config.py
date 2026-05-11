@@ -5,30 +5,33 @@ from main import NikkeNewsPlugin
 
 def make_plugin(**config) -> NikkeNewsPlugin:
     base = {
-        "enabled": True,
-        "player_reminder": {
-            "enabled": False,
-            "cookie": "cookie=abc",
-            "daily_mission_remind_time": "21:00",
-            "outpost_fullness_threshold_percent": 90,
+        "新闻": {"enabled": True},
+        "玩家": {
+            "状态提醒": {
+                "enabled": False,
+                "cookie": "cookie=abc",
+                "daily_mission_remind_time": "21:00",
+                "outpost_fullness_threshold_percent": 90,
+            },
+            "nikke查询": {},
         },
     }
     for key, value in config.items():
         if key == "player_data_enabled":
-            base["player_reminder"]["enabled"] = value
+            base["玩家"]["状态提醒"]["enabled"] = value
         elif key == "player_data_cookie":
-            base["player_reminder"]["cookie"] = value
+            base["玩家"]["状态提醒"]["cookie"] = value
         elif key == "player_daily_mission_remind_time":
-            base["player_reminder"]["daily_mission_remind_time"] = value
+            base["玩家"]["状态提醒"]["daily_mission_remind_time"] = value
         elif key == "player_outpost_threshold":
-            base["player_reminder"]["outpost_fullness_threshold_percent"] = value
+            base["玩家"]["状态提醒"]["outpost_fullness_threshold_percent"] = value
         elif key in {
             "mapping_language",
             "mapping_cache_ttl_hours",
             "auto_refresh_mapping",
             "show_character_portrait",
         }:
-            base["player_reminder"][key] = value
+            base["玩家"]["nikke查询"][key] = value
         else:
             base[key] = value
     return NikkeNewsPlugin(context=None, config=base)
