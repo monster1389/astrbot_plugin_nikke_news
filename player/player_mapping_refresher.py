@@ -131,7 +131,7 @@ async def refresh_player_mappings(
                     wait_until="load",
                     timeout=timeout_ms,
                 )
-                await page.wait_for_timeout(8000)
+                await page.wait_for_timeout(10000)
                 if tasks:
                     await asyncio.gather(*tasks, return_exceptions=True)
             finally:
