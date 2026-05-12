@@ -24,6 +24,7 @@ class PollCoordinator:
         self._poll_interval_seconds = poll_interval_seconds
 
     async def run(self):
+        """启动轮询循环，每 poll_interval_seconds 秒执行一次 _poll_once。"""
         logger.info("NIKKE 轮询循环已开始。")
         while True:
             try:
@@ -39,6 +40,7 @@ class PollCoordinator:
             await asyncio.sleep(self._poll_interval_seconds)
 
     async def _poll_once(self):
+        """单次轮询：重读磁盘状态 → 新闻 → 玩家数据，两者独立容错。"""
         self._state.clear()
         self._state.update(PluginStateStore(self._state_path).load())
         try:

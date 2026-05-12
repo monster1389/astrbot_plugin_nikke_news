@@ -37,6 +37,7 @@ class MessageBuilder:
         return "\n\n".join(parts)
 
     def format_post_message_chain(self, post: dict[str, Any]) -> MessageChain:
+        """构建新闻推送消息链（文本 + 图片）。"""
         chain = MessageChain().message(self.format_post_message(post))
         for image_url in self.post_image_urls(post):
             chain.chain.append(Comp.Image.fromURL(image_url))
@@ -78,6 +79,7 @@ class MessageBuilder:
         return urls
 
     def format_player_alert_message(self, lines: list[str]) -> str:
+        """构建玩家状态提醒消息文本。"""
         prefix = self._config.player_alert_prefix()
         parts = [prefix] if prefix else []
         parts.extend(lines)

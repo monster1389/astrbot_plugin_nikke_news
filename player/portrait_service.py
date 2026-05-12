@@ -33,6 +33,7 @@ class PortraitService:
         return len(list(self._portraits_dir.glob("*.webp")))
 
     async def refresh_all(self, cookie: str) -> str:
+        """抓取并下载所有角色头像缓存（/nikke_portrait_refresh）。"""
         mappings = await self._scrape_portrait_mappings(cookie)
         if not mappings:
             return (
@@ -45,6 +46,7 @@ class PortraitService:
         return f"头像缓存刷新完成：共 {len(mappings)} 个角色，新下载 {new_count} 个。"
 
     async def refresh_first_n(self, n: int, cookie: str) -> str:
+        """启动时预缓存前 N 个角色头像。"""
         mappings = await self._scrape_portrait_mappings(cookie)
         if not mappings:
             return "未获取到角色头像映射（Cookie 或 Playwright 问题，详见日志）。"

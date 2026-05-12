@@ -15,8 +15,8 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 - 每轮轮询自动从磁盘重读状态，手动删 `state.json` 无需重启。
 - 已推送状态保存在 AstrBot 插件数据目录，避免重复推送。
 - 支持 `/nikke <角色名>` 查询玩家角色数据。
-- 支持 `/nikke portrait_refresh` 下载/刷新角色头像，查询时附图展示。
-- 支持 `/nikke help` 查看所有命令。
+- 支持 `/nikke_portrait_refresh` 下载/刷新角色头像，查询时附图展示。
+- 支持 `/nikke_help` 查看所有命令。
 - 支持用 Playwright/Chromium 按需刷新角色名和装备词条映射。
 
 ## 前置要求
@@ -90,9 +90,9 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 ### 玩家角色查询
 
 - `/nikke <角色名>` 查询账号内角色战力、技能、装备等级和 T10 词条。
-- `/nikke refresh` 或 `/nikke_refresh` 刷新角色名和词条映射。
-- `/nikke portrait_refresh` 用 Playwright 抓取角色头像并缓存到本地（首次启动自动缓存前 30 个）。
-- `/nikke help` 查看所有命令。
+- `/nikke_refresh` 刷新角色名和词条映射。
+- `/nikke_portrait_refresh` 用 Playwright 抓取角色头像并缓存到本地（首次启动自动缓存前 30 个）。
+- `/nikke_help` 查看所有命令。
 - 查询角色时，若启用了 `show_character_portrait` 且头像已缓存，会附带角色头像图片；未缓存时会提示执行 `portrait_refresh`。
 - 头像缓存保存在 AstrBot 插件数据目录的 `portraits/` 文件夹，文件以 `name_code.webp` 命名。
 - 词条映射刷新会按需使用运行环境中的 Playwright/Chromium 打开 Blablalink 页面并监听静态 JSON；未安装 Playwright 时会返回明确提示。
@@ -103,9 +103,9 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 ```text
 /nikke anis
 /nikke rapi rh
-/nikke refresh
-/nikke portrait_refresh
-/nikke help
+/nikke_refresh
+/nikke_portrait_refresh
+/nikke_help
 ```
 
 查询流程：
@@ -136,15 +136,15 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 刷新策略：
 
 - `auto_refresh_mapping=true` 时，查询发现缓存缺失或超过 `mapping_cache_ttl_hours` 会尝试自动刷新。
-- 手动执行 `/nikke refresh` 会重新加载本地角色表，并尝试用 Chromium 刷新玩家映射。
+- 手动执行 `/nikke_refresh` 会重新加载本地角色表，并尝试用 Chromium 刷新玩家映射。
 - Chromium 只用于刷新映射，不参与每次玩家查询主链路。
 
 常见问题：
 
 - 提示“当前环境未安装 Playwright”：确认插件依赖已安装，AstrBot Docker 容器内可导入 `playwright`，并且 Chromium 已安装。
 - 提示“未从页面网络响应中捕获到角色或词条映射”：通常是 Cookie 失效、页面未登录、页面资源加载失败或 Blablalink 前端资源结构变化。
-- `/nikke <角色名>` 找不到角色：先执行 `/nikke refresh`，或在 `character_alias` 中添加别名。
-- 有词条 ID 但没有词条名：删除数据目录中的 `player_mappings.json` 后执行 `/nikke refresh`。
+- `/nikke <角色名>` 找不到角色：先执行 `/nikke_refresh`，或在 `character_alias` 中添加别名。
+- 有词条 ID 但没有词条名：删除数据目录中的 `player_mappings.json` 后执行 `/nikke_refresh`。
 
 ### 推送目标格式
 

@@ -29,6 +29,7 @@ class PlayerPoller:
         self._save_state = save_state
 
     async def poll(self) -> None:
+        """检查前哨基地满仓 & 日常任务完成情况，必要时推送提醒。"""
         if not self._config.player_data_enabled():
             return
 

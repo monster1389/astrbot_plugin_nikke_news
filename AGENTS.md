@@ -6,7 +6,7 @@ This is an [AstrBot](https://github.com/AstrBotDevs/AstrBot) plugin. The plugin 
 
 - **Entrypoint**: `main.py` — AstrBot loads the plugin from here
 - **Core modules**: the plugin is organised into three packages:
-  - `core/` — config, constants, state, targets, time_utils, utils, message_builder, poll_coordinator
+  - `core/` — config, constants, state, targets, time_utils, utils, message_builder, nikke_commands, poll_coordinator
   - `news/` — news_client, news_poller
   - `player/` — player_client, player_poller, character_service, player_mapping_cache, player_mapping_refresher, portrait_service
   Keep new code in the closest existing module instead of growing `main.py`.
@@ -22,9 +22,9 @@ This is primarily a **background polling plugin**. It periodically fetches the l
 It also exposes user-facing async-generator commands for player character lookup:
 
 - `/nikke <character>`: query a character owned by the configured Blablalink account.
-- `/nikke refresh` or `/nikke_refresh`: reload local character data and refresh player mapping cache.
-- `/nikke portrait_refresh`: scrape and download all character portraits into `portraits/` directory.
-- `/nikke help`: show command list.
+- `/nikke_refresh`: reload local character data and refresh player mapping cache.
+- `/nikke_portrait_refresh`: scrape and download all character portraits into `portraits/` directory.
+- `/nikke_help`: show command list.
 
 - On startup (`initialize()`), it creates a background `asyncio.Task` that runs `PollCoordinator.run()` loop every `poll_interval_seconds` (minimum 60s, default 300s). The PollCoordinator (`core/poll_coordinator.py`) owns the poll cycle; the plugin class delegates to it.
 - **First poll**: marks all currently available posts as "seen" without pushing anything.
@@ -143,7 +143,7 @@ QQ command /nikke <name>
 Mapping refresh:
 
 ```
-/nikke refresh
+/nikke_refresh
       │
       ▼
   player/character_service.py::CharacterService.refresh_mappings()
@@ -163,6 +163,6 @@ Mapping refresh:
 
 ## Development commands
 
-- **Run tests**: `pytest tests/ -v` (requires `pytest pytest-asyncio httpx` in a venv)
+- **Run tests**: `.venv/bin/python -m pytest tests/ -v` (requires `pytest pytest-asyncio httpx` in a venv)
 - Tests mock the entire AstrBot SDK via `conftest.py` so they run without the framework.
 - The AstrBot plugin development docs: <https://docs.astrbot.app/dev/star/plugin-new.html>

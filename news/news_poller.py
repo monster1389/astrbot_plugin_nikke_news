@@ -28,6 +28,7 @@ class NewsPoller:
         self._mark_seen = mark_seen
 
     async def poll(self) -> None:
+        """拉取 API → 对比 seen 集合 → 推送新帖到配置的目标群。"""
         posts = await NewsClient(self._client, self._config).fetch_official_posts()
         if not posts:
             logger.warning("NIKKE 未获取到任何帖子（API 返回空或客户端未就绪）。")
