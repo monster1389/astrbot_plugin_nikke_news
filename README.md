@@ -87,6 +87,24 @@ AstrBot 插件：轮询 Blablalink 的 NIKKE Official 板块，并通过 NapCat 
 
 兼容旧版：直接填写纯字符串 Cookie header 值也可识别。
 
+**获取 Cookie 步骤**：
+
+1. 用浏览器打开 <https://www.blablalink.com> 并登录你的 NIKKE 账号。
+2. 按 `F12` 打开开发者工具，切换到 **Application（应用程序）** 标签。
+3. 左侧 Storage → Cookies → 点击 `www.blablalink.com`。
+4. 在右侧 Cookies 列表中逐个找到以下字段，双击 Value 列复制：
+
+   | 字段 | 说明 |
+   |------|------|
+   | `game_token` | 登录令牌 |
+   | `game_openid` | 账号 OpenID |
+   | `game_channelid` | 渠道 ID |
+   | `game_gameid` | 游戏 ID（NIKKE） |
+
+5. 将复制到的值填入 AstrBot 配置面板 `player_reminder.cookie` 的 JSON 字段中。
+6. 根据区服选择 `nikke_area_id`：日服=81，韩服=83，国际服=84，东南亚=85。
+7. **兼容方式**：也可从 Network 面板找到任意 API 请求，复制其 `Cookie` 请求头完整内容，直接填为字符串值。
+
 ### 玩家角色查询
 
 - `/nikke <角色名>` 查询账号内角色战力、技能、装备等级和 T10 词条。
