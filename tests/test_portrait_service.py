@@ -1,4 +1,3 @@
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -44,7 +43,9 @@ class TestDownloadMappings:
         mock_resp.content = b"image_data"
         service._client.get.return_value = mock_resp
 
-        new_count = await service._download_mappings({101: "https://cdn.example.com/101.webp"})
+        new_count = await service._download_mappings(
+            {101: "https://cdn.example.com/101.webp"}
+        )
 
         assert new_count == 1
         assert service.exists(101)
@@ -54,7 +55,9 @@ class TestDownloadMappings:
     async def test_skips_existing(self, service):
         (service._portraits_dir / "101.webp").write_bytes(b"cached")
 
-        new_count = await service._download_mappings({101: "https://cdn.example.com/101.webp"})
+        new_count = await service._download_mappings(
+            {101: "https://cdn.example.com/101.webp"}
+        )
 
         assert new_count == 0
         service._client.get.assert_not_called()
@@ -63,7 +66,9 @@ class TestDownloadMappings:
     async def test_download_failure_continues(self, service):
         service._client.get.side_effect = Exception("network error")
 
-        new_count = await service._download_mappings({101: "https://cdn.example.com/101.webp"})
+        new_count = await service._download_mappings(
+            {101: "https://cdn.example.com/101.webp"}
+        )
 
         assert new_count == 0
         assert not service.exists(101)

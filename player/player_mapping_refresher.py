@@ -3,7 +3,9 @@ from typing import Any
 
 from astrbot.api import logger
 
-SHIFTYSPAD_NIKKE_LIST_URL = "https://www.blablalink.com/shiftyspad/nikke-list?type=combat"
+SHIFTYSPAD_NIKKE_LIST_URL = (
+    "https://www.blablalink.com/shiftyspad/nikke-list?type=combat"
+)
 CDN_HOST = "sg-tools-cdn.blablalink.com"
 
 
@@ -113,7 +115,7 @@ async def refresh_player_mappings(
                     extra_http_headers={
                         "Accept-Language": _accept_language(language),
                         "x-language": language,
-                    }
+                    },
                 )
                 cookies = _parse_cookie_header(cookie_header)
                 if cookies:

@@ -3,7 +3,6 @@ import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-import pytest_asyncio
 
 from core.poll_coordinator import PollCoordinator
 from main import NikkeNewsPlugin
@@ -82,19 +81,22 @@ def _mock_client(plugin, response=None):
 
 def _write_state(tmp_path, seen):
     tmp_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path.write_text(
-        json.dumps({"initialized": True, "seen_post_uuids": seen})
-    )
+    tmp_path.write_text(json.dumps({"initialized": True, "seen_post_uuids": seen}))
 
 
 def _setup_coordinator(plugin):
     plugin._news_poller = NewsPoller(
-        plugin._client, plugin._plugin_config,
-        plugin._state, plugin._save_state, plugin._mark_seen,
+        plugin._client,
+        plugin._plugin_config,
+        plugin._state,
+        plugin._save_state,
+        plugin._mark_seen,
     )
     plugin._player_poller = PlayerPoller(
-        plugin._client, plugin._plugin_config,
-        plugin._state, plugin._save_state,
+        plugin._client,
+        plugin._plugin_config,
+        plugin._state,
+        plugin._save_state,
     )
     plugin._coordinator = PollCoordinator(
         news_poller=plugin._news_poller,

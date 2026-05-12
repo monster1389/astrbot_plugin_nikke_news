@@ -1,9 +1,8 @@
-import asyncio
 import logging
 
 import pytest
 
-from main import NikkeNewsPlugin, PLUGIN_NAME
+from main import NikkeNewsPlugin
 
 
 def make_plugin(**config) -> NikkeNewsPlugin:

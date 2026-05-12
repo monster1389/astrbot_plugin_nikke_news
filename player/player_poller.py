@@ -78,7 +78,11 @@ class PlayerPoller:
         save_needed = False
 
         daily_list = data.get("daily_progress") or []
-        daily = daily_list[0] if isinstance(daily_list, list) and len(daily_list) > 0 else {}
+        daily = (
+            daily_list[0]
+            if isinstance(daily_list, list) and len(daily_list) > 0
+            else {}
+        )
 
         fullness = safe_float(daily.get("outpost_battle_storage_fullness"))
         fullness_percent = fullness * 100
@@ -112,7 +116,9 @@ class PlayerPoller:
             f"日常积分 {points}）。"
         )
 
-    async def _send_player_alert(self, targets: list[dict[str, str]], lines: list[str]) -> None:
+    async def _send_player_alert(
+        self, targets: list[dict[str, str]], lines: list[str]
+    ) -> None:
         builder = MessageBuilder(self._config)
         chain = MessageChain().message(builder.format_player_alert_message(lines))
         for target in targets:

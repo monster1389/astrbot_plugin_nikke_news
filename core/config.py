@@ -1,5 +1,6 @@
 import json
 from datetime import time
+from typing import Any
 
 from astrbot.api import AstrBotConfig, logger
 
@@ -195,7 +196,9 @@ class PluginConfig:
         return min(100, max(0, threshold))
 
     def player_daily_mission_remind_time(self) -> time:
-        raw = str(self._player.get("daily_mission_remind_time", "21:00") or "21:00").strip()
+        raw = str(
+            self._player.get("daily_mission_remind_time", "21:00") or "21:00"
+        ).strip()
         try:
             hour_text, minute_text = raw.split(":", 1)
             hour = int(hour_text)
@@ -208,7 +211,9 @@ class PluginConfig:
             return time(hour=21, minute=0)
 
     def player_alert_prefix(self) -> str:
-        return str(self._player.get("alert_prefix", "【NIKKE 玩家状态提醒】") or "").strip()
+        return str(
+            self._player.get("alert_prefix", "【NIKKE 玩家状态提醒】") or ""
+        ).strip()
 
     def show_character_portrait(self) -> bool:
         return self._nested_bool(self._player, "show_character_portrait", True)

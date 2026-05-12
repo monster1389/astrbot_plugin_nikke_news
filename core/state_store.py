@@ -1,4 +1,4 @@
-﻿import json
+import json
 from pathlib import Path
 from typing import Any
 
@@ -39,9 +39,15 @@ class PluginStateStore:
         if not isinstance(player_raw, dict):
             player_raw = {}
         state["player_alert_state"] = {
-            "cookie_invalid_notified": bool(player_raw.get("cookie_invalid_notified", False)),
-            "last_outpost_alert_day_key": str(player_raw.get("last_outpost_alert_day_key", "") or ""),
-            "last_daily_mission_alert_day_key": str(player_raw.get("last_daily_mission_alert_day_key", "") or ""),
+            "cookie_invalid_notified": bool(
+                player_raw.get("cookie_invalid_notified", False)
+            ),
+            "last_outpost_alert_day_key": str(
+                player_raw.get("last_outpost_alert_day_key", "") or ""
+            ),
+            "last_daily_mission_alert_day_key": str(
+                player_raw.get("last_daily_mission_alert_day_key", "") or ""
+            ),
         }
         return state
 

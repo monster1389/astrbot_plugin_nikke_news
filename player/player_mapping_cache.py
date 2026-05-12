@@ -86,7 +86,9 @@ class PlayerMappingCache:
             "language": language,
             "updated_at": datetime.now(timezone.utc).isoformat(),
             "sources": sources or {},
-            "character_names": {int(code): str(name) for code, name in character_names.items()},
+            "character_names": {
+                int(code): str(name) for code, name in character_names.items()
+            },
             "state_effect_options": state_effect_options,
         }
         if not self._path:

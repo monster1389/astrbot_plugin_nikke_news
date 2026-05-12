@@ -40,7 +40,9 @@ class NewsPoller:
             self._mark_seen(fetched_uuids)
             self._state["initialized"] = True
             self._save_state()
-            logger.info(f"NIKKE 首次初始化完成，已记录 {len(fetched_uuids)} 条历史消息。")
+            logger.info(
+                f"NIKKE 首次初始化完成，已记录 {len(fetched_uuids)} 条历史消息。"
+            )
             return
 
         new_posts = [post for post in posts if post.get("post_uuid") not in seen]

@@ -3,20 +3,16 @@ from datetime import timedelta, timezone
 PLUGIN_NAME = "astrbot_plugin_nikke_news"
 OFFICIAL_PLATE_ID = 43
 POST_LIST_URL = (
-    "https://api.blablalink.com/api/ugc/direct/standalonesite/"
-    "Dynamics/GetPostList"
+    "https://api.blablalink.com/api/ugc/direct/standalonesite/Dynamics/GetPostList"
 )
 PLAYER_PROGRESS_URL = (
-    "https://api.blablalink.com/api/game/proxy/"
-    "Game/GetUserDailyContentsProgress"
+    "https://api.blablalink.com/api/game/proxy/Game/GetUserDailyContentsProgress"
 )
 GET_USER_CHARACTERS_URL = (
-    "https://api.blablalink.com/api/game/proxy/"
-    "Game/GetUserCharacters"
+    "https://api.blablalink.com/api/game/proxy/Game/GetUserCharacters"
 )
 GET_USER_CHARACTER_DETAILS_URL = (
-    "https://api.blablalink.com/api/game/proxy/"
-    "Game/GetUserCharacterDetails"
+    "https://api.blablalink.com/api/game/proxy/Game/GetUserCharacterDetails"
 )
 POST_DETAIL_URL = "https://www.blablalink.com/post/detail?post_uuid={post_uuid}"
 MAX_SEEN_POSTS = 500

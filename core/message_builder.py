@@ -6,7 +6,14 @@ import astrbot.api.message_components as Comp
 
 from .config import PluginConfig
 from .constants import CST, POST_DETAIL_URL, SUMMARY_MAX_LENGTH
-from .utils import clean_html_with_linebreaks, clean_text, format_timestamp, is_video_post, safe_float, safe_int
+from .utils import (
+    clean_html_with_linebreaks,
+    clean_text,
+    format_timestamp,
+    is_video_post,
+    safe_float,
+    safe_int,
+)
 
 
 class MessageBuilder:
@@ -94,14 +101,23 @@ class MessageBuilder:
 
         combat = char_info.get("combat", "?")
 
-        skill1 = str(safe_int(char_detail.get("skill1_lv", char_detail.get("s1_lv", "?"))))
-        skill2 = str(safe_int(char_detail.get("skill2_lv", char_detail.get("s2_lv", "?"))))
-        burst = str(safe_int(
-            char_detail.get("ulti_skill_lv",
-            char_detail.get("burst_skill_lv",
-            char_detail.get("skill3_lv",
-            char_detail.get("s3_lv", "?"))))
-        ))
+        skill1 = str(
+            safe_int(char_detail.get("skill1_lv", char_detail.get("s1_lv", "?")))
+        )
+        skill2 = str(
+            safe_int(char_detail.get("skill2_lv", char_detail.get("s2_lv", "?")))
+        )
+        burst = str(
+            safe_int(
+                char_detail.get(
+                    "ulti_skill_lv",
+                    char_detail.get(
+                        "burst_skill_lv",
+                        char_detail.get("skill3_lv", char_detail.get("s3_lv", "?")),
+                    ),
+                )
+            )
+        )
         skills = f"{skill1}/{skill2}/{burst}"
 
         head_lv = safe_int(char_detail.get("head_equip_lv", 0))
@@ -114,11 +130,15 @@ class MessageBuilder:
             char_detail, state_effects or [], state_effect_options or {}
         )
 
-        lines = [name_line, f"Power: {combat}", f"Skills: {skills}", f"Equipments: {equips}"]
+        lines = [
+            name_line,
+            f"Power: {combat}",
+            f"Skills: {skills}",
+            f"Equipments: {equips}",
+        ]
         lines.extend(option_lines)
 
         return "\n".join(lines)
-
 
 
 def _extract_equip_options(
@@ -179,7 +199,9 @@ def _extract_equip_options(
                     "text": text,
                     "value": abs(value),
                     "level": safe_int(detail.get("level", 0)),
-                    "group_id": safe_int(detail.get("group_id", meta.get("group_id", 0))),
+                    "group_id": safe_int(
+                        detail.get("group_id", meta.get("group_id", 0))
+                    ),
                     "function_type": function_type,
                 }
 
@@ -198,7 +220,6 @@ def _extract_equip_options(
     lines.extend(loose_lines)
 
     return lines
-
 
 
 def _option_description(

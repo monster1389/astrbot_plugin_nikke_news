@@ -1,6 +1,11 @@
 from main import NikkeNewsPlugin
 from core.message_builder import MessageBuilder
-from core.utils import clean_html_with_linebreaks, clean_text, format_timestamp, safe_int
+from core.utils import (
+    clean_html_with_linebreaks,
+    clean_text,
+    format_timestamp,
+    safe_int,
+)
 
 PLUGIN = NikkeNewsPlugin(context=None, config={})
 
@@ -147,7 +152,9 @@ def test_format_post_content_mode_body_preserves_linebreaks():
 # _format_post_message – publish time hidden
 # ---------------------------------------------------------------------------
 def test_format_post_hide_publish_time():
-    plugin = NikkeNewsPlugin(context=None, config={"新闻": {"show_publish_time": False}})
+    plugin = NikkeNewsPlugin(
+        context=None, config={"新闻": {"show_publish_time": False}}
+    )
     post = {
         "post_uuid": "u",
         "title": "Title",
@@ -163,7 +170,9 @@ def test_format_post_hide_publish_time():
 # _format_post_message – with prefix
 # ---------------------------------------------------------------------------
 def test_format_post_with_prefix():
-    plugin = NikkeNewsPlugin(context=None, config={"新闻": {"push_prefix": "【PREFIX】"}})
+    plugin = NikkeNewsPlugin(
+        context=None, config={"新闻": {"push_prefix": "【PREFIX】"}}
+    )
     post = {
         "post_uuid": "u",
         "title": "Title",

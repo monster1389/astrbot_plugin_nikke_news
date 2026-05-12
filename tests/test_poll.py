@@ -1,11 +1,8 @@
-import asyncio
 import json
 import logging
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-import pytest_asyncio
 
 from core.poll_coordinator import PollCoordinator
 from main import NikkeNewsPlugin
@@ -87,12 +84,17 @@ def _mock_client(plugin, response=None, error=None):
 
 def _setup_coordinator(plugin):
     plugin._news_poller = NewsPoller(
-        plugin._client, plugin._plugin_config,
-        plugin._state, plugin._save_state, plugin._mark_seen,
+        plugin._client,
+        plugin._plugin_config,
+        plugin._state,
+        plugin._save_state,
+        plugin._mark_seen,
     )
     plugin._player_poller = PlayerPoller(
-        plugin._client, plugin._plugin_config,
-        plugin._state, plugin._save_state,
+        plugin._client,
+        plugin._plugin_config,
+        plugin._state,
+        plugin._save_state,
     )
     plugin._coordinator = PollCoordinator(
         news_poller=plugin._news_poller,
@@ -215,9 +217,7 @@ async def test_poll_api_error_code(tmp_path):
     plugin._state_path.write_text(
         json.dumps({"initialized": True, "seen_post_uuids": []})
     )
-    _mock_client(
-        plugin, response={"code": 500, "msg": "error"}
-    )
+    _mock_client(plugin, response={"code": 500, "msg": "error"})
     _setup_coordinator(plugin)
 
     with pytest.raises(RuntimeError, match="Blablalink API 返回错误"):

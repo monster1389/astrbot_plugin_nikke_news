@@ -1,6 +1,5 @@
 import logging
 
-import pytest
 
 from main import NikkeNewsPlugin
 

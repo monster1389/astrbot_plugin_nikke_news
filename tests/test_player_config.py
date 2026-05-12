@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 
 from main import NikkeNewsPlugin
 
@@ -44,7 +44,9 @@ def test_player_data_disabled_by_default():
 
 def test_player_daily_remind_time_invalid(caplog):
     caplog.set_level(logging.WARNING)
-    plugin = make_plugin(player_data_enabled=True, player_daily_mission_remind_time="bad")
+    plugin = make_plugin(
+        player_data_enabled=True, player_daily_mission_remind_time="bad"
+    )
     result = plugin._plugin_config.player_daily_mission_remind_time()
     assert result.hour == 21
     assert result.minute == 0
@@ -52,7 +54,9 @@ def test_player_daily_remind_time_invalid(caplog):
 
 
 def test_player_daily_remind_time_valid():
-    plugin = make_plugin(player_data_enabled=True, player_daily_mission_remind_time="18:30")
+    plugin = make_plugin(
+        player_data_enabled=True, player_daily_mission_remind_time="18:30"
+    )
     result = plugin._plugin_config.player_daily_mission_remind_time()
     assert result.hour == 18
     assert result.minute == 30

@@ -42,7 +42,9 @@ def make_plugin(**config) -> NikkeNewsPlugin:
 
 
 def _poll(plugin):
-    poller = PlayerPoller(plugin._client, plugin._plugin_config, plugin._state, plugin._save_state)
+    poller = PlayerPoller(
+        plugin._client, plugin._plugin_config, plugin._state, plugin._save_state
+    )
     return poller.poll()
 
 

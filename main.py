@@ -1,3 +1,5 @@
+# ruff: noqa: E402 (sys.path patching before local imports)
+
 import asyncio
 import os
 import sys
@@ -163,7 +165,7 @@ class NikkeNewsPlugin(Star):
         msg = event.message_str.strip()
         for prefix in ("/nikke ", "nikke "):
             if msg.startswith(prefix):
-                text = msg[len(prefix):]
+                text = msg[len(prefix) :]
                 break
 
         if not text or not text.strip():
@@ -175,8 +177,12 @@ class NikkeNewsPlugin(Star):
                 yield result
             return
 
-        if text.strip().lower() in ("portrait_refresh", "refresh_portrait",
-                                     "portrait refresh", "refresh portrait"):
+        if text.strip().lower() in (
+            "portrait_refresh",
+            "refresh_portrait",
+            "portrait refresh",
+            "refresh portrait",
+        ):
             async for result in self.cmd_nikke_portrait_refresh(event):
                 yield result
             return
@@ -248,5 +254,3 @@ class NikkeNewsPlugin(Star):
         yield event.plain_result("正在抓取角色头像列表并下载...")
         msg = await self._portrait_service.refresh_all(cookie)
         yield event.plain_result(msg)
-
-

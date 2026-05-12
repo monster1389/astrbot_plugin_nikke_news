@@ -1,4 +1,3 @@
-import asyncio
 from pathlib import Path
 
 import httpx
@@ -27,13 +26,14 @@ class PortraitService:
     async def refresh_all(self, cookie: str) -> str:
         mappings = await self._scrape_portrait_mappings(cookie)
         if not mappings:
-            return ("未获取到角色头像映射。请确认：\n"
-                    "1. Cookie 是否有效\n"
-                    "2. 当前环境是否安装了 Playwright\n"
-                    "3. 账号是否拥有角色（？type=combat 需要账号有角色才能抓到头像）")
+            return (
+                "未获取到角色头像映射。请确认：\n"
+                "1. Cookie 是否有效\n"
+                "2. 当前环境是否安装了 Playwright\n"
+                "3. 账号是否拥有角色（？type=combat 需要账号有角色才能抓到头像）"
+            )
         new_count = await self._download_mappings(mappings)
-        return (f"头像缓存刷新完成：共 {len(mappings)} 个角色，"
-                f"新下载 {new_count} 个。")
+        return f"头像缓存刷新完成：共 {len(mappings)} 个角色，新下载 {new_count} 个。"
 
     async def refresh_first_n(self, n: int, cookie: str) -> str:
         mappings = await self._scrape_portrait_mappings(cookie)
@@ -41,8 +41,7 @@ class PortraitService:
             return "未获取到角色头像映射（Cookie 或 Playwright 问题，详见日志）。"
         first_n = dict(list(mappings.items())[:n])
         new_count = await self._download_mappings(first_n)
-        return (f"初始头像缓存完成：已缓存前 {n} 个角色，"
-                f"新下载 {new_count} 个。")
+        return f"初始头像缓存完成：已缓存前 {n} 个角色，新下载 {new_count} 个。"
 
     # ------------------------------------------------------------------
     # private
@@ -69,7 +68,9 @@ class PortraitService:
                         await context.add_cookies(cookies)
                     page = await context.new_page()
 
-                    await page.goto(SHIFTYSPAD_COMBAT_URL, wait_until="load", timeout=60000)
+                    await page.goto(
+                        SHIFTYSPAD_COMBAT_URL, wait_until="load", timeout=60000
+                    )
                     await page.wait_for_timeout(5000)
 
                     prev_count = 0
@@ -106,13 +107,13 @@ class PortraitService:
                             };
                         }""")
 
-                        if snap['cardCount'] != prev_count:
-                            prev_count = snap['cardCount']
+                        if snap["cardCount"] != prev_count:
+                            prev_count = snap["cardCount"]
                             stall_count = 0
                         else:
                             stall_count += 1
 
-                        if snap['isAllLoaded']:
+                        if snap["isAllLoaded"]:
                             break
                         if stall_count > 10:
                             break
@@ -131,8 +132,8 @@ class PortraitService:
                     }""")
 
                     mappings: dict[int, str] = {}
-                    portraits = result.get('portraits', [])
-                    codes = result.get('codes', [])
+                    portraits = result.get("portraits", [])
+                    codes = result.get("codes", [])
                     for i in range(min(len(portraits), len(codes))):
                         code = codes[i]
                         url = portraits[i]

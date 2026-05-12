@@ -1,4 +1,4 @@
-﻿from astrbot.api import logger
+from astrbot.api import logger
 
 from .constants import SUPPORTED_TARGET_TYPES
 

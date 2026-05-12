@@ -6,7 +6,10 @@ from astrbot.api import logger
 from core.config import PluginConfig
 from core.message_builder import MessageBuilder
 from player.player_mapping_cache import PlayerMappingCache
-from player.player_mapping_refresher import PlayerMappingRefreshError, refresh_player_mappings
+from player.player_mapping_refresher import (
+    PlayerMappingRefreshError,
+    refresh_player_mappings,
+)
 from player.player_client import PlayerClient
 
 
@@ -113,10 +116,7 @@ class CharacterService:
         messages: list[str] = []
 
         # Always refresh en first
-        en_stale = (
-            not self._en_cache.has_useful_data()
-            or self._en_cache.is_stale(ttl)
-        )
+        en_stale = not self._en_cache.has_useful_data() or self._en_cache.is_stale(ttl)
         if en_stale:
             try:
                 names, options, sources = await refresh_player_mappings(
@@ -132,7 +132,9 @@ class CharacterService:
                     state_effect_options=options,
                     sources=sources,
                 )
-                messages.append(f"英文映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。")
+                messages.append(
+                    f"英文映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。"
+                )
 
         # Refresh target language if different from en
         if target_lang != "en" and self._target_cache:
@@ -240,10 +242,7 @@ class CharacterService:
         ttl = self._config.player_mapping_cache_ttl_hours()
         target_lang = self._config.player_mapping_language()
 
-        en_stale = (
-            not self._en_cache.has_useful_data()
-            or self._en_cache.is_stale(ttl)
-        )
+        en_stale = not self._en_cache.has_useful_data() or self._en_cache.is_stale(ttl)
         target_stale = (
             target_lang != "en"
             and self._target_cache is not None
@@ -253,9 +252,8 @@ class CharacterService:
             )
         )
 
-        should_refresh = (
-            self._config.player_auto_refresh_mapping()
-            and (en_stale or target_stale)
+        should_refresh = self._config.player_auto_refresh_mapping() and (
+            en_stale or target_stale
         )
         if not should_refresh:
             return
@@ -265,5 +263,9 @@ class CharacterService:
 
         if not self._en_cache.has_useful_data():
             raise CharacterQueryError(f"{msg}\n请稍后重试或执行 /nikke refresh。")
-        if target_lang != "en" and self._target_cache and not self._target_cache.has_useful_data():
+        if (
+            target_lang != "en"
+            and self._target_cache
+            and not self._target_cache.has_useful_data()
+        ):
             raise CharacterQueryError(f"{msg}\n请稍后重试或执行 /nikke refresh。")

@@ -1,4 +1,4 @@
-﻿import html
+import html
 import re
 from datetime import datetime
 from html.parser import HTMLParser

@@ -10,7 +10,9 @@ from player.player_poller import PlayerPoller
 
 
 def _poll(plugin):
-    poller = PlayerPoller(plugin._client, plugin._plugin_config, plugin._state, plugin._save_state)
+    poller = PlayerPoller(
+        plugin._client, plugin._plugin_config, plugin._state, plugin._save_state
+    )
     return poller.poll()
 
 
@@ -73,12 +75,17 @@ def _mock_player_client(plugin, code=0, payload=None):
 
 def _setup_coordinator(plugin):
     plugin._news_poller = NewsPoller(
-        plugin._client, plugin._plugin_config,
-        plugin._state, plugin._save_state, plugin._mark_seen,
+        plugin._client,
+        plugin._plugin_config,
+        plugin._state,
+        plugin._save_state,
+        plugin._mark_seen,
     )
     plugin._player_poller = PlayerPoller(
-        plugin._client, plugin._plugin_config,
-        plugin._state, plugin._save_state,
+        plugin._client,
+        plugin._plugin_config,
+        plugin._state,
+        plugin._save_state,
     )
     plugin._coordinator = PollCoordinator(
         news_poller=plugin._news_poller,
@@ -114,8 +121,16 @@ async def test_player_alerts_trigger_and_dedupe_same_day(captured):
 
 @pytest.mark.asyncio
 async def test_outpost_threshold_zero_disables_alert(captured):
-    plugin = make_plugin(outpost_fullness_threshold_percent=0, daily_mission_enabled=False)
-    _mock_player_client(plugin, payload={"outpost_battle_storage_fullness": 0.99, "daily_mission_received_points": 1})
+    plugin = make_plugin(
+        outpost_fullness_threshold_percent=0, daily_mission_enabled=False
+    )
+    _mock_player_client(
+        plugin,
+        payload={
+            "outpost_battle_storage_fullness": 0.99,
+            "daily_mission_received_points": 1,
+        },
+    )
     await _poll(plugin)
     assert len(captured) == 0
 
@@ -133,7 +148,9 @@ async def test_player_api_error_does_not_raise():
 
 @pytest.mark.asyncio
 async def test_player_poll_exception_does_not_break_news_flow(captured, tmp_path):
-    plugin = make_plugin(player_data_cookie="cookie=abc", scheduled_push_groups=["123456"])
+    plugin = make_plugin(
+        player_data_cookie="cookie=abc", scheduled_push_groups=["123456"]
+    )
     plugin._state_path = tmp_path / "state.json"
     plugin._state_path.write_text(
         json.dumps({"initialized": True, "seen_post_uuids": ["old"]})

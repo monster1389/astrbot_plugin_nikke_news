@@ -2,8 +2,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from types import ModuleType, SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from types import ModuleType
 
 import pytest
 
@@ -33,6 +32,7 @@ _logger.setLevel(logging.DEBUG)
 # AstrBotConfig – dict alias
 # ---------------------------------------------------------------------------
 AstrBotConfig = dict
+
 
 # ---------------------------------------------------------------------------
 # Message components / MessageChain
@@ -150,6 +150,8 @@ _mock_api.__dict__.update(
     AstrBotConfig=AstrBotConfig,
     logger=_logger,
 )
+
+
 class AstrMessageEvent:
     def __init__(self, message_str: str = ""):
         self.message_str = message_str
@@ -171,6 +173,7 @@ class _Filter:
         def deco(func):
             func._command_name = name
             return func
+
         return deco
 
 
