@@ -29,6 +29,7 @@
 
 5. 将复制到的值填入 AstrBot 插件配置面板的 JSON 字段中。
 6. 根据区服选择 `nikke_area_id`：日服=81，韩服=83，国际服=84，东南亚=85。
+
 - **兼容方式**：也可从 Network 面板找到任意 API 请求，复制其 `Cookie` 请求头完整内容，直接填为字符串值。
 
 ### 安装 Playwright / Chromium
@@ -44,37 +45,46 @@
 
 | 键 | 类型 | 默认值 | 说明 |
 |---|------|--------|------|
-| `enabled` | bool | `true` | 启用 NIKKE 官方消息推送 |
-| `poll_interval_seconds` | int | `300` | 轮询间隔秒数（最低 60） |
+| `启用 NIKKE 官方消息推送` | bool | `true` | 启用 NIKKE 官方消息推送 |
+| `轮询间隔秒数` | int | `300` | 轮询间隔秒数（最低 60） |
 
-### `news_push` 新闻推送配置
-
-| 键 | 类型 | 默认值 | 说明 |
-|---|------|--------|------|
-| `language` | string | `zh-TW` | 消息语言：`zh-TW` / `en` / `ja` / `ko` |
-| `fetch_limit` | int | `10` | 每次拉取数量（1-50） |
-| `content_mode` | string | `summary` | `none` 仅标题+链接 / `summary` 概览 / `content` 正文 |
-| `max_images` | int | `3` | 每条推送最多图片数（0-9，视频帖不发送图片） |
-| `show_publish_time` | bool | `true` | 是否显示发布时间 |
-| `scheduled_push_groups` | list | `[]` | 推送目标列表（格式见下文） |
-| `startup_mode` | string | `mark_seen` | 首次启动行为（当前固定 `mark_seen`） |
-| `push_delay_seconds` | int | `2` | 多条新帖推送间隔秒数（0-30） |
-| `push_prefix` | string | `【NIKKE 官方消息推送】` | 消息前缀，留空则不添加 |
-
-### `player_reminder` 玩家数据提醒配置
+### 新闻推送配置
 
 | 键 | 类型 | 默认值 | 说明 |
 |---|------|--------|------|
-| `enabled` | bool | `false` | 启用玩家数据提醒（需配置 cookie） |
-| `cookie` | JSON | 见下方 | 玩家登录凭据，JSON 格式填入浏览器 Cookie 字段 |
-| `outpost_fullness_threshold_percent` | int | `90` | 前哨基地满仓提醒阈值（0=关闭，1-100 表示触发百分比） |
-| `daily_mission_enabled` | bool | `true` | 启用日常未完成提醒 |
-| `daily_mission_remind_time` | string | `21:00` | 日常提醒时间（北京时间 `HH:MM`） |
-| `mapping_language` | string | `en` | `/nikke` 玩家查询的角色名和装备词条映射语言 |
-| `mapping_cache_ttl_hours` | int | `168` | 玩家映射缓存有效期，过期后按需刷新 |
-| `auto_refresh_mapping` | bool | `true` | 查询时缓存缺失/过期则尝试启动 Chromium 刷新 |
-| `alert_prefix` | string | `【NIKKE 玩家状态提醒】` | 玩家提醒消息前缀，留空则不添加 |
-| `show_character_portrait` | bool | `true` | `/nikke` 查询时是否附带角色头像图片 |
+| `消息语言` | string | `zh-TW` | 消息语言：`zh-TW` / `en` / `ja` / `ko` |
+| `每次拉取的消息数量` | int | `10` | 每次拉取数量（1-50） |
+| `推送内容模式` | string | `summary` | `none` 仅标题+链接 / `summary` 概览 / `content` 正文 |
+| `每条推送最多发送图片数` | int | `3` | 每条推送最多图片数（0-9，视频帖不发送图片） |
+| `显示发布时间` | bool | `true` | 是否显示发布时间 |
+| `定时推送目标群组列表` | list | `[]` | 推送目标列表（格式见下文） |
+| `消息推送间隔秒数` | int | `2` | 多条新帖推送间隔秒数（0-30） |
+| `推送消息前缀` | string | `【NIKKE 官方消息推送】` | 消息前缀，留空则不添加 |
+
+### 玩家数据相关配置
+
+| 键 | 类型 | 默认值 | 说明 |
+|---|------|--------|------|
+| `玩家登录凭据` | JSON | 见下方 | 玩家登录凭据，JSON 格式填入浏览器 Cookie 字段 |
+
+#### 玩家状态提醒配置
+| 键 | 类型 | 默认值 | 说明 |
+|---|------|--------|------|
+| `启用玩家数据提醒 ` | bool | `false` | 启用玩家数据提醒（需配置 cookie） |
+| `前哨基地满仓提醒阈值（0-100）` | int | `90` | 前哨基地满仓提醒阈值（0=关闭，1-100 表示触发百分比） |
+| `启用日常未完成提醒` | bool | `false` | 启用日常未完成提醒 |
+| `日常提醒时间（北京时间）` | string | `21:00` | 日常提醒时间（北京时间 `HH:MM`） |
+| `玩家提醒消息前缀` | string | `【NIKKE 玩家状态提醒】` | 玩家提醒消息前缀，留空则不添加 |
+
+#### NIKKE 角色查询配置
+
+| 键 | 类型 | 默认值 | 说明 |
+|---|------|--------|------|
+| `角色别名映射` | JSON | `-` | `/nikke` 查询角色的别名 |
+| `玩家查询映射语言` | string | `zh-TW` | `/nikke` 查询角色消息的语言 |
+| `玩家映射缓存有效期（小时）` | int | `168` | 玩家映射缓存有效期，过期后按需刷新 |
+| `自动刷新玩家映射` | bool | `true` | 缓存缺失或过期时，查询会尝试启动 Chromium 刷新；关闭后仅 /nikke refresh 刷新。 |
+| `在角色查询响应中显示角色头像` | bool | `false` | `/nikke` 查询时是否附带角色头像图片 |
 
 **`cookie` JSON 格式**（从浏览器 Cookie 中提取对应字段填入）：
 
