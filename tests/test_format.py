@@ -222,3 +222,73 @@ def test_format_timestamp():
 
     assert format_timestamp(0) == "未知"
     assert format_timestamp(None) == "未知"
+
+
+# ── post_image_urls ──────────────────────────────────────────────
+
+
+def test_post_image_urls_non_list():
+    plugin = NikkeNewsPlugin(context=None, config={})
+    mb = MessageBuilder(plugin._plugin_config)
+    urls = mb.post_image_urls({"pic_urls": "oops"})
+    assert urls == []
+
+
+def test_post_image_urls_filters_invalid():
+    plugin = NikkeNewsPlugin(context=None, config={})
+    mb = MessageBuilder(plugin._plugin_config)
+    urls = mb.post_image_urls(
+        {"pic_urls": ["http://good.png", "ftp://bad", "", "https://also.good.jpg"]}
+    )
+    assert urls == ["http://good.png", "https://also.good.jpg"]
+
+
+def test_post_image_urls_dedup():
+    plugin = NikkeNewsPlugin(context=None, config={})
+    mb = MessageBuilder(plugin._plugin_config)
+    urls = mb.post_image_urls(
+        {"pic_urls": ["http://a.png", "http://a.png", "http://b.png"]}
+    )
+    assert urls == ["http://a.png", "http://b.png"]
+
+
+def test_post_image_urls_video():
+    plugin = NikkeNewsPlugin(context=None, config={})
+    mb = MessageBuilder(plugin._plugin_config)
+    urls = mb.post_image_urls(
+        {"type": 3, "pic_urls": ["http://example.com/a.png"]}
+    )
+    assert urls == []
+
+
+def test_post_image_urls_respects_max_images():
+    plugin = NikkeNewsPlugin(context=None, config={"新闻": {"max_images": 1}})
+    mb = MessageBuilder(plugin._plugin_config)
+    urls = mb.post_image_urls(
+        {"pic_urls": ["http://a.png", "http://b.png"]}
+    )
+    assert urls == ["http://a.png"]
+
+
+# ── format_player_alert_message ──────────────────────────────────
+
+
+def test_format_player_alert_with_prefix():
+    plugin = NikkeNewsPlugin(
+        context=None,
+        config={"玩家": {"状态提醒": {"alert_prefix": "【提醒】"}}},
+    )
+    mb = MessageBuilder(plugin._plugin_config)
+    msg = mb.format_player_alert_message(["line1", "line2"])
+    assert msg.startswith("【提醒】")
+    assert "line1" in msg
+    assert "line2" in msg
+
+
+def test_format_player_alert_default_prefix():
+    plugin = NikkeNewsPlugin(context=None, config={})
+    mb = MessageBuilder(plugin._plugin_config)
+    msg = mb.format_player_alert_message(["line1"])
+    assert msg.startswith("【NIKKE 玩家状态提醒】")
+    assert "line1" in msg
+    assert "UTC+8" in msg

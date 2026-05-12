@@ -25,7 +25,7 @@ class MessageBuilder:
         body = self._format_post_body(post)
 
         created_on = format_timestamp(post.get("created_on"))
-        detail_url = POST_DETAIL_URL.format(post_uuid=post.get("post_uuid"))
+        detail_url = POST_DETAIL_URL.format(post_uuid=post.get("post_uuid", ""))
 
         prefix = self._config.push_prefix()
         parts = [prefix, title] if prefix else [title]

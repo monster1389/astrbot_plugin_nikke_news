@@ -4,6 +4,9 @@ from datetime import datetime, timedelta, timezone
 from core.message_builder import MessageBuilder
 from player.player_mapping_cache import PlayerMappingCache
 from player.player_mapping_refresher import (
+    _accept_language,
+    _localized_text,
+    _parse_cookie_header,
     extract_character_names,
     extract_state_effect_options,
 )
@@ -153,3 +156,111 @@ def test_mapping_cache_empty_has_no_useful_data():
     cache = PlayerMappingCache(None)
     assert cache.has_useful_data() is False
     assert cache.name_to_code() == {}
+
+
+# ── _localized_text ──────────────────────────────────────────────
+
+
+def test_localized_text_string():
+    assert _localized_text("Anis") == "Anis"
+
+
+def test_localized_text_dict_name():
+    assert _localized_text({"name": "Anis"}) == "Anis"
+
+
+def test_localized_text_dict_description():
+    assert _localized_text({"description": "ATK"}) == "ATK"
+
+
+def test_localized_text_dict_fallback_keys():
+    assert _localized_text({"en": "Alice"}) == "Alice"
+    assert _localized_text({"ja": "アリス"}) == "アリス"
+    assert _localized_text({"zh-TW": "愛麗絲"}) == "愛麗絲"
+
+
+def test_localized_text_empty():
+    assert _localized_text("") == ""
+    assert _localized_text(None) == ""
+    assert _localized_text({}) == ""
+
+
+# ── _parse_cookie_header ─────────────────────────────────────────
+
+
+def test_parse_cookie_header_single():
+    result = _parse_cookie_header("token=abc123")
+    names = {c["name"] for c in result}
+    domains = {c["domain"] for c in result}
+    assert names == {"token"}
+    assert ".blablalink.com" in domains
+    assert "www.blablalink.com" in domains
+    for c in result:
+        assert c["value"] == "abc123"
+        assert c["path"] == "/"
+        assert c["secure"] is True
+
+
+def test_parse_cookie_header_multiple():
+    result = _parse_cookie_header("a=1; b=2")
+    assert len(result) == 4  # 2 names x 2 domains
+
+
+def test_parse_cookie_header_empty():
+    assert _parse_cookie_header("") == []
+
+
+# ── _accept_language ─────────────────────────────────────────────
+
+
+def test_accept_language_en():
+    assert "en-US" in _accept_language("en")
+
+
+def test_accept_language_zh():
+    assert "zh-CN" in _accept_language("zh")
+
+
+def test_accept_language_zh_tw():
+    assert "zh-TW" in _accept_language("zh-TW")
+
+
+def test_accept_language_other():
+    result = _accept_language("ja")
+    assert result.startswith("ja")
+    assert "en" in result
+
+
+# ── extract edge cases ───────────────────────────────────────────
+
+
+def test_extract_character_names_non_list():
+    assert extract_character_names({"not": "list"}) == {}
+
+
+def test_extract_state_effect_options_records_format():
+    data = {
+        "records": [
+            {
+                "state_effect_id_list": [8001],
+                "description_localkey": "ATK Boost",
+                "state_effect_group_id": 5,
+            }
+        ]
+    }
+    result = extract_state_effect_options(data)
+    assert result["8001"]["description"] == "ATK Boost"
+
+
+def test_extract_state_effect_options_non_dict_items():
+    data = [
+        "not a dict",
+        {
+            "state_effect_id_list": [7001],
+            "description_localkey": "DEF",
+            "state_effect_group_id": 3,
+        },
+    ]
+    result = extract_state_effect_options(data)
+    assert result["7001"]["description"] == "DEF"
+    assert len(result) == 1

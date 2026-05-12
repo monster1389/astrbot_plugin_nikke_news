@@ -10,17 +10,26 @@ SHIFTYSPAD_COMBAT_URL = "https://www.blablalink.com/shiftyspad/nikke-list?type=c
 
 class PortraitService:
     def __init__(self, data_dir: Path, client: httpx.AsyncClient):
-        self._portraits_dir = data_dir / "portraits"
         self._client = client
-        self._portraits_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self._portraits_dir = data_dir / "portraits"
+            self._portraits_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as exc:
+            logger.warning(f"NIKKE 头像目录创建失败：{exc}", exc_info=True)
+            self._portraits_dir = None
 
-    def portrait_path(self, name_code: int) -> Path:
+    def portrait_path(self, name_code: int) -> Path | None:
+        if not self._portraits_dir:
+            return None
         return self._portraits_dir / f"{name_code}.webp"
 
     def exists(self, name_code: int) -> bool:
-        return self.portrait_path(name_code).exists()
+        path = self.portrait_path(name_code)
+        return path.exists() if path else False
 
     def cached_count(self) -> int:
+        if not self._portraits_dir:
+            return 0
         return len(list(self._portraits_dir.glob("*.webp")))
 
     async def refresh_all(self, cookie: str) -> str:
@@ -160,7 +169,9 @@ class PortraitService:
                 path.write_bytes(resp.content)
                 new_count += 1
             except Exception as exc:
-                logger.debug(f"NIKKE 头像下载失败 {name_code}: {exc}")
+                logger.warning(
+                    f"NIKKE 头像下载失败 {name_code} ({url}): {exc}", exc_info=True
+                )
         if new_count:
             logger.info(f"NIKKE 头像下载完成：新下载 {new_count} 个。")
         return new_count

@@ -32,7 +32,8 @@ class PollCoordinator:
                 raise
             except Exception as exc:
                 logger.warning(
-                    f"NIKKE 轮询异常（{type(exc).__name__}），将在下次重试：{exc}"
+                    f"NIKKE 轮询异常（{type(exc).__name__}），将在下次重试：{exc}",
+                    exc_info=True,
                 )
 
             await asyncio.sleep(self._poll_interval_seconds)
@@ -40,11 +41,18 @@ class PollCoordinator:
     async def _poll_once(self):
         self._state.clear()
         self._state.update(PluginStateStore(self._state_path).load())
-        await self._news_poller.poll()
+        try:
+            await self._news_poller.poll()
+        except Exception as exc:
+            logger.warning(
+                f"NIKKE 新闻轮询异常，将在下次重试：{exc}", exc_info=True
+            )
         try:
             await self._player_poller.poll()
         except Exception as exc:
-            logger.warning(f"NIKKE 玩家数据轮询异常，将在下次重试：{exc}")
+            logger.warning(
+                f"NIKKE 玩家数据轮询异常，将在下次重试：{exc}", exc_info=True
+            )
 
     def load_state(self) -> dict[str, Any]:
         return PluginStateStore(self._state_path).load()

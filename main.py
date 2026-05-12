@@ -126,7 +126,10 @@ class NikkeNewsPlugin(Star):
             self._task = None
 
         if self._client:
-            await self._client.aclose()
+            try:
+                await self._client.aclose()
+            except Exception as exc:
+                logger.warning(f"NIKKE httpx client aclose 异常：{exc}", exc_info=True)
             self._client = None
 
         self._save_state()
@@ -148,7 +151,8 @@ class NikkeNewsPlugin(Star):
         return self._plugin_config.config_bool(key, default)
 
     async def _poll_once(self):
-        await self._coordinator._poll_once()
+        if self._coordinator:
+            await self._coordinator._poll_once()
 
     async def _seed_portraits(self, cookie: str):
         logger.info("NIKKE 开始初始头像缓存（前 30 个角色）...")
@@ -197,12 +201,16 @@ class NikkeNewsPlugin(Star):
             )
             return
 
+        if not self._character_service:
+            yield event.plain_result("角色服务未初始化，请等待插件启动完成。")
+            return
+
         try:
             result_text, name_code = await self._character_service.query(text)
 
             if self._plugin_config.show_character_portrait() and self._portrait_service:
                 path = self._portrait_service.portrait_path(name_code)
-                if path.exists():
+                if path and path.exists():
                     chain = [
                         Comp.Image.fromFileSystem(str(path)),
                         Comp.Plain(result_text),

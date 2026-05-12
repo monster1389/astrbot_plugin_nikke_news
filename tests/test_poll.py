@@ -177,6 +177,7 @@ async def test_poll_new_posts_pushes(caplog, captured, tmp_path):
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_poll_api_timeout(caplog, tmp_path):
+    caplog.set_level(logging.WARNING)
     plugin = make_plugin()
     plugin._state_path = tmp_path / "state.json"
     plugin._state_path.write_text(
@@ -185,8 +186,8 @@ async def test_poll_api_timeout(caplog, tmp_path):
     _mock_client(plugin, error=Exception("ReadTimeout"))
     _setup_coordinator(plugin)
 
-    with pytest.raises(Exception, match="ReadTimeout"):
-        await plugin._poll_once()
+    await plugin._poll_once()
+    assert "ReadTimeout" in caplog.text
 
 
 # ---------------------------------------------------------------------------
@@ -208,10 +209,11 @@ async def test_poll_api_empty_list(caplog, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# API code != 0 → propagates
+# API code != 0 → caught and logged (poll continues)
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_poll_api_error_code(tmp_path):
+async def test_poll_api_error_code(caplog, tmp_path):
+    caplog.set_level(logging.WARNING)
     plugin = make_plugin()
     plugin._state_path = tmp_path / "state.json"
     plugin._state_path.write_text(
@@ -220,8 +222,8 @@ async def test_poll_api_error_code(tmp_path):
     _mock_client(plugin, response={"code": 500, "msg": "error"})
     _setup_coordinator(plugin)
 
-    with pytest.raises(RuntimeError, match="Blablalink API 返回错误"):
-        await plugin._poll_once()
+    await plugin._poll_once()
+    assert "Blablalink API 返回错误" in caplog.text
 
 
 # ---------------------------------------------------------------------------
