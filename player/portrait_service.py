@@ -130,9 +130,13 @@ class PortraitService:
 
     async def _download_mappings(self, mappings: dict[int, str]) -> int:
         """下载角色头像图片到本地 portraits/ 目录。"""
+        if self._portraits_dir:
+            self._portraits_dir.mkdir(parents=True, exist_ok=True)
         new_count = 0
         for name_code, url in mappings.items():
             path = self.portrait_path(name_code)
+            if path is None:
+                continue
             try:
                 resp = await self._client.get(url)
                 resp.raise_for_status()
