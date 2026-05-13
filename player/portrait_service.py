@@ -82,10 +82,11 @@ class PortraitService:
                     )
 
                     # 页面加载后约 4-5 秒会短暂渲染全部卡片（含 CDN 图片 URL），
-                    # 之后虚拟列表 reset 只剩视口内 ~10 张。在此窗口内轮询抓取。
+                    # 之后虚拟列表 reset 只剩视口内 ~10 张。在此窗口内轮询抓取，
+                    # 累积多轮结果，窗口关闭（卡片 < 50）后停止。
                     mappings: dict[int, str] = {}
+                    had_window = False
                     for _ in range(50):
-                        await page.wait_for_timeout(200)
                         result = await page.evaluate("""() => {
                             const cards = document.querySelectorAll('[data-cname="card-item"]');
                             if (cards.length < 50) return null;
@@ -100,7 +101,8 @@ class PortraitService:
                             const codes = list.map(item => item.name_code);
                             return {portraits, codes};
                         }""")
-                        if result:
+                        if result and result.get("codes"):
+                            had_window = True
                             portraits = result.get("portraits", [])
                             codes = result.get("codes", [])
                             for i in range(min(len(portraits), len(codes))):
@@ -108,7 +110,15 @@ class PortraitService:
                                 url = portraits[i]
                                 if isinstance(code, int) and url:
                                     mappings[code] = url
+                        elif had_window:
                             break
+                        await page.wait_for_timeout(200)
+
+                    if not mappings:
+                        logger.warning(
+                            "NIKKE 头像映射轮询超时：10 秒内未检测到 50+ 角色卡片，"
+                            "可能页面加载延迟或 DOM 结构变化。"
+                        )
 
                     logger.info(f"NIKKE 头像映射抓取完成：{len(mappings)} 个角色。")
                     return mappings
