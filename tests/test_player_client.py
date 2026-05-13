@@ -63,7 +63,11 @@ class TestFetchProgress:
     @pytest.mark.asyncio
     async def test_http_error(self):
         mock = MagicMock(spec=httpx.AsyncClient)
-        mock.post = AsyncMock(side_effect=httpx.HTTPStatusError("err", request=MagicMock(), response=MagicMock()))
+        mock.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "err", request=MagicMock(), response=MagicMock()
+            )
+        )
         client = PlayerClient(mock)
         with pytest.raises(httpx.HTTPStatusError):
             await client.fetch_progress("cookie=1")
@@ -132,7 +136,11 @@ class TestFetchCharacterDetails:
 
     @pytest.mark.asyncio
     async def test_no_effects(self):
-        data = {"code": 0, "msg": "ok", "data": {"character_details": [{"skill1_lv": 5}]}}
+        data = {
+            "code": 0,
+            "msg": "ok",
+            "data": {"character_details": [{"skill1_lv": 5}]},
+        }
         client = _client_with_post(data)
         result_d, result_e = await client.fetch_character_details("c=1", 84, [101])
         assert result_d == [{"skill1_lv": 5}]

@@ -52,15 +52,20 @@ class TestDownloadMappings:
         assert service.portrait_path(101).read_bytes() == b"image_data"
 
     @pytest.mark.asyncio
-    async def test_skips_existing(self, service):
+    async def test_overwrites_existing(self, service):
         (service._portraits_dir / "101.webp").write_bytes(b"cached")
+
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.content = b"fresh_data"
+        service._client.get.return_value = mock_resp
 
         new_count = await service._download_mappings(
             {101: "https://cdn.example.com/101.webp"}
         )
 
-        assert new_count == 0
-        service._client.get.assert_not_called()
+        assert new_count == 1
+        assert service.portrait_path(101).read_bytes() == b"fresh_data"
 
     @pytest.mark.asyncio
     async def test_download_failure_continues(self, service):

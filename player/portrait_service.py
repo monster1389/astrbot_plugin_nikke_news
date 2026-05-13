@@ -43,7 +43,7 @@ class PortraitService:
                 "3. 账号是否拥有角色（？type=combat 需要账号有角色才能抓到头像）"
             )
         new_count = await self._download_mappings(mappings)
-        return f"头像缓存刷新完成：共 {len(mappings)} 个角色，新下载 {new_count} 个。"
+        return f"头像缓存刷新完成：共 {len(mappings)} 个角色，下载完成 {new_count} 个。"
 
     async def refresh_first_n(self, n: int, cookie: str) -> str:
         """启动时预缓存前 N 个角色头像。"""
@@ -52,7 +52,7 @@ class PortraitService:
             return "未获取到角色头像映射（Cookie 或 Playwright 问题，详见日志）。"
         first_n = dict(list(mappings.items())[:n])
         new_count = await self._download_mappings(first_n)
-        return f"初始头像缓存完成：已缓存前 {n} 个角色，新下载 {new_count} 个。"
+        return f"初始头像缓存完成：已缓存前 {n} 个角色，下载完成 {new_count} 个。"
 
     # ------------------------------------------------------------------
     # private
@@ -163,8 +163,6 @@ class PortraitService:
         new_count = 0
         for name_code, url in mappings.items():
             path = self.portrait_path(name_code)
-            if path.exists():
-                continue
             try:
                 resp = await self._client.get(url)
                 resp.raise_for_status()
@@ -175,5 +173,5 @@ class PortraitService:
                     f"NIKKE 头像下载失败 {name_code} ({url}): {exc}", exc_info=True
                 )
         if new_count:
-            logger.info(f"NIKKE 头像下载完成：新下载 {new_count} 个。")
+            logger.info(f"NIKKE 头像下载完成：{new_count} 个。")
         return new_count

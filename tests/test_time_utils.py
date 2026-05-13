@@ -24,7 +24,9 @@ def test_day_key_noon():
 
 
 def test_is_cookie_invalid_error_player_api():
-    assert is_cookie_invalid_error(RuntimeError("PLAYER_API_ERROR:401:bad cookie")) is True
+    assert (
+        is_cookie_invalid_error(RuntimeError("PLAYER_API_ERROR:401:bad cookie")) is True
+    )
 
 
 def test_is_cookie_invalid_error_401():

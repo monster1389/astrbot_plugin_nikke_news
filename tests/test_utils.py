@@ -33,8 +33,6 @@ class TestIsVideoPost:
         assert is_video_post({}) is False
 
 
-
-
 class TestReadableHtmlParser:
     def test_plain_text(self):
         p = ReadableHtmlParser()

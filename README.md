@@ -110,7 +110,7 @@
 
 - `/nikke <角色名>` 查询账号内角色战力、技能、装备等级和 T10 词条。
 - `/nikke_refresh` 刷新角色名和词条映射。
-- `/nikke_portrait_refresh` 用 Playwright 抓取角色头像并缓存到本地（首次启动自动缓存前 30 个）。
+- `/nikke_portrait_refresh` 用 Playwright 抓取全部角色头像并全量刷新本地缓存（首次启动自动缓存前 30 个）。
 - `/nikke_help` 查看所有命令。
 
 查询示例：

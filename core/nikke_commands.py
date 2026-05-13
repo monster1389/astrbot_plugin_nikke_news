@@ -19,7 +19,7 @@ def _recover_full_query(event: AstrMessageEvent) -> str:
     msg = event.message_str.strip()
     for prefix in ("/nikke ", "nikke "):
         if msg.startswith(prefix):
-            return msg[len(prefix):]
+            return msg[len(prefix) :]
     return ""
 
 

@@ -18,7 +18,12 @@ if _plugin_dir not in sys.path:
 
 from core.config import PluginConfig
 from core.constants import PLUGIN_NAME, REQUEST_TIMEOUT_SECONDS
-from core.nikke_commands import handle_help, handle_portrait_refresh, handle_query, handle_refresh
+from core.nikke_commands import (
+    handle_help,
+    handle_portrait_refresh,
+    handle_query,
+    handle_refresh,
+)
 from core.poll_coordinator import PollCoordinator
 from core.state_store import PluginStateStore
 from news.news_poller import NewsPoller

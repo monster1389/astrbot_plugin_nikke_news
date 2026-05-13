@@ -49,9 +49,7 @@ class PollCoordinator:
         try:
             await self._news_poller.poll()
         except Exception as exc:
-            logger.warning(
-                f"NIKKE 新闻轮询异常，将在下次重试：{exc}", exc_info=True
-            )
+            logger.warning(f"NIKKE 新闻轮询异常，将在下次重试：{exc}", exc_info=True)
         try:
             await self._player_poller.poll()
         except Exception as exc:

@@ -255,18 +255,14 @@ def test_post_image_urls_dedup():
 def test_post_image_urls_video():
     plugin = NikkeNewsPlugin(context=None, config={})
     mb = MessageBuilder(plugin._plugin_config)
-    urls = mb.post_image_urls(
-        {"type": 3, "pic_urls": ["http://example.com/a.png"]}
-    )
+    urls = mb.post_image_urls({"type": 3, "pic_urls": ["http://example.com/a.png"]})
     assert urls == []
 
 
 def test_post_image_urls_respects_max_images():
     plugin = NikkeNewsPlugin(context=None, config={"新闻": {"max_images": 1}})
     mb = MessageBuilder(plugin._plugin_config)
-    urls = mb.post_image_urls(
-        {"pic_urls": ["http://a.png", "http://b.png"]}
-    )
+    urls = mb.post_image_urls({"pic_urls": ["http://a.png", "http://b.png"]})
     assert urls == ["http://a.png"]
 
 
