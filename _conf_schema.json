@@ -133,7 +133,7 @@
           "mapping_cache_ttl_hours": {
             "description": "玩家映射缓存有效期（小时）",
             "type": "int",
-            "default": 168,
+            "default": 24,
             "hint": "超过有效期后，下一次玩家查询会按需尝试用 Chromium 刷新映射。"
           },
           "auto_refresh_mapping": {
