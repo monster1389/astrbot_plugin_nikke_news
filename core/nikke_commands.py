@@ -57,6 +57,22 @@ async def handle_query(plugin, event: AstrMessageEvent, text: str = ""):
                 ]
                 yield event.chain_result(chain)
                 return
+
+            cookie = plugin._plugin_config.player_data_cookie()
+            if cookie:
+                downloaded = await plugin._portrait_service.ensure_portrait(
+                    name_code, cookie
+                )
+                if downloaded:
+                    path = plugin._portrait_service.portrait_path(name_code)
+                    if path and path.exists():
+                        chain = [
+                            Comp.Image.fromFileSystem(str(path)),
+                            Comp.Plain(result_text),
+                        ]
+                        yield event.chain_result(chain)
+                        return
+
             yield event.plain_result(
                 result_text
                 + "\n\n（未找到角色头像，请执行 /nikke_portrait_refresh 下载头像缓存。）"
