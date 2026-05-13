@@ -1,9 +1,12 @@
+import json
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
 
-from player.portrait_service import PortraitService
+from player.portrait_service import PortraitMappingCache, PortraitService
 
 
 @pytest.fixture
@@ -95,3 +98,81 @@ class TestScrapeMappings:
 
         result = await service._scrape_portrait_mappings("cookie=test")
         assert result == {}
+
+
+# ── PortraitMappingCache ──────────────────────────────────────────
+
+
+def test_cache_save_and_load(tmp_path):
+    cache_path = tmp_path / "portrait_mappings.json"
+    cache = PortraitMappingCache(cache_path)
+
+    mappings = {5005: "https://sg-tools-cdn.blablalink.com/foo/bar.webp"}
+    cache.save(mappings)
+
+    loaded = cache.load()
+    assert loaded == mappings
+
+
+def test_cache_load_missing_file():
+    cache = PortraitMappingCache(Path("/nonexistent/portrait_mappings.json"))
+    assert cache.load() == {}
+
+
+def test_cache_is_stale_fresh(tmp_path):
+    cache_path = tmp_path / "portrait_mappings.json"
+    cache_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "mappings": {"5005": "https://example.com/a.webp"},
+            }
+        )
+    )
+    cache = PortraitMappingCache(cache_path)
+    assert cache.is_stale() is False
+
+
+def test_cache_is_stale_expired(tmp_path):
+    cache_path = tmp_path / "portrait_mappings.json"
+    cache_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "updated_at": (
+                    datetime.now(timezone.utc) - timedelta(hours=200)
+                ).isoformat(),
+                "mappings": {"5005": "https://example.com/a.webp"},
+            }
+        )
+    )
+    cache = PortraitMappingCache(cache_path)
+    assert cache.is_stale() is True
+
+
+def test_cache_is_stale_no_file():
+    cache = PortraitMappingCache(Path("/nonexistent/portrait_mappings.json"))
+    assert cache.is_stale() is True
+
+
+def test_cache_load_wrong_version(tmp_path):
+    cache_path = tmp_path / "portrait_mappings.json"
+    cache_path.write_text(
+        json.dumps(
+            {
+                "version": 99,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "mappings": {"5005": "https://example.com/a.webp"},
+            }
+        )
+    )
+    cache = PortraitMappingCache(cache_path)
+    assert cache.load() == {}
+
+
+def test_cache_save_creates_parent_dir(tmp_path):
+    cache_path = tmp_path / "subdir" / "portrait_mappings.json"
+    cache = PortraitMappingCache(cache_path)
+    cache.save({5005: "https://example.com/a.webp"})
+    assert cache_path.exists()

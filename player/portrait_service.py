@@ -25,7 +25,10 @@ class PortraitMappingCache:
             return {}
         try:
             data = json.loads(self._path.read_text(encoding="utf-8"))
-            if not isinstance(data, dict) or data.get("version") != MAPPING_CACHE_VERSION:
+            if (
+                not isinstance(data, dict)
+                or data.get("version") != MAPPING_CACHE_VERSION
+            ):
                 return {}
             raw_mappings = data.get("mappings", {})
             if not isinstance(raw_mappings, dict):
@@ -63,7 +66,9 @@ class PortraitMappingCache:
             dt = datetime.fromisoformat(updated_at)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
-            return datetime.now(timezone.utc) - dt > timedelta(hours=MAPPING_CACHE_TTL_HOURS)
+            return datetime.now(timezone.utc) - dt > timedelta(
+                hours=MAPPING_CACHE_TTL_HOURS
+            )
         except Exception:
             return True
 
