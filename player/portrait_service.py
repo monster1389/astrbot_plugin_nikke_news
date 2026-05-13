@@ -41,8 +41,7 @@ class PortraitService:
             return (
                 "未获取到角色头像映射。请确认：\n"
                 "1. Cookie 是否有效\n"
-                "2. 当前环境是否安装了 Playwright\n"
-                "3. 账号是否拥有角色（？type=combat 需要账号有角色才能抓到头像）"
+                "2. 当前环境是否安装了 Playwright"
             )
         new_count = await self._download_mappings(mappings)
         return f"头像缓存刷新完成：共 {len(mappings)} 个角色，下载完成 {new_count} 个。"
@@ -57,7 +56,7 @@ class PortraitService:
         return f"初始头像缓存完成：已缓存前 {n} 个角色，下载完成 {new_count} 个。"
 
     async def _scrape_portrait_mappings(self, cookie: str) -> dict[int, str]:
-        """用 Playwright 打开角色列表页，滚动加载全部角色，提取 name_code→图片 URL 映射。"""
+        """用 Playwright 打开角色列表页，在初始渲染窗口提取 name_code→图片 URL 映射。"""
         try:
             from playwright.async_api import async_playwright
         except ImportError:
@@ -81,74 +80,35 @@ class PortraitService:
                     await page.goto(
                         SHIFTYSPAD_COMBAT_URL, wait_until="load", timeout=60000
                     )
-                    await page.wait_for_timeout(5000)
 
-                    prev_count = 0
-                    stall_count = 0
-
-                    for _attempt in range(40):
-                        await page.evaluate("""() => {
-                            const all = document.querySelectorAll('#app div');
-                            let container = null;
-                            let maxDiff = 0;
-                            for (const el of all) {
-                                const diff = el.scrollHeight - el.clientHeight;
-                                if (diff > maxDiff && diff > 50) {
-                                    maxDiff = diff;
-                                    container = el;
-                                }
-                            }
-                            if (container) {
-                                container.dispatchEvent(new WheelEvent('wheel', {
-                                    deltaY: 500, deltaMode: 0, bubbles: true, cancelable: true,
-                                }));
-                            }
-                        }""")
-                        await page.mouse.wheel(0, 500)
-                        await page.wait_for_timeout(1500)
-
-                        snap = await page.evaluate("""() => {
+                    # 页面加载后约 4-5 秒会短暂渲染全部卡片（含 CDN 图片 URL），
+                    # 之后虚拟列表 reset 只剩视口内 ~10 张。在此窗口内轮询抓取。
+                    mappings: dict[int, str] = {}
+                    for _ in range(50):
+                        await page.wait_for_timeout(200)
+                        result = await page.evaluate("""() => {
                             const cards = document.querySelectorAll('[data-cname="card-item"]');
+                            if (cards.length < 50) return null;
+                            const portraits = [];
+                            cards.forEach(card => {
+                                const img = card.querySelector('.nikke-numerical-item-left img[src*="sg-tools-cdn"]');
+                                portraits.push(img ? img.src : '');
+                            });
                             const pinia = document.querySelector('#app')?.__vue_app__?.config?.globalProperties?.$pinia;
                             const store = pinia?._s?.get('shiftys_nikke_list');
-                            return {
-                                cardCount: cards.length,
-                                isAllLoaded: store?.$state?.is_all_loaded || false,
-                            };
+                            const list = store?.$state?.shown_nikke_list || [];
+                            const codes = list.map(item => item.name_code);
+                            return {portraits, codes};
                         }""")
-
-                        if snap["cardCount"] != prev_count:
-                            prev_count = snap["cardCount"]
-                            stall_count = 0
-                        else:
-                            stall_count += 1
-
-                        if snap["isAllLoaded"]:
+                        if result:
+                            portraits = result.get("portraits", [])
+                            codes = result.get("codes", [])
+                            for i in range(min(len(portraits), len(codes))):
+                                code = codes[i]
+                                url = portraits[i]
+                                if isinstance(code, int) and url:
+                                    mappings[code] = url
                             break
-                        if stall_count > 10:
-                            break
-
-                    result = await page.evaluate("""() => {
-                        const portraits = [];
-                        document.querySelectorAll('[data-cname="card-item"]').forEach(card => {
-                            const img = card.querySelector('.nikke-numerical-item-left img[src*="sg-tools-cdn"]');
-                            portraits.push(img ? img.src : '');
-                        });
-                        const pinia = document.querySelector('#app')?.__vue_app__?.config?.globalProperties?.$pinia;
-                        const store = pinia?._s?.get('shiftys_nikke_list');
-                        const list = store?.$state?.shown_nikke_list || [];
-                        const codes = list.map(item => item.name_code);
-                        return {portraits, codes};
-                    }""")
-
-                    mappings: dict[int, str] = {}
-                    portraits = result.get("portraits", [])
-                    codes = result.get("codes", [])
-                    for i in range(min(len(portraits), len(codes))):
-                        code = codes[i]
-                        url = portraits[i]
-                        if isinstance(code, int) and url:
-                            mappings[code] = url
 
                     logger.info(f"NIKKE 头像映射抓取完成：{len(mappings)} 个角色。")
                     return mappings
