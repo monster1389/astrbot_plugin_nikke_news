@@ -1,3 +1,5 @@
+"""消息格式化：新闻推送消息链、角色查询统计、玩家提醒。"""
+
 from datetime import datetime
 from typing import Any
 
@@ -17,10 +19,13 @@ from .utils import (
 
 
 class MessageBuilder:
+    """构建推送消息链和角色查询统计文本。"""
+
     def __init__(self, config: PluginConfig):
         self._config = config
 
     def format_post_message(self, post: dict[str, Any]) -> str:
+        """构建单条推送消息文本（标题+正文+时间戳+详情链接）。"""
         title = clean_text(post.get("title")) or "NIKKE 官方消息"
         body = self._format_post_body(post)
 
@@ -94,6 +99,7 @@ class MessageBuilder:
         state_effects: list[dict[str, Any]] | None = None,
         state_effect_options: dict[str, dict[str, Any]] | None = None,
     ) -> str:
+        """格式化角色战斗力、技能、装备及 T10 词条表格文本。"""
         en_name = name_map.get("en", "")
         zh_name = name_map.get("zh", "")
 

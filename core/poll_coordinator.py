@@ -1,3 +1,5 @@
+"""轮询调度：协调新闻轮询与玩家状态轮询的执行周期。"""
+
 import asyncio
 from typing import Any
 
@@ -9,6 +11,8 @@ from core.state_store import PluginStateStore
 
 
 class PollCoordinator:
+    """轮询调度器，按配置间隔循环执行新闻与玩家轮询。"""
+
     def __init__(
         self,
         news_poller: NewsPoller,

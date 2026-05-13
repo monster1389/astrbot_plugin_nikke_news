@@ -1,3 +1,5 @@
+"""状态持久化：已见帖子 UUID、初始化标记的读写。"""
+
 import json
 from pathlib import Path
 from typing import Any
@@ -8,6 +10,8 @@ from .constants import MAX_SEEN_POSTS
 
 
 class PluginStateStore:
+    """管理 state.json 的读写，处理版本迁移和容量上限。"""
+
     def __init__(self, state_path: Path | None):
         self._state_path = state_path
 
@@ -25,6 +29,7 @@ class PluginStateStore:
 
     @classmethod
     def normalize_state(cls, data: Any) -> dict[str, Any]:
+        """迁移旧版 state 结构到当前格式，清理无效数据。"""
         state = cls.default_state()
         if not isinstance(data, dict):
             return state

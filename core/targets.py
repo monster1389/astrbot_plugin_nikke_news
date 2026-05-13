@@ -1,9 +1,12 @@
+"""推送目标解析：支持纯数字群号和 platform:type:id 格式。"""
+
 from astrbot.api import logger
 
 from .constants import SUPPORTED_TARGET_TYPES
 
 
 def parse_push_target(value: str) -> dict[str, str] | None:
+    """解析目标字符串：纯数字→群号，"platform:type:id"→三元组。"""
     if value.isdigit():
         return {"target_type": "GroupMessage", "target_id": value}
 

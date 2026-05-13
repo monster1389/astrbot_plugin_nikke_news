@@ -1,3 +1,5 @@
+"""通用工具：HTML 清洗、安全类型转换、时间戳格式化。"""
+
 import html
 import re
 from datetime import datetime
@@ -6,6 +8,8 @@ from typing import Any
 
 
 class ReadableHtmlParser(HTMLParser):
+    """HTML 清洗解析器，提取纯文本内容并折叠空白。"""
+
     _BREAK_TAGS = {"br"}
     _BLOCK_TAGS = {"div", "p", "section", "article", "header", "footer", "li"}
     _IGNORED_CONTAINER_TAGS = {"script", "style"}
@@ -69,6 +73,7 @@ def clean_text(value: Any) -> str:
 
 
 def clean_html_with_linebreaks(value: Any) -> str:
+    """清理 HTML 标签，保留 <br> 为换行，不折叠空白。"""
     parser = ReadableHtmlParser()
     parser.feed(str(value or ""))
     parser.close()

@@ -1,3 +1,5 @@
+"""角色映射缓存：角色名、词条选项的本地持久化与版本校验。"""
+
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -10,6 +12,8 @@ MAPPING_CACHE_VERSION = 2
 
 
 class PlayerMappingCache:
+    """管理角色名↔name_code 和词条 option 的缓存，支持版本校验。"""
+
     def __init__(self, path: Path | None):
         self._path = path
         self._data: dict[str, Any] = self._empty_data()
@@ -51,6 +55,7 @@ class PlayerMappingCache:
         return raw if isinstance(raw, dict) else {}
 
     def load(self) -> bool:
+        """从磁盘加载缓存，校验版本，版本不匹配或损坏时从空数据开始。"""
         if not self._path or not self._path.exists():
             self._data = self._empty_data()
             return False
@@ -81,6 +86,7 @@ class PlayerMappingCache:
         state_effect_options: dict[str, dict[str, Any]],
         sources: dict[str, dict[str, str]] | None = None,
     ) -> None:
+        """写入缓存到磁盘，失败时删除坏文件。"""
         self._data = {
             "version": MAPPING_CACHE_VERSION,
             "language": language,

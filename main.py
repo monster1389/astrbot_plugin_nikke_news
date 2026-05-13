@@ -1,3 +1,5 @@
+"""NIKKE 插件入口：注册命令、初始化服务、启动轮询。"""
+
 # ruff: noqa: E402 (sys.path patching before local imports)
 
 import asyncio
@@ -57,6 +59,7 @@ class NikkeNewsPlugin(Star):
         self._state: dict[str, Any] = PluginStateStore.default_state()
 
     async def initialize(self):
+        """初始化数据目录、HTTP 客户端、各服务模块，启动后台轮询。"""
         if not self._config_bool("enabled", True):
             logger.info("NIKKE 官方消息推送插件已禁用。")
             return
@@ -124,6 +127,7 @@ class NikkeNewsPlugin(Star):
         logger.info("NIKKE 官方消息推送插件已启动。")
 
     async def terminate(self):
+        """取消轮询任务，关闭 HTTP 客户端，保存状态。"""
         if self._task:
             self._task.cancel()
             with suppress(asyncio.CancelledError):

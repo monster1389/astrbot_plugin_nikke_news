@@ -14,11 +14,15 @@ from player.player_client import PlayerClient
 
 
 class CharacterQueryError(Exception):
+    """角色查询错误，包含面向用户的中文消息。"""
+
     def __init__(self, message: str):
         self.message = message
 
 
 class CharacterService:
+    """玩家角色查询：别名查找、API 数据获取、映射刷新。"""
+
     def __init__(
         self,
         client: httpx.AsyncClient,
@@ -73,6 +77,7 @@ class CharacterService:
         return self._code_to_name.get(code) or fallback
 
     def lookup(self, query: str) -> list[tuple[int, str]]:
+        """多阶段角色查找：别名精确匹配→中英文字段精确匹配→子串匹配。"""
         if not query or not query.strip():
             return []
 
@@ -107,6 +112,7 @@ class CharacterService:
         return results
 
     async def refresh_mappings(self) -> str:
+        """启动 Playwright 刷新角色映射（先 en 后目标语言），失败抛 PlayerMappingRefreshError。"""
         if not self._en_cache:
             return "玩家映射缓存未初始化。"
 
@@ -165,6 +171,7 @@ class CharacterService:
         return "\n".join(messages) if messages else "映射缓存均为最新，无需刷新。"
 
     async def query(self, name: str) -> tuple[str, int]:
+        """处理 /nikke 查询：参数校验→映射准备→Lookup→API 调用→格式化结果。"""
         cookie = self._config.player_data_cookie()
         if not cookie:
             raise CharacterQueryError(

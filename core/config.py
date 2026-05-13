@@ -1,3 +1,5 @@
+"""插件配置封装，从 AstrBot 配置字典中读取各类参数。"""
+
 import json
 from datetime import time
 from typing import Any
@@ -10,6 +12,8 @@ _PLAYER_MAPPING_LANGUAGES = {"en", "zh-TW", "ja", "ko"}
 
 
 class PluginConfig:
+    """从 AstrBot 配置字典读取新闻推送与玩家数据的各项参数。"""
+
     def __init__(self, config: AstrBotConfig | None):
         self._config = config or {}
         self._news = self._as_dict(self._config.get("新闻"))

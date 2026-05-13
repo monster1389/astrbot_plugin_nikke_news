@@ -1,3 +1,5 @@
+"""通过 Playwright 从 Blablalink CDN 抓取角色名和词条映射。"""
+
 import asyncio
 from typing import Any
 
@@ -10,7 +12,7 @@ CDN_HOST = "sg-tools-cdn.blablalink.com"
 
 
 class PlayerMappingRefreshError(Exception):
-    pass
+    """角色映射刷新失败异常。"""
 
 
 def extract_character_names(data: Any) -> dict[int, str]:
@@ -32,6 +34,7 @@ def extract_character_names(data: Any) -> dict[int, str]:
 
 
 def extract_state_effect_options(data: Any) -> dict[str, dict[str, Any]]:
+    """从 equip_table JSON 提取 T10 词条 option 映射。"""
     rows: list[dict[str, Any]]
     if isinstance(data, dict) and isinstance(data.get("records"), list):
         rows = [item for item in data["records"] if isinstance(item, dict)]
@@ -69,6 +72,7 @@ async def refresh_player_mappings(
     language: str = "en",
     timeout_ms: int = 30000,
 ) -> tuple[dict[int, str], dict[str, dict[str, Any]], dict[str, dict[str, str]]]:
+    """启动 Chromium 访问 Blablalink 尼姬列表页，拦截 CDN 响应抓取角色名和词条，缓存到本地 JSON。"""
     try:
         from playwright.async_api import async_playwright
     except ImportError as exc:
@@ -156,6 +160,7 @@ async def refresh_player_mappings(
 
 
 def _localized_text(value: Any) -> str:
+    """从 Blablalink 多语言字段（str 或 {name, description} dict）提取文本。"""
     if isinstance(value, str):
         return value.strip()
     if isinstance(value, dict):
@@ -167,6 +172,7 @@ def _localized_text(value: Any) -> str:
 
 
 def _parse_cookie_header(cookie_header: str) -> list[dict[str, Any]]:
+    """解析 Cookie 字符串为 Playwright cookie 对象列表。"""
     cookies: list[dict[str, Any]] = []
     for part in cookie_header.split(";"):
         if "=" not in part:

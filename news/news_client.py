@@ -8,11 +8,14 @@ from core.utils import safe_int
 
 
 class NewsClient:
+    """调用 Blablalink API 获取官方板块帖子列表。"""
+
     def __init__(self, client: httpx.AsyncClient | None, config: PluginConfig):
         self._client = client
         self._config = config
 
     async def fetch_official_posts(self) -> list[dict[str, Any]]:
+        """POST 获取官方板块帖子，返回 data.post_list 或 []。"""
         if not self._client:
             return []
 

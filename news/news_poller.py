@@ -13,6 +13,8 @@ from core.utils import clean_text, safe_int
 
 
 class NewsPoller:
+    """对比已见帖子 UUID，将新帖推送到配置的目标群组。"""
+
     def __init__(
         self,
         client: httpx.AsyncClient | None,
@@ -21,6 +23,7 @@ class NewsPoller:
         save_state: Callable[[], None],
         mark_seen: Callable[[list[str]], None],
     ):
+        """client: httpx 客户端; config: 插件配置; state/save_state/mark_seen: 状态回调。"""
         self._client = client
         self._config = config
         self._state = state

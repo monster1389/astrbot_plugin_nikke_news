@@ -1,3 +1,5 @@
+"""时间工具：按北京时区 4 点分界计算 day_key、Cookie 过期检测。"""
+
 from datetime import datetime, timedelta
 
 

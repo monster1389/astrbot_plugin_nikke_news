@@ -11,10 +11,13 @@ from core.utils import safe_int
 
 
 class PlayerClient:
+    """调用 Blablalink 玩家数据 API（前哨收菜、角色列表、角色详情）。"""
+
     def __init__(self, client: httpx.AsyncClient | None):
         self._client = client
 
     async def fetch_progress(self, cookie: str, area_id: int = 84) -> dict[str, Any]:
+        """获取日常进度（前哨收菜、日常任务等），返回原始 JSON 数据。"""
         if not self._client:
             raise RuntimeError("http client not ready")
 
@@ -48,6 +51,7 @@ class PlayerClient:
         language: str = "en",
         game_id: str = "29080",
     ) -> list[dict[str, Any]]:
+        """获取玩家拥有的角色列表，返回 character_list JSON。"""
         if not self._client:
             raise RuntimeError("http client not ready")
 
@@ -83,6 +87,7 @@ class PlayerClient:
         language: str = "en",
         game_id: str = "29080",
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """获取指定角色详情（技能、装备、词条），返回 (details, effects) 元组。"""
         if not self._client:
             raise RuntimeError("http client not ready")
 

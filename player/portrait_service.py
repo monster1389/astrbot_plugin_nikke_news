@@ -9,6 +9,8 @@ SHIFTYSPAD_COMBAT_URL = "https://www.blablalink.com/shiftyspad/nikke-list?type=c
 
 
 class PortraitService:
+    """角色头像管理：从 Blablalink CDN 抓取并缓存头像图片。"""
+
     def __init__(self, data_dir: Path, client: httpx.AsyncClient):
         self._client = client
         try:
@@ -54,11 +56,8 @@ class PortraitService:
         new_count = await self._download_mappings(first_n)
         return f"初始头像缓存完成：已缓存前 {n} 个角色，下载完成 {new_count} 个。"
 
-    # ------------------------------------------------------------------
-    # private
-    # ------------------------------------------------------------------
-
     async def _scrape_portrait_mappings(self, cookie: str) -> dict[int, str]:
+        """用 Playwright 打开角色列表页，滚动加载全部角色，提取 name_code→图片 URL 映射。"""
         try:
             from playwright.async_api import async_playwright
         except ImportError:
@@ -160,6 +159,7 @@ class PortraitService:
             return {}
 
     async def _download_mappings(self, mappings: dict[int, str]) -> int:
+        """下载角色头像图片到本地 portraits/ 目录。"""
         new_count = 0
         for name_code, url in mappings.items():
             path = self.portrait_path(name_code)

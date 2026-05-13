@@ -1,3 +1,5 @@
+"""API 地址、超时、语言等常量。"""
+
 from datetime import timedelta, timezone
 
 PLUGIN_NAME = "astrbot_plugin_nikke_news"

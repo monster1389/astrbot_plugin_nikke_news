@@ -16,6 +16,8 @@ from core.utils import safe_float, safe_int
 
 
 class PlayerPoller:
+    """周期检查玩家前哨满仓状态和日常完成情况，按阈值发送提醒。"""
+
     def __init__(
         self,
         client: httpx.AsyncClient | None,
