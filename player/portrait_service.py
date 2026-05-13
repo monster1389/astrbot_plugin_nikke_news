@@ -107,14 +107,39 @@ class PortraitService:
         new_count = await self._download_mappings(mappings)
         return f"头像缓存刷新完成：共 {len(mappings)} 个角色，下载完成 {new_count} 个。"
 
-    async def refresh_first_n(self, n: int, cookie: str) -> str:
-        """启动时预缓存前 N 个角色头像。"""
-        mappings = await self._scrape_portrait_mappings(cookie)
+    def _load_mappings(self) -> dict[int, str]:
+        """加载映射：优先磁盘缓存（未过期），否则返回空。"""
+        if self._mapping_cache.is_stale():
+            return {}
+        return self._mapping_cache.load()
+
+    async def ensure_portrait(self, name_code: int, cookie: str) -> bool:
+        """按需下载单个角色头像。先查磁盘缓存 → 过期则 Playwright 抓取 → 下载。"""
+        if self.exists(name_code):
+            return True
+
+        mappings = self._load_mappings()
         if not mappings:
-            return "未获取到角色头像映射（Cookie 或 Playwright 问题，详见日志）。"
-        first_n = dict(list(mappings.items())[:n])
-        new_count = await self._download_mappings(first_n)
-        return f"初始头像缓存完成：已缓存前 {n} 个角色，下载完成 {new_count} 个。"
+            mappings = await self._scrape_portrait_mappings(cookie)
+        url = mappings.get(name_code)
+        if not url:
+            return False
+
+        if self._portraits_dir:
+            self._portraits_dir.mkdir(parents=True, exist_ok=True)
+        path = self.portrait_path(name_code)
+        if path is None:
+            return False
+        try:
+            resp = await self._client.get(url)
+            resp.raise_for_status()
+            path.write_bytes(resp.content)
+            return True
+        except Exception as exc:
+            logger.warning(
+                f"NIKKE 头像下载失败 {name_code} ({url}): {exc}", exc_info=True
+            )
+            return False
 
     async def _scrape_portrait_mappings(self, cookie: str) -> dict[int, str]:
         """用 Playwright 打开角色列表页，在初始渲染窗口提取 name_code→图片 URL 映射。"""
