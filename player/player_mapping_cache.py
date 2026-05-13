@@ -122,9 +122,3 @@ class PlayerMappingCache:
 
     def has_useful_data(self) -> bool:
         return bool(self.character_names) and bool(self.state_effect_options)
-
-    def summary(self) -> str:
-        return (
-            f"角色 {len(self.character_names)} 个，"
-            f"词条 {len(self.state_effect_options)} 个"
-        )

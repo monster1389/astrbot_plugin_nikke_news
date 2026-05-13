@@ -121,7 +121,7 @@ async def refresh_player_mappings(
                         "x-language": language,
                     },
                 )
-                cookies = _parse_cookie_header(cookie_header)
+                cookies = parse_cookie_header(cookie_header)
                 if cookies:
                     await context.add_cookies(cookies)
                 page = await context.new_page()
@@ -171,7 +171,7 @@ def _localized_text(value: Any) -> str:
     return ""
 
 
-def _parse_cookie_header(cookie_header: str) -> list[dict[str, Any]]:
+def parse_cookie_header(cookie_header: str) -> list[dict[str, Any]]:
     """解析 Cookie 字符串为 Playwright cookie 对象列表。"""
     cookies: list[dict[str, Any]] = []
     for part in cookie_header.split(";"):

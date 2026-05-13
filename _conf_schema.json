@@ -95,7 +95,7 @@
           "daily_mission_enabled": {
             "description": "启用日常未完成提醒",
             "type": "bool",
-            "default": false
+            "default": true
           },
           "daily_mission_remind_time": {
             "description": "日常提醒时间（北京时间）",
@@ -145,7 +145,7 @@
           "show_character_portrait": {
             "description": "在角色查询响应中显示角色头像",
             "type": "bool",
-            "default": false,
+            "default": true,
             "hint": "启用后 /nikke <角色> 会同时返回角色头像图片。"
           }
         }

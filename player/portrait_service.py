@@ -3,7 +3,7 @@ from pathlib import Path
 import httpx
 from astrbot.api import logger
 
-from player.player_mapping_refresher import _parse_cookie_header
+from player.player_mapping_refresher import parse_cookie_header
 
 SHIFTYSPAD_COMBAT_URL = "https://www.blablalink.com/shiftyspad/nikke-list?type=combat"
 
@@ -73,7 +73,7 @@ class PortraitService:
                         locale="zh-TW",
                         viewport={"width": 1280, "height": 900},
                     )
-                    cookies = _parse_cookie_header(cookie)
+                    cookies = parse_cookie_header(cookie)
                     if cookies:
                         await context.add_cookies(cookies)
                     page = await context.new_page()

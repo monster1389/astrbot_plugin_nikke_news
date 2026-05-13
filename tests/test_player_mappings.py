@@ -6,9 +6,9 @@ from player.player_mapping_cache import PlayerMappingCache
 from player.player_mapping_refresher import (
     _accept_language,
     _localized_text,
-    _parse_cookie_header,
     extract_character_names,
     extract_state_effect_options,
+    parse_cookie_header,
 )
 
 
@@ -185,11 +185,11 @@ def test_localized_text_empty():
     assert _localized_text({}) == ""
 
 
-# ── _parse_cookie_header ─────────────────────────────────────────
+# ── parse_cookie_header ─────────────────────────────────────────
 
 
 def test_parse_cookie_header_single():
-    result = _parse_cookie_header("token=abc123")
+    result = parse_cookie_header("token=abc123")
     names = {c["name"] for c in result}
     domains = {c["domain"] for c in result}
     assert names == {"token"}
@@ -202,12 +202,12 @@ def test_parse_cookie_header_single():
 
 
 def test_parse_cookie_header_multiple():
-    result = _parse_cookie_header("a=1; b=2")
+    result = parse_cookie_header("a=1; b=2")
     assert len(result) == 4  # 2 names x 2 domains
 
 
 def test_parse_cookie_header_empty():
-    assert _parse_cookie_header("") == []
+    assert parse_cookie_header("") == []
 
 
 # ── _accept_language ─────────────────────────────────────────────

@@ -60,13 +60,3 @@ class PollCoordinator:
             logger.warning(
                 f"NIKKE 玩家数据轮询异常，将在下次重试：{exc}", exc_info=True
             )
-
-    def load_state(self) -> dict[str, Any]:
-        return PluginStateStore(self._state_path).load()
-
-    def save_state(self):
-        PluginStateStore(self._state_path).save(self._state)
-
-    @staticmethod
-    def mark_seen(state: dict[str, Any], post_uuids: list[str]):
-        PluginStateStore.mark_seen(state, post_uuids)
