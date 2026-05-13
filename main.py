@@ -92,14 +92,6 @@ class NikkeNewsPlugin(Star):
             logger.info("NIKKE 角色映射为空，请执行 /nikke_refresh 刷新角色列表。")
 
         self._portrait_service = PortraitService(data_dir, self._client)
-        cached = self._portrait_service.cached_count()
-        if cached == 0 and self._plugin_config.player_data_enabled():
-            cookie = self._plugin_config.player_data_cookie()
-            if cookie:
-                asyncio.create_task(
-                    self._seed_portraits(cookie),
-                    name=f"{PLUGIN_NAME}_portrait_seed",
-                )
 
         self._news_poller = NewsPoller(
             self._client,
@@ -163,12 +155,6 @@ class NikkeNewsPlugin(Star):
         """测试钩子：手动触发一次轮询。"""
         if self._coordinator:
             await self._coordinator._poll_once()
-
-    async def _seed_portraits(self, cookie: str):
-        """启动时预缓存前 30 个角色头像。"""
-        logger.info("NIKKE 开始初始头像缓存（前 30 个角色）...")
-        msg = await self._portrait_service.refresh_first_n(30, cookie)
-        logger.info(f"NIKKE {msg}")
 
     @filter.command("nikke")
     async def cmd_nikke(self, event: AstrMessageEvent, text: str = ""):
