@@ -51,8 +51,6 @@ class NikkeNewsPlugin(Star):
         self._player_poller: PlayerPoller | None = None
         self._character_service: CharacterService | None = None
         self._avatar_service: AvatarService | None = None
-        self._en_cache: PlayerMappingCache | None = None
-        self._target_cache: PlayerMappingCache | None = None
         self._coordinator: PollCoordinator | None = None
         self._task: asyncio.Task | None = None
         self._state_path: Path | None = None
