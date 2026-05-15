@@ -156,7 +156,7 @@ class PluginConfig:
         return language
 
     def player_mapping_cache_ttl_hours(self) -> int:
-        return max(1, self._player_int("mapping_cache_ttl_hours", 24))
+        return max(1, self._player_int("mapping_cache_ttl_hours", 168))
 
     def player_auto_refresh_mapping(self) -> bool:
         return self._nested_bool(self._player, "auto_refresh_mapping", True)
