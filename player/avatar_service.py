@@ -13,7 +13,7 @@ MAPPING_CACHE_VERSION = 1
 MAPPING_CACHE_TTL_HOURS = 24
 
 
-class PortraitMappingCache:
+class AvatarMappingCache:
     """头像映射磁盘缓存：name_code → CDN URL，TTL 过期后自动失效。"""
 
     def __init__(self, path: Path | None):
@@ -73,36 +73,36 @@ class PortraitMappingCache:
             return True
 
 
-class PortraitService:
+class AvatarService:
     """角色头像管理：从 Blablalink CDN 抓取并缓存头像图片。"""
 
     def __init__(self, data_dir: Path, client: httpx.AsyncClient):
         self._client = client
-        self._mapping_cache = PortraitMappingCache(data_dir / "portrait_mappings.json")
+        self._mapping_cache = AvatarMappingCache(data_dir / "avatar_mappings.json")
         try:
-            self._portraits_dir = data_dir / "portraits"
-            self._portraits_dir.mkdir(parents=True, exist_ok=True)
+            self._avatars_dir = data_dir / "avatars"
+            self._avatars_dir.mkdir(parents=True, exist_ok=True)
         except Exception as exc:
             logger.warning(f"NIKKE 头像目录创建失败：{exc}", exc_info=True)
-            self._portraits_dir = None
+            self._avatars_dir = None
 
-    def portrait_path(self, name_code: int) -> Path | None:
-        if not self._portraits_dir:
+    def avatar_path(self, name_code: int) -> Path | None:
+        if not self._avatars_dir:
             return None
-        return self._portraits_dir / f"{name_code}.webp"
+        return self._avatars_dir / f"{name_code}.webp"
 
     def exists(self, name_code: int) -> bool:
-        path = self.portrait_path(name_code)
+        path = self.avatar_path(name_code)
         return path.exists() if path else False
 
     def cached_count(self) -> int:
-        if not self._portraits_dir:
+        if not self._avatars_dir:
             return 0
-        return len(list(self._portraits_dir.glob("*.webp")))
+        return len(list(self._avatars_dir.glob("*.webp")))
 
     async def refresh_all(self, cookie: str) -> str:
-        """抓取并下载所有角色头像缓存（/nikke_portrait_refresh）。"""
-        mappings = await self._scrape_portrait_mappings(cookie)
+        """抓取并下载所有角色头像缓存（/nikke_avatar_all）。"""
+        mappings = await self._scrape_avatar_mappings(cookie)
         if not mappings:
             return (
                 "未获取到角色头像映射。请确认：\n"
@@ -112,27 +112,48 @@ class PortraitService:
         new_count = await self._download_mappings(mappings)
         return f"头像缓存刷新完成：共 {len(mappings)} 个角色，下载完成 {new_count} 个。"
 
+    async def refresh_cached(self, cookie: str) -> str:
+        """抓取头像映射并仅重新下载本地已有缓存文件的头像。"""
+        mappings = await self._scrape_avatar_mappings(cookie)
+        if not mappings:
+            return (
+                "未获取到角色头像映射。请确认：\n"
+                "1. Cookie 是否有效\n"
+                "2. 当前环境是否安装了 Playwright"
+            )
+        cached = {code: url for code, url in mappings.items() if self.exists(code)}
+        if not cached:
+            return (
+                f"头像映射已更新（共 {len(mappings)} 个角色），"
+                "但本地无已缓存头像，未下载任何文件。"
+            )
+        new_count = await self._download_mappings(cached)
+        return (
+            f"头像缓存刷新完成：映射共 {len(mappings)} 个角色，"
+            f"已缓存 {len(cached)} 个，下载完成 {new_count} 个。"
+        )
+
     def _load_mappings(self) -> dict[int, str]:
         """加载映射：优先磁盘缓存（未过期），否则返回空。"""
         if self._mapping_cache.is_stale():
             return {}
         return self._mapping_cache.load()
 
-    async def ensure_portrait(self, name_code: int, cookie: str) -> bool:
+    async def ensure_avatar(self, name_code: int, cookie: str) -> bool:
         """按需下载单个角色头像。先查磁盘缓存 → 过期则 Playwright 抓取 → 下载。"""
         if self.exists(name_code):
             return True
 
         mappings = self._load_mappings()
         if not mappings:
-            mappings = await self._scrape_portrait_mappings(cookie)
+            mappings = await self._scrape_avatar_mappings(cookie)
         url = mappings.get(name_code)
         if not url:
             return False
 
-        if self._portraits_dir:
-            self._portraits_dir.mkdir(parents=True, exist_ok=True)
-        path = self.portrait_path(name_code)
+        if self._avatars_dir:
+            self._avatars_dir.mkdir(parents=True, exist_ok=True)
+        path = self.avatar_path(name_code)
         if path is None:
             return False
         try:
@@ -146,7 +167,7 @@ class PortraitService:
             )
             return False
 
-    async def _scrape_portrait_mappings(self, cookie: str) -> dict[int, str]:
+    async def _scrape_avatar_mappings(self, cookie: str) -> dict[int, str]:
         """用 Playwright 打开角色列表页，在初始渲染窗口提取 name_code→图片 URL 映射。"""
         try:
             from playwright.async_api import async_playwright
@@ -221,12 +242,12 @@ class PortraitService:
             return {}
 
     async def _download_mappings(self, mappings: dict[int, str]) -> int:
-        """下载角色头像图片到本地 portraits/ 目录。"""
-        if self._portraits_dir:
-            self._portraits_dir.mkdir(parents=True, exist_ok=True)
+        """下载角色头像图片到本地 avatars/ 目录。"""
+        if self._avatars_dir:
+            self._avatars_dir.mkdir(parents=True, exist_ok=True)
         new_count = 0
         for name_code, url in mappings.items():
-            path = self.portrait_path(name_code)
+            path = self.avatar_path(name_code)
             if path is None:
                 continue
             try:
