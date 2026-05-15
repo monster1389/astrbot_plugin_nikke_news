@@ -8,8 +8,8 @@ from player.character_service import CharacterQueryError
 HELP_TEXT = (
     "NIKKE 插件命令列表\n\n"
     "/nikke <角色名>  查询角色战力、技能、装备\n"
-    "/nikke_refresh  刷新角色名称和词条映射\n"
-    "/nikke_portrait_refresh  下载/刷新所有角色头像\n"
+    "/nikke_refresh  刷新角色映射和已缓存头像\n"
+    "/nikke_avatar_all  刷新头像映射并下载全部头像\n"
     "/nikke_help  显示本帮助"
 )
 
@@ -48,8 +48,8 @@ async def handle_query(plugin, event: AstrMessageEvent, text: str = ""):
     try:
         result_text, name_code = await plugin._character_service.query(text)
 
-        if plugin._plugin_config.show_character_portrait() and plugin._portrait_service:
-            path = plugin._portrait_service.portrait_path(name_code)
+        if plugin._plugin_config.show_character_avatar() and plugin._avatar_service:
+            path = plugin._avatar_service.avatar_path(name_code)
             if path and path.exists():
                 chain = [
                     Comp.Image.fromFileSystem(str(path)),
@@ -60,11 +60,11 @@ async def handle_query(plugin, event: AstrMessageEvent, text: str = ""):
 
             cookie = plugin._plugin_config.player_data_cookie()
             if cookie:
-                downloaded = await plugin._portrait_service.ensure_portrait(
+                downloaded = await plugin._avatar_service.ensure_avatar(
                     name_code, cookie
                 )
                 if downloaded:
-                    path = plugin._portrait_service.portrait_path(name_code)
+                    path = plugin._avatar_service.avatar_path(name_code)
                     if path and path.exists():
                         chain = [
                             Comp.Image.fromFileSystem(str(path)),
@@ -75,7 +75,7 @@ async def handle_query(plugin, event: AstrMessageEvent, text: str = ""):
 
             yield event.plain_result(
                 result_text
-                + "\n\n（未找到角色头像，请执行 /nikke_portrait_refresh 下载头像缓存。）"
+                + "\n\n（未找到角色头像，请执行 /nikke_avatar_all 下载头像缓存。）"
             )
             return
 
@@ -85,7 +85,7 @@ async def handle_query(plugin, event: AstrMessageEvent, text: str = ""):
 
 
 async def handle_refresh(plugin, event: AstrMessageEvent):
-    """处理 /nikke_refresh 刷新角色映射。"""
+    """处理 /nikke_refresh 刷新角色映射和头像映射。"""
     if not plugin._character_service:
         yield event.plain_result("角色服务模块未初始化。")
         return
@@ -101,12 +101,23 @@ async def handle_refresh(plugin, event: AstrMessageEvent):
 
     messages.append(await plugin._character_service.refresh_mappings())
 
+    # 刷新头像映射和已缓存头像
+    if plugin._avatar_service:
+        cookie = plugin._plugin_config.player_data_cookie()
+        if cookie:
+            msg = await plugin._avatar_service.refresh_cached(cookie)
+            messages.append(msg)
+        else:
+            messages.append("未配置玩家 Cookie，跳过头像刷新。")
+    else:
+        messages.append("头像服务未初始化，跳过头像刷新。")
+
     yield event.plain_result("\n".join(messages))
 
 
-async def handle_portrait_refresh(plugin, event: AstrMessageEvent):
-    """处理 /nikke_portrait_refresh 下载角色头像缓存。"""
-    if not plugin._portrait_service:
+async def handle_avatar_refresh_all(plugin, event: AstrMessageEvent):
+    """处理 /nikke_avatar_all 刷新头像映射并下载全部头像。"""
+    if not plugin._avatar_service:
         yield event.plain_result("头像服务未初始化。")
         return
     cookie = plugin._plugin_config.player_data_cookie()
@@ -116,6 +127,6 @@ async def handle_portrait_refresh(plugin, event: AstrMessageEvent):
             "请先在插件配置中设置玩家状态提醒的 Cookie。"
         )
         return
-    yield event.plain_result("正在抓取角色头像列表并下载...")
-    msg = await plugin._portrait_service.refresh_all(cookie)
+    yield event.plain_result("正在抓取角色头像列表并下载全部头像...")
+    msg = await plugin._avatar_service.refresh_all(cookie)
     yield event.plain_result(msg)
