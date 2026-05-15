@@ -219,7 +219,7 @@ class PluginConfig:
             self._player.get("alert_prefix", "【NIKKE 玩家状态提醒】") or ""
         ).strip()
 
-    def show_character_portrait(self) -> bool:
+    def show_character_avatar(self) -> bool:
         return self._nested_bool(self._player, "show_character_portrait", True)
 
     def _cookie_header_value(self, key: str) -> str:

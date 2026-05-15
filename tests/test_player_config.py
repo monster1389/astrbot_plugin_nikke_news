@@ -80,11 +80,11 @@ def test_player_mapping_defaults_and_clamps():
     assert plugin._plugin_config.player_mapping_cache_ttl_hours() == 1
 
 
-def test_show_character_portrait_default():
+def test_show_character_avatar_default():
     plugin = make_plugin()
-    assert plugin._plugin_config.show_character_portrait() is True
+    assert plugin._plugin_config.show_character_avatar() is True
 
 
-def test_show_character_portrait_false():
+def test_show_character_avatar_false():
     plugin = make_plugin(show_character_portrait=False)
-    assert plugin._plugin_config.show_character_portrait() is False
+    assert plugin._plugin_config.show_character_avatar() is False
