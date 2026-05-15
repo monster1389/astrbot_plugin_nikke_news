@@ -6,22 +6,22 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
-from player.portrait_service import PortraitMappingCache, PortraitService
+from player.avatar_service import AvatarMappingCache, AvatarService
 
 
 @pytest.fixture
 def service(tmp_path):
     client = MagicMock(spec=httpx.AsyncClient)
     client.get = AsyncMock()
-    return PortraitService(tmp_path, client)
+    return AvatarService(tmp_path, client)
 
 
-class TestPortraitPath:
-    def test_portrait_path(self, service):
-        assert service.portrait_path(101) == service._portraits_dir / "101.webp"
+class TestAvatarPath:
+    def test_avatar_path(self, service):
+        assert service.avatar_path(101) == service._avatars_dir / "101.webp"
 
     def test_exists_true(self, service):
-        (service._portraits_dir / "101.webp").write_bytes(b"fake")
+        (service._avatars_dir / "101.webp").write_bytes(b"fake")
         assert service.exists(101) is True
 
     def test_exists_false(self, service):
@@ -33,8 +33,8 @@ class TestCachedCount:
         assert service.cached_count() == 0
 
     def test_nonempty(self, service):
-        (service._portraits_dir / "101.webp").write_bytes(b"a")
-        (service._portraits_dir / "102.webp").write_bytes(b"b")
+        (service._avatars_dir / "101.webp").write_bytes(b"a")
+        (service._avatars_dir / "102.webp").write_bytes(b"b")
         assert service.cached_count() == 2
 
 
@@ -52,11 +52,11 @@ class TestDownloadMappings:
 
         assert new_count == 1
         assert service.exists(101)
-        assert service.portrait_path(101).read_bytes() == b"image_data"
+        assert service.avatar_path(101).read_bytes() == b"image_data"
 
     @pytest.mark.asyncio
     async def test_overwrites_existing(self, service):
-        (service._portraits_dir / "101.webp").write_bytes(b"cached")
+        (service._avatars_dir / "101.webp").write_bytes(b"cached")
 
         mock_resp = MagicMock()
         mock_resp.raise_for_status = MagicMock()
@@ -68,7 +68,7 @@ class TestDownloadMappings:
         )
 
         assert new_count == 1
-        assert service.portrait_path(101).read_bytes() == b"fresh_data"
+        assert service.avatar_path(101).read_bytes() == b"fresh_data"
 
     @pytest.mark.asyncio
     async def test_download_failure_continues(self, service):
@@ -96,16 +96,66 @@ class TestScrapeMappings:
 
         monkeypatch.setattr(builtins, "__import__", _mock_import)
 
-        result = await service._scrape_portrait_mappings("cookie=test")
+        result = await service._scrape_avatar_mappings("cookie=test")
         assert result == {}
 
 
-# ── PortraitMappingCache ──────────────────────────────────────────
+class TestRefreshCached:
+    @pytest.mark.asyncio
+    async def test_refresh_cached_only_downloads_existing(self, service, monkeypatch):
+        # Pre-create a cached file for 101 only
+        (service._avatars_dir / "101.webp").write_bytes(b"cached")
+
+        mock_mappings = {
+            101: "https://cdn.example.com/101.webp",
+            102: "https://cdn.example.com/102.webp",
+        }
+        called_with = []
+
+        async def fake_scrape(cookie):
+            return mock_mappings
+
+        async def fake_download(mappings):
+            called_with.append(dict(mappings))
+            return len(mappings)
+
+        monkeypatch.setattr(service, "_scrape_avatar_mappings", fake_scrape)
+        monkeypatch.setattr(service, "_download_mappings", fake_download)
+
+        result = await service.refresh_cached("test_cookie")
+
+        assert called_with == [{101: "https://cdn.example.com/101.webp"}]
+        assert "已缓存 1 个" in result
+
+    @pytest.mark.asyncio
+    async def test_refresh_cached_no_local_files(self, service, monkeypatch):
+        mock_mappings = {101: "https://cdn.example.com/101.webp"}
+
+        async def fake_scrape(cookie):
+            return mock_mappings
+
+        monkeypatch.setattr(service, "_scrape_avatar_mappings", fake_scrape)
+
+        result = await service.refresh_cached("test_cookie")
+        assert "未下载任何文件" in result
+
+    @pytest.mark.asyncio
+    async def test_refresh_cached_scrape_returns_empty(self, service, monkeypatch):
+        async def fake_scrape(cookie):
+            return {}
+
+        monkeypatch.setattr(service, "_scrape_avatar_mappings", fake_scrape)
+
+        result = await service.refresh_cached("test_cookie")
+        assert "未获取到角色头像映射" in result
+
+
+# ── AvatarMappingCache ──────────────────────────────────────────
 
 
 def test_cache_save_and_load(tmp_path):
-    cache_path = tmp_path / "portrait_mappings.json"
-    cache = PortraitMappingCache(cache_path)
+    cache_path = tmp_path / "avatar_mappings.json"
+    cache = AvatarMappingCache(cache_path)
 
     mappings = {5005: "https://sg-tools-cdn.blablalink.com/foo/bar.webp"}
     cache.save(mappings)
@@ -115,12 +165,12 @@ def test_cache_save_and_load(tmp_path):
 
 
 def test_cache_load_missing_file():
-    cache = PortraitMappingCache(Path("/nonexistent/portrait_mappings.json"))
+    cache = AvatarMappingCache(Path("/nonexistent/avatar_mappings.json"))
     assert cache.load() == {}
 
 
 def test_cache_is_stale_fresh(tmp_path):
-    cache_path = tmp_path / "portrait_mappings.json"
+    cache_path = tmp_path / "avatar_mappings.json"
     cache_path.write_text(
         json.dumps(
             {
@@ -130,12 +180,12 @@ def test_cache_is_stale_fresh(tmp_path):
             }
         )
     )
-    cache = PortraitMappingCache(cache_path)
+    cache = AvatarMappingCache(cache_path)
     assert cache.is_stale() is False
 
 
 def test_cache_is_stale_expired(tmp_path):
-    cache_path = tmp_path / "portrait_mappings.json"
+    cache_path = tmp_path / "avatar_mappings.json"
     cache_path.write_text(
         json.dumps(
             {
@@ -147,17 +197,17 @@ def test_cache_is_stale_expired(tmp_path):
             }
         )
     )
-    cache = PortraitMappingCache(cache_path)
+    cache = AvatarMappingCache(cache_path)
     assert cache.is_stale() is True
 
 
 def test_cache_is_stale_no_file():
-    cache = PortraitMappingCache(Path("/nonexistent/portrait_mappings.json"))
+    cache = AvatarMappingCache(Path("/nonexistent/avatar_mappings.json"))
     assert cache.is_stale() is True
 
 
 def test_cache_load_wrong_version(tmp_path):
-    cache_path = tmp_path / "portrait_mappings.json"
+    cache_path = tmp_path / "avatar_mappings.json"
     cache_path.write_text(
         json.dumps(
             {
@@ -167,12 +217,12 @@ def test_cache_load_wrong_version(tmp_path):
             }
         )
     )
-    cache = PortraitMappingCache(cache_path)
+    cache = AvatarMappingCache(cache_path)
     assert cache.load() == {}
 
 
 def test_cache_save_creates_parent_dir(tmp_path):
-    cache_path = tmp_path / "subdir" / "portrait_mappings.json"
-    cache = PortraitMappingCache(cache_path)
+    cache_path = tmp_path / "subdir" / "avatar_mappings.json"
+    cache = AvatarMappingCache(cache_path)
     cache.save({5005: "https://example.com/a.webp"})
     assert cache_path.exists()
