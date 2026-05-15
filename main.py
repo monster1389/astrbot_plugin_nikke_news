@@ -22,7 +22,7 @@ from core.config import PluginConfig
 from core.constants import PLUGIN_NAME, REQUEST_TIMEOUT_SECONDS
 from core.nikke_commands import (
     handle_help,
-    handle_portrait_refresh,
+    handle_avatar_refresh_all,
     handle_query,
     handle_refresh,
 )
@@ -32,7 +32,7 @@ from news.news_poller import NewsPoller
 from player.character_service import CharacterService
 from player.player_mapping_cache import PlayerMappingCache
 from player.player_poller import PlayerPoller
-from player.portrait_service import PortraitService
+from player.avatar_service import AvatarService
 
 
 @register(
@@ -50,7 +50,7 @@ class NikkeNewsPlugin(Star):
         self._news_poller: NewsPoller | None = None
         self._player_poller: PlayerPoller | None = None
         self._character_service: CharacterService | None = None
-        self._portrait_service: PortraitService | None = None
+        self._avatar_service: AvatarService | None = None
         self._en_cache: PlayerMappingCache | None = None
         self._target_cache: PlayerMappingCache | None = None
         self._coordinator: PollCoordinator | None = None
@@ -91,7 +91,7 @@ class NikkeNewsPlugin(Star):
         if not self._character_service.is_loaded:
             logger.info("NIKKE 角色映射为空，请执行 /nikke_refresh 刷新角色列表。")
 
-        self._portrait_service = PortraitService(data_dir, self._client)
+        self._avatar_service = AvatarService(data_dir, self._client)
 
         self._news_poller = NewsPoller(
             self._client,
@@ -164,14 +164,14 @@ class NikkeNewsPlugin(Star):
 
     @filter.command("nikke_refresh")
     async def cmd_nikke_refresh(self, event: AstrMessageEvent):
-        """刷新 NIKKE 角色映射：/nikke_refresh"""
+        """刷新角色映射和已缓存头像：/nikke_refresh"""
         async for result in handle_refresh(self, event):
             yield result
 
-    @filter.command("nikke_portrait_refresh")
-    async def cmd_nikke_portrait_refresh(self, event: AstrMessageEvent):
-        """下载/刷新所有角色头像：/nikke_portrait_refresh"""
-        async for result in handle_portrait_refresh(self, event):
+    @filter.command("nikke_avatar_all")
+    async def cmd_nikke_avatar_all(self, event: AstrMessageEvent):
+        """刷新头像映射并下载全部头像：/nikke_avatar_all"""
+        async for result in handle_avatar_refresh_all(self, event):
             yield result
 
     @filter.command("nikke_help")
