@@ -39,7 +39,7 @@ from player.avatar_service import AvatarService
     PLUGIN_NAME,
     "monster1389",
     "Blablalink官方消息推送、日常/收菜提醒、角色查询。",
-    "v1.6.2",
+    "v1.6.3",
 )
 class NikkeNewsPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
