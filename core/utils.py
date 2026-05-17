@@ -67,6 +67,7 @@ class ReadableHtmlParser(HTMLParser):
 
 
 def clean_text(value: Any) -> str:
+    """去除 HTML 标签并折叠空白，返回纯文本。"""
     text = re.sub(r"<[^>]*>", "", str(value or ""))
     text = html.unescape(text)
     return " ".join(text.split())
@@ -81,6 +82,7 @@ def clean_html_with_linebreaks(value: Any) -> str:
 
 
 def safe_int(value: Any) -> int:
+    """安全转换为 int，失败返回 0。"""
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -88,6 +90,7 @@ def safe_int(value: Any) -> int:
 
 
 def safe_float(value: Any) -> float:
+    """安全转换为 float，失败返回 0.0。"""
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -95,6 +98,7 @@ def safe_float(value: Any) -> float:
 
 
 def format_timestamp(value: Any) -> str:
+    """Unix 时间戳转日期字符串，无效时返回"未知"。"""
     timestamp = safe_int(value)
     if timestamp <= 0:
         return "未知"
@@ -102,4 +106,5 @@ def format_timestamp(value: Any) -> str:
 
 
 def is_video_post(post: dict[str, Any]) -> bool:
+    """判断帖子是否为视频类型。"""
     return safe_int(post.get("type")) == 3

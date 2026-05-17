@@ -126,6 +126,7 @@ class PlayerClient:
 
 
 def _player_headers(cookie: str, language: str, game_id: str) -> dict[str, str]:
+    """构建玩家 API 请求头（x-language、x-common-params、Cookie）。"""
     headers = {
         "x-language": language,
         "x-channel-type": "2",

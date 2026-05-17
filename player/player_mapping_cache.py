@@ -43,6 +43,7 @@ class PlayerMappingCache:
         return result
 
     def name_to_code(self) -> dict[str, int]:
+        """反向映射：角色名 → name_code。"""
         result: dict[str, int] = {}
         for code, name in self.character_names.items():
             if name:
@@ -109,6 +110,7 @@ class PlayerMappingCache:
             logger.warning(f"NIKKE 玩家映射缓存保存失败：{exc}")
 
     def is_stale(self, ttl_hours: int) -> bool:
+        """检查缓存是否超过 TTL。"""
         raw = str(self._data.get("updated_at", "") or "")
         if not raw:
             return True
@@ -121,4 +123,5 @@ class PlayerMappingCache:
         return datetime.now(timezone.utc) - updated_at > timedelta(hours=ttl_hours)
 
     def has_useful_data(self) -> bool:
+        """是否包含可用的角色名和词条数据。"""
         return bool(self.character_names) and bool(self.state_effect_options)

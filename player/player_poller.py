@@ -122,6 +122,7 @@ class PlayerPoller:
     async def _send_player_alert(
         self, targets: list[dict[str, str]], lines: list[str]
     ) -> None:
+        """向所有目标群发送玩家状态提醒。"""
         builder = MessageBuilder(self._config)
         chain = MessageChain().message(builder.format_player_alert_message(lines))
         for target in targets:
