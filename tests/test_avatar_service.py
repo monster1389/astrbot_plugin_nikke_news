@@ -6,7 +6,8 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
-from player.avatar_service import AvatarMappingCache, AvatarService
+from player.avatar_mapping_cache import AvatarMappingCache
+from player.avatar_service import AvatarService
 
 
 @pytest.fixture
