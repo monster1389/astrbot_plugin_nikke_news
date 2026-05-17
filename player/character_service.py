@@ -34,17 +34,17 @@ class CharacterService:
         self._config = config
         self._en_cache = en_cache
         self._target_cache = target_cache
-        self._name_to_code: dict[str, int] = {}
+        self._code_to_en_name: dict[int, str] = {}
         self._code_to_name: dict[int, str] = {}
         self._state_effect_options: dict[str, dict[str, Any]] = {}
         self._aliases: dict[str, list[str]] = config.character_aliases()
 
     @property
     def is_loaded(self) -> bool:
-        return len(self._name_to_code) > 0
+        return len(self._code_to_en_name) > 0
 
     def count(self) -> int:
-        return len(self._name_to_code)
+        return len(self._code_to_en_name)
 
     def is_mapping_stale(self) -> bool:
         """任一映射缓存（en 或目标语言）过期或无效时返回 True。"""
@@ -68,7 +68,7 @@ class CharacterService:
             return
 
         self._en_cache.load()
-        self._name_to_code = self._en_cache.name_to_code()
+        self._code_to_en_name = dict(self._en_cache.character_names)
         self._state_effect_options = dict(self._en_cache.state_effect_options)
 
         language = self._config.player_mapping_language()
@@ -102,24 +102,31 @@ class CharacterService:
         alias_map = self._build_alias_map()
 
         alias_name = alias_map.get(q)
-        if alias_name and alias_name in self._name_to_code:
-            code = self._name_to_code[alias_name]
-            return [(code, self._display_name(code, alias_name))]
+        if alias_name:
+            results: list[tuple[int, str]] = []
+            for code, en_name in self._code_to_en_name.items():
+                if en_name == alias_name:
+                    results.append((code, self._display_name(code, en_name)))
+            if results:
+                return results
 
-        for name, code in self._name_to_code.items():
-            if name.lower() == q:
-                return [(code, self._display_name(code, name))]
+        results: list[tuple[int, str]] = []
+        for code, en_name in self._code_to_en_name.items():
+            if en_name.lower() == q:
+                results.append((code, self._display_name(code, en_name)))
+        if results:
+            return results
 
         for code, display_name in self._code_to_name.items():
             if display_name.lower() == q:
                 return [(code, display_name)]
 
-        results: list[tuple[int, str]] = []
+        results = []
         seen: set[int] = set()
 
-        for name, code in self._name_to_code.items():
-            if q in name.lower():
-                results.append((code, self._display_name(code, name)))
+        for code, en_name in self._code_to_en_name.items():
+            if q in en_name.lower():
+                results.append((code, self._display_name(code, en_name)))
                 seen.add(code)
 
         for code, display_name in self._code_to_name.items():

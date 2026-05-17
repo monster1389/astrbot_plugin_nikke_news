@@ -9,7 +9,8 @@ def _make_service(**overrides) -> CharacterService:
     client = MagicMock()
     config = PluginConfig({"玩家": {"nikke查询": {}}})
     service = CharacterService(client, config)
-    service._name_to_code = overrides.get("name_to_code", {"Anis": 101, "Rapi": 102})
+    name_to_code = overrides.get("name_to_code", {"Anis": 101, "Rapi": 102})
+    service._code_to_en_name = {code: name for name, code in name_to_code.items()}
     service._code_to_name = overrides.get("code_to_name", {})
     service._aliases = overrides.get("aliases", {})
     service._state_effect_options = {}
@@ -138,6 +139,21 @@ class TestLookup:
         result = svc.lookup("anis")
         assert len(result) == 1
         assert result[0][0] == 101
+
+    def test_duplicate_name_returns_all(self):
+        svc = _make_service(name_to_code={"Anis": 101})
+        svc._code_to_en_name = {101: "Sakura", 201: "Rei", 301: "Sakura"}
+        result = svc.lookup("Sakura")
+        assert len(result) == 2
+        assert (101, "Sakura") in result
+        assert (301, "Sakura") in result
+
+    def test_duplicate_name_alias_returns_all(self):
+        svc = _make_service(name_to_code={"Anis": 101})
+        svc._code_to_en_name = {101: "Sakura", 301: "Sakura"}
+        svc._aliases = {"Sakura": ["sak"]}
+        result = svc.lookup("sak")
+        assert len(result) == 2
 
 
 class TestIsMappingStale:
