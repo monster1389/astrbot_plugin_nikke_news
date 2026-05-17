@@ -1,4 +1,4 @@
-"""Playwright 头像映射抓取：拦截 CDN JSON → 注入全部角色 → 一次采集 name_code → CDN URL。"""
+"""Playwright 头像映射抓取：两阶段采集 name_code → CDN URL。"""
 
 from player.avatar_mapping_cache import AvatarMappingCache
 from player.player_mapping_refresher import parse_cookie_header
@@ -9,18 +9,18 @@ SHIFTYSPAD_COMBAT_URL = "https://www.blablalink.com/shiftyspad/nikke-list?type=c
 
 
 class AvatarScraper:
-    """用 Playwright 一次性抓取 name_code → CDN 头像 URL 映射。
+    """用 Playwright 两阶段抓取 name_code → CDN 头像 URL 映射。
 
-    拦截 CDN 角色 JSON（全部 ~190 角色）和 GetUserCharacters API（已拥有角色），
-    构建完整角色列表注入 Vue store，放大视口渲染全部卡片，滚动采集所有头像 URL。
-    已拥有角色自动带有皮肤 URL，未拥有角色为默认头像。
+    阶段 1：页面自然渲染后轮询 DOM 采集全部 ~190 角色默认头像 URL。
+    阶段 2：拦截 GetUserCharacters API，注入 Vue store 展开已拥有角色，
+    放大视口滚动采集皮肤 URL，覆盖阶段 1 中已拥有角色的默认 URL。
     """
 
     def __init__(self, mapping_cache: AvatarMappingCache):
         self._mapping_cache = mapping_cache
 
     async def scrape(self, cookie: str) -> dict[int, str]:
-        """执行抓取，保存到缓存，返回完整 name_code → URL 映射。"""
+        """执行两阶段抓取，保存到缓存，返回完整 name_code → URL 映射。"""
         try:
             from playwright.async_api import async_playwright
         except ImportError:
@@ -73,29 +73,30 @@ class AvatarScraper:
                         SHIFTYSPAD_COMBAT_URL, wait_until="load", timeout=60000
                     )
 
-                    # Wait for CDN and API responses
-                    for _ in range(30):
-                        if cdn_chars and api_chars:
-                            break
-                        await page.wait_for_timeout(200)
+                    mappings = await self._scrape_default_avatars(page)
 
-                    if not cdn_chars:
+                    if not mappings:
                         logger.warning(
-                            "NIKKE 头像映射抓取失败：6 秒内未捕获 CDN 角色数据，"
-                            "可能页面加载延迟或网络问题。"
+                            "NIKKE 头像映射轮询超时：10 秒内未检测到 50+ 角色卡片，"
+                            "可能页面加载延迟或 DOM 结构变化。"
                         )
-                        return {}
+                    else:
+                        logger.info(f"NIKKE 阶段 1：{len(mappings)} 个默认头像 URL。")
 
-                    if not api_chars:
-                        logger.info(
-                            "NIKKE 未捕获 GetUserCharacters 响应，将仅采集默认头像。"
-                        )
-
-                    mappings = await self._scrape_all_avatars(
-                        page, cdn_chars, api_chars
+                    obtained_mappings = await self._scrape_obtained_avatars(
+                        page, mappings, cdn_chars, api_chars
                     )
+                    if obtained_mappings:
+                        mappings.update(obtained_mappings)
 
-                    logger.info(f"NIKKE 头像映射抓取完成：{len(mappings)} 个角色。")
+                    logger.info(
+                        f"NIKKE 头像映射抓取完成：{len(mappings)} 个角色"
+                        + (
+                            f"（{len(obtained_mappings)} 个皮肤 URL）"
+                            if obtained_mappings
+                            else ""
+                        )
+                    )
                     if mappings:
                         self._mapping_cache.save(mappings)
                     return mappings
@@ -105,41 +106,79 @@ class AvatarScraper:
             logger.warning(f"NIKKE Playwright 头像抓取失败：{exc}")
             return {}
 
-    async def _scrape_all_avatars(
+    async def _scrape_default_avatars(self, page) -> dict[int, str]:
+        """阶段 1：轮询 DOM 从页面自然渲染的卡片中采集默认头像 URL。"""
+        mappings: dict[int, str] = {}
+        had_window = False
+
+        for _ in range(50):
+            result = await page.evaluate("""() => {
+                const cards = document.querySelectorAll('[data-cname="card-item"]');
+                if (cards.length < 50) return null;
+                const portraits = [];
+                cards.forEach(card => {
+                    const img = card.querySelector('.nikke-numerical-item-left img[src*="sg-tools-cdn"]');
+                    portraits.push(img ? img.src : '');
+                });
+                const pinia = document.querySelector('#app')?.__vue_app__?.config?.globalProperties?.$pinia;
+                const store = pinia?._s?.get('shiftys_nikke_list');
+                const list = store?.$state?.shown_nikke_list || [];
+                const codes = list.map(item => item.name_code);
+                return {portraits, codes};
+            }""")
+            if result and result.get("codes"):
+                had_window = True
+                portraits = result.get("portraits", [])
+                codes = result.get("codes", [])
+                for i in range(min(len(portraits), len(codes))):
+                    code = codes[i]
+                    url = portraits[i]
+                    if isinstance(code, int) and url:
+                        mappings[code] = url
+            elif had_window:
+                break
+            await page.wait_for_timeout(200)
+
+        return mappings
+
+    async def _scrape_obtained_avatars(
         self,
         page,
-        cdn_chars: list,
+        default_mappings: dict[int, str],
+        cdn_chars: list | None,
         api_chars: dict | None,
     ) -> dict[int, str]:
-        """注入全部 CDN 角色到 Vue store，渲染后滚动采集所有头像 URL。
+        """阶段 2：注入已拥有角色到 Vue store → 滚动采集皮肤 URL。
 
-        已拥有角色使用 API 提供的 costume_id 以获取皮肤 URL；
-        未拥有角色使用 costume_id=0 获取默认头像。
+        只返回与阶段 1 默认 URL 不同的皮肤 URL。
         """
-        api_list = api_chars.get("data", {}).get("characters", []) if api_chars else []
-        obtained_by_code: dict[int, dict] = {}
-        for c in api_list:
-            nc = c.get("name_code")
-            if isinstance(nc, int):
-                obtained_by_code[nc] = c
+        if not cdn_chars or not api_chars:
+            logger.info("NIKKE 阶段 2：未捕获 CDN/API 数据，跳过皮肤采集。")
+            return {}
 
-        # Build injection list from all CDN characters
-        new_list: list[dict] = []
-        for c in cdn_chars:
-            nc = c.get("name_code")
-            if not isinstance(nc, int):
-                continue
-            obtained = obtained_by_code.get(nc)
+        api_list = api_chars.get("data", {}).get("characters", [])
+        if not api_list:
+            logger.info("NIKKE 阶段 2：API 无角色数据，跳过。")
+            return {}
+
+        nc_to_cdn: dict[int, dict] = {
+            c["name_code"]: c for c in cdn_chars if "name_code" in c
+        }
+
+        new_list = []
+        for c in api_list:
+            nc = c["name_code"]
+            cdn_entry = nc_to_cdn.get(nc, {})
             new_list.append(
                 {
                     "name_code": nc,
-                    "resource_id": c.get("resource_id", 0),
+                    "resource_id": cdn_entry.get("resource_id", 0),
                     "is_obtained": True,
-                    "costume_id": (obtained.get("costume_id", 0) if obtained else 0),
-                    "grade": obtained.get("grade", 0) if obtained else 0,
-                    "lv": obtained.get("lv", 0) if obtained else 0,
-                    "combat": obtained.get("combat", 0) if obtained else 0,
-                    "core": obtained.get("core", 0) if obtained else 0,
+                    "costume_id": c.get("costume_id", 0),
+                    "grade": c.get("grade", 0),
+                    "lv": c.get("lv", 0),
+                    "combat": c.get("combat", 0),
+                    "core": c.get("core", 0),
                 }
             )
 
@@ -159,16 +198,14 @@ class AvatarScraper:
 
         if not injected:
             logger.warning(
-                "NIKKE 头像抓取失败：注入 Vue store 失败（Vue/Pinia 结构可能已变化）。"
+                "NIKKE 阶段 2：注入 store 失败（Vue/Pinia 结构可能已变化）。"
             )
             return {}
 
         logger.info(
-            f"NIKKE 已注入 {len(new_list)} 个角色（"
-            f"{len(obtained_by_code)} 个已拥有），开始渲染采集..."
+            f"NIKKE 阶段 2：已注入 {len(new_list)} 个已拥有角色，开始滚动采集..."
         )
 
-        # Render all cards with a viewport tall enough to avoid virtual culling
         await page.set_viewport_size({"width": 1280, "height": 30000})
         await page.wait_for_timeout(3000)
 
@@ -230,6 +267,12 @@ class AvatarScraper:
             }""")
             await page.wait_for_timeout(600)
 
-        logger.info(f"NIKKE 采集完成：{len(all_mappings)}/{len(new_list)} 个角色 URL。")
+        logger.info(
+            f"NIKKE 阶段 2：采集 {len(all_mappings)}/{len(new_list)} 个已拥有角色 URL。"
+        )
 
-        return all_mappings
+        return {
+            code: url
+            for code, url in all_mappings.items()
+            if url != default_mappings.get(code, "")
+        }

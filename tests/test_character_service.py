@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 from core.config import PluginConfig
 from player.character_service import CharacterService
+from player.player_mapping_cache import PlayerMappingCache
 
 
 def _make_service(**overrides) -> CharacterService:
@@ -13,6 +14,25 @@ def _make_service(**overrides) -> CharacterService:
     service._aliases = overrides.get("aliases", {})
     service._state_effect_options = {}
     return service
+
+
+def _stale_cache() -> PlayerMappingCache:
+    cache = PlayerMappingCache(None)
+    cache._data = {"version": 999, "updated_at": "2000-01-01T00:00:00+00:00"}
+    return cache
+
+
+def _fresh_cache() -> PlayerMappingCache:
+    cache = PlayerMappingCache(None)
+    cache._data = cache._empty_data()
+    cache._data.update(
+        {
+            "character_names": {"101": "Anis"},
+            "state_effect_options": {"skill_1": {"id": "skill_1"}},
+            "updated_at": "2099-12-31T23:59:59+00:00",
+        }
+    )
+    return cache
 
 
 class TestIsLoaded:
@@ -118,3 +138,64 @@ class TestLookup:
         result = svc.lookup("anis")
         assert len(result) == 1
         assert result[0][0] == 101
+
+
+class TestIsMappingStale:
+    def test_en_cache_none(self):
+        svc = _make_service()
+        assert svc.is_mapping_stale() is True
+
+    def test_en_cache_no_useful_data(self):
+        svc = _make_service()
+        cache = PlayerMappingCache(None)
+        cache._data = cache._empty_data()
+        svc._en_cache = cache
+        assert svc.is_mapping_stale() is True
+
+    def test_en_cache_is_stale(self):
+        svc = _make_service()
+        svc._en_cache = _stale_cache()
+        assert svc.is_mapping_stale() is True
+
+    def test_en_cache_fresh_no_target(self):
+        svc = _make_service()
+        svc._en_cache = _fresh_cache()
+        svc._target_cache = None
+        assert svc.is_mapping_stale() is False
+
+    def test_target_lang_is_en_skip_target_check(self):
+        svc = _make_service()
+        svc._en_cache = _fresh_cache()
+        svc._target_cache = _stale_cache()
+        svc._config = PluginConfig({"玩家": {"nikke查询": {"mapping_language": "en"}}})
+        assert svc.is_mapping_stale() is False
+
+    def test_target_cache_none_skip_target_check(self):
+        svc = _make_service()
+        svc._en_cache = _fresh_cache()
+        svc._target_cache = None
+        svc._config = PluginConfig({"玩家": {"nikke查询": {"mapping_language": "zh-TW"}}})
+        assert svc.is_mapping_stale() is False
+
+    def test_target_no_useful_data(self):
+        svc = _make_service()
+        svc._en_cache = _fresh_cache()
+        target = PlayerMappingCache(None)
+        target._data = target._empty_data()
+        svc._target_cache = target
+        svc._config = PluginConfig({"玩家": {"nikke查询": {"mapping_language": "zh-TW"}}})
+        assert svc.is_mapping_stale() is True
+
+    def test_target_is_stale(self):
+        svc = _make_service()
+        svc._en_cache = _fresh_cache()
+        svc._target_cache = _stale_cache()
+        svc._config = PluginConfig({"玩家": {"nikke查询": {"mapping_language": "zh-TW"}}})
+        assert svc.is_mapping_stale() is True
+
+    def test_both_fresh(self):
+        svc = _make_service()
+        svc._en_cache = _fresh_cache()
+        svc._target_cache = _fresh_cache()
+        svc._config = PluginConfig({"玩家": {"nikke查询": {"mapping_language": "zh-TW"}}})
+        assert svc.is_mapping_stale() is False

@@ -46,6 +46,17 @@ class CharacterService:
     def count(self) -> int:
         return len(self._name_to_code)
 
+    def is_mapping_stale(self) -> bool:
+        """任一映射缓存（en 或目标语言）过期或无效时返回 True。"""
+        ttl = self._config.player_mapping_cache_ttl_hours()
+        if not self._en_cache or not self._en_cache.has_useful_data() or self._en_cache.is_stale(ttl):
+            return True
+        target_lang = self._config.player_mapping_language()
+        if target_lang != "en" and self._target_cache:
+            if not self._target_cache.has_useful_data() or self._target_cache.is_stale(ttl):
+                return True
+        return False
+
     def _load_caches(self) -> None:
         if not self._en_cache:
             return
@@ -246,28 +257,13 @@ class CharacterService:
 
         self._load_caches()
 
-        ttl = self._config.player_mapping_cache_ttl_hours()
-        target_lang = self._config.player_mapping_language()
-
-        en_stale = not self._en_cache.has_useful_data() or self._en_cache.is_stale(ttl)
-        target_stale = (
-            target_lang != "en"
-            and self._target_cache is not None
-            and (
-                not self._target_cache.has_useful_data()
-                or self._target_cache.is_stale(ttl)
-            )
-        )
-
-        should_refresh = self._config.player_auto_refresh_mapping() and (
-            en_stale or target_stale
-        )
-        if not should_refresh:
+        if not self._config.player_auto_refresh_mapping() or not self.is_mapping_stale():
             return
 
         msg = await self.refresh_mappings()
         self._load_caches()
 
+        target_lang = self._config.player_mapping_language()
         if not self._en_cache.has_useful_data():
             raise CharacterQueryError(f"{msg}\n请稍后重试或执行 /nikke refresh。")
         if (
