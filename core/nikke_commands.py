@@ -127,6 +127,6 @@ async def handle_avatar_refresh_all(plugin, event: AstrMessageEvent):
             "请先在插件配置中设置玩家状态提醒的 Cookie。"
         )
         return
-    yield event.plain_result("正在抓取角色头像列表并下载全部头像...")
+    yield event.plain_result("正在抓取角色头像列表并下载全部头像（首次约需 20-30s）...")
     msg = await plugin._avatar_service.refresh_all(cookie)
     yield event.plain_result(msg)
