@@ -22,12 +22,8 @@ def format_character_stats(
 
     combat = char_info.get("combat", "?")
 
-    skill1 = str(
-        safe_int(char_detail.get("skill1_lv", char_detail.get("s1_lv", "?")))
-    )
-    skill2 = str(
-        safe_int(char_detail.get("skill2_lv", char_detail.get("s2_lv", "?")))
-    )
+    skill1 = str(safe_int(char_detail.get("skill1_lv", char_detail.get("s1_lv", "?"))))
+    skill2 = str(safe_int(char_detail.get("skill2_lv", char_detail.get("s2_lv", "?"))))
     burst = str(
         safe_int(
             char_detail.get(

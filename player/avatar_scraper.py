@@ -189,10 +189,14 @@ class AvatarScraper:
         )
 
         if not injected:
-            logger.warning("NIKKE 阶段 2：注入 store 失败（Vue/Pinia 结构可能已变化）。")
+            logger.warning(
+                "NIKKE 阶段 2：注入 store 失败（Vue/Pinia 结构可能已变化）。"
+            )
             return {}
 
-        logger.info(f"NIKKE 阶段 2：已注入 {len(new_list)} 个已拥有角色，开始滚动采集...")
+        logger.info(
+            f"NIKKE 阶段 2：已注入 {len(new_list)} 个已拥有角色，开始滚动采集..."
+        )
 
         await page.set_viewport_size({"width": 1280, "height": 30000})
         await page.wait_for_timeout(3000)
@@ -255,7 +259,9 @@ class AvatarScraper:
             }""")
             await page.wait_for_timeout(600)
 
-        logger.info(f"NIKKE 阶段 2：采集 {len(all_mappings)}/{len(new_list)} 个已拥有角色 URL。")
+        logger.info(
+            f"NIKKE 阶段 2：采集 {len(all_mappings)}/{len(new_list)} 个已拥有角色 URL。"
+        )
 
         obtained_mappings = {
             code: url
@@ -264,6 +270,8 @@ class AvatarScraper:
         }
 
         if obtained_mappings:
-            logger.info(f"NIKKE 阶段 2：{len(obtained_mappings)} 个皮肤 URL 将覆盖默认。")
+            logger.info(
+                f"NIKKE 阶段 2：{len(obtained_mappings)} 个皮肤 URL 将覆盖默认。"
+            )
 
         return obtained_mappings
