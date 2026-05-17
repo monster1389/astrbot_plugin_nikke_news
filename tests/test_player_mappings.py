@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timedelta, timezone
 
-from core.message_builder import MessageBuilder
+from player.character_formatter import format_character_stats
 from player.player_mapping_cache import PlayerMappingCache
 from player.player_mapping_refresher import (
     _accept_language,
@@ -63,7 +63,7 @@ def test_extract_state_effect_options_with_string_desc():
 
 
 def test_equipment_option_value_uses_frontend_percent_logic():
-    msg = MessageBuilder.format_character_stats(
+    msg = format_character_stats(
         {"combat": 123},
         {
             "skill1_lv": 1,
@@ -87,7 +87,7 @@ def test_equipment_option_value_uses_frontend_percent_logic():
 
 
 def test_equipment_option_value_abs_and_aggregate_same_type():
-    msg = MessageBuilder.format_character_stats(
+    msg = format_character_stats(
         {"combat": 123},
         {
             "head_equip_option1_id": 9001,

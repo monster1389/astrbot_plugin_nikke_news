@@ -4,7 +4,7 @@ import httpx
 from astrbot.api import logger
 
 from core.config import PluginConfig
-from core.message_builder import MessageBuilder
+from player.character_formatter import format_character_stats
 from player.player_mapping_cache import PlayerMappingCache
 from player.player_mapping_refresher import (
     PlayerMappingRefreshError,
@@ -231,7 +231,7 @@ class CharacterService:
         if not details:
             raise CharacterQueryError("角色详情数据为空。")
 
-        text = MessageBuilder.format_character_stats(
+        text = format_character_stats(
             char_info,
             details[0],
             {"en": display_name},
