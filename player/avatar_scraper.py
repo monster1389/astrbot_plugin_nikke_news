@@ -68,6 +68,7 @@ class AvatarScraper:
                             except Exception:
                                 pass
 
+                    # 拦截 CDN JSON 和 GetUserCharacters API（必须在 goto 前注册）
                     page.on("response", _on_response)
                     await page.goto(
                         SHIFTYSPAD_COMBAT_URL, wait_until="load", timeout=60000
@@ -151,6 +152,7 @@ class AvatarScraper:
             logger.info("NIKKE 阶段 2：API 无角色数据，跳过。")
             return {}
 
+        # name_code → CDN entry（O(1) resource_id 查找）
         nc_to_cdn: dict[int, dict] = {
             c["name_code"]: c for c in cdn_chars if "name_code" in c
         }
