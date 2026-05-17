@@ -75,10 +75,15 @@ class AvatarScraper:
 
                     mappings = await self._scrape_default_avatars(page)
 
+                    # 阶段 1 首次失败时等待页面就绪后重试一次
+                    if not mappings:
+                        await page.wait_for_timeout(5000)
+                        mappings = await self._scrape_default_avatars(page)
+
                     if not mappings:
                         logger.warning(
-                            "NIKKE 头像映射轮询超时：10 秒内未检测到 50+ 角色卡片，"
-                            "可能页面加载延迟或 DOM 结构变化。"
+                            "NIKKE 头像映射阶段 1 两次尝试均失败："
+                            "未检测到 50+ 角色卡片，可能页面加载延迟或 DOM 结构变化。"
                         )
                     else:
                         logger.info(f"NIKKE 阶段 1：{len(mappings)} 个默认头像 URL。")
@@ -114,7 +119,22 @@ class AvatarScraper:
             return {}
 
     async def _scrape_default_avatars(self, page) -> dict[int, str]:
-        """阶段 1：轮询 DOM 从页面自然渲染的卡片中采集默认头像 URL。"""
+        """阶段 1：等待 Pinia store 就绪后轮询 DOM 采集默认头像 URL。
+
+        先等 Pinia store 的 shown_nikke_list 填充（CDN 数据注入），
+        再轮询 DOM 卡片渲染。失败时由 scrape() 调用方负责重试。
+        """
+        # 预等待：Pinia store 填充后再轮询 DOM，比直接等卡片渲染更可靠
+        for _ in range(50):
+            store_ready = await page.evaluate("""() => {
+                const pinia = document.querySelector('#app')?.__vue_app__?.config?.globalProperties?.$pinia;
+                const store = pinia?._s?.get('shiftys_nikke_list');
+                return (store?.$state?.shown_nikke_list?.length || 0) >= 50;
+            }""")
+            if store_ready:
+                break
+            await page.wait_for_timeout(200)
+
         mappings: dict[int, str] = {}
         had_window = False
 

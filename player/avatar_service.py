@@ -57,8 +57,10 @@ class AvatarService:
         )
 
     async def refresh_cached(self, cookie: str) -> str:
-        """抓取头像映射并仅重新下载本地已有缓存文件的头像。"""
-        t0 = time.monotonic()
+        """抓取头像映射并仅重新下载本地已有缓存文件的头像。
+
+        返回结果消息（不含耗时，耗时由调用方统一展示）。
+        """
         mappings = await self._scraper.scrape(cookie)
         if not mappings:
             return (
@@ -68,16 +70,14 @@ class AvatarService:
             )
         cached = {code: url for code, url in mappings.items() if self.exists(code)}
         if not cached:
-            elapsed = time.monotonic() - t0
             return (
                 f"头像映射已更新（共 {len(mappings)} 个角色），"
-                f"但本地无已缓存头像，未下载任何文件（耗时 {elapsed:.0f}s）。"
+                "但本地无已缓存头像，未下载任何文件。"
             )
         new_count = await self._download_mappings(cached)
-        elapsed = time.monotonic() - t0
         return (
             f"头像缓存刷新完成：映射共 {len(mappings)} 个角色，"
-            f"已缓存 {len(cached)} 个，下载完成 {new_count} 个（耗时 {elapsed:.0f}s）。"
+            f"已缓存 {len(cached)} 个，下载完成 {new_count} 个。"
         )
 
     def _load_mappings(self) -> dict[int, str]:

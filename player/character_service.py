@@ -49,11 +49,17 @@ class CharacterService:
     def is_mapping_stale(self) -> bool:
         """任一映射缓存（en 或目标语言）过期或无效时返回 True。"""
         ttl = self._config.player_mapping_cache_ttl_hours()
-        if not self._en_cache or not self._en_cache.has_useful_data() or self._en_cache.is_stale(ttl):
+        if (
+            not self._en_cache
+            or not self._en_cache.has_useful_data()
+            or self._en_cache.is_stale(ttl)
+        ):
             return True
         target_lang = self._config.player_mapping_language()
         if target_lang != "en" and self._target_cache:
-            if not self._target_cache.has_useful_data() or self._target_cache.is_stale(ttl):
+            if not self._target_cache.has_useful_data() or self._target_cache.is_stale(
+                ttl
+            ):
                 return True
         return False
 
@@ -137,24 +143,35 @@ class CharacterService:
         messages: list[str] = []
 
         # Always refresh en first
-        if force or not self._en_cache.has_useful_data() or self._en_cache.is_stale(ttl):
-            try:
-                names, options, sources = await refresh_player_mappings(
-                    cookie_header=cookie,
-                    language="en",
-                )
-            except PlayerMappingRefreshError as exc:
-                messages.append(str(exc))
-            else:
-                self._en_cache.save(
-                    language="en",
-                    character_names=names,
-                    state_effect_options=options,
-                    sources=sources,
-                )
-                messages.append(
-                    f"英文映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。"
-                )
+        if (
+            force
+            or not self._en_cache.has_useful_data()
+            or self._en_cache.is_stale(ttl)
+        ):
+            for attempt in range(3):
+                try:
+                    names, options, sources = await refresh_player_mappings(
+                        cookie_header=cookie,
+                        language="en",
+                    )
+                except PlayerMappingRefreshError as exc:
+                    if attempt < 2:
+                        logger.info(
+                            f"NIKKE en 映射刷新失败（{attempt + 1}/3），重试中..."
+                        )
+                        continue
+                    messages.append(str(exc))
+                else:
+                    self._en_cache.save(
+                        language="en",
+                        character_names=names,
+                        state_effect_options=options,
+                        sources=sources,
+                    )
+                    messages.append(
+                        f"英文映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。"
+                    )
+                break
 
         # Refresh target language if different from en
         if target_lang != "en" and self._target_cache:
@@ -163,23 +180,31 @@ class CharacterService:
                 or not self._target_cache.has_useful_data()
                 or self._target_cache.is_stale(ttl)
             ):
-                try:
-                    names, options, sources = await refresh_player_mappings(
-                        cookie_header=cookie,
-                        language=target_lang,
-                    )
-                except PlayerMappingRefreshError as exc:
-                    messages.append(str(exc))
-                else:
-                    self._target_cache.save(
-                        language=target_lang,
-                        character_names=names,
-                        state_effect_options=options,
-                        sources=sources,
-                    )
-                    messages.append(
-                        f"{target_lang} 映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。"
-                    )
+                for attempt in range(3):
+                    try:
+                        names, options, sources = await refresh_player_mappings(
+                            cookie_header=cookie,
+                            language=target_lang,
+                        )
+                    except PlayerMappingRefreshError as exc:
+                        if attempt < 2:
+                            logger.info(
+                                f"NIKKE {target_lang} 映射刷新失败"
+                                f"（{attempt + 1}/3），重试中..."
+                            )
+                            continue
+                        messages.append(str(exc))
+                    else:
+                        self._target_cache.save(
+                            language=target_lang,
+                            character_names=names,
+                            state_effect_options=options,
+                            sources=sources,
+                        )
+                        messages.append(
+                            f"{target_lang} 映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。"
+                        )
+                    break
 
         self._load_caches()
         return "\n".join(messages) if messages else "映射缓存均为最新，无需刷新。"
@@ -260,7 +285,10 @@ class CharacterService:
 
         self._load_caches()
 
-        if not self._config.player_auto_refresh_mapping() or not self.is_mapping_stale():
+        if (
+            not self._config.player_auto_refresh_mapping()
+            or not self.is_mapping_stale()
+        ):
             return
 
         msg = await self.refresh_mappings()

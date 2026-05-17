@@ -70,7 +70,7 @@ async def refresh_player_mappings(
     *,
     cookie_header: str,
     language: str = "en",
-    timeout_ms: int = 30000,
+    timeout_ms: int = 20000,
 ) -> tuple[dict[int, str], dict[str, dict[str, Any]], dict[str, dict[str, str]]]:
     """启动 Chromium 访问 Blablalink 尼姬列表页，拦截 CDN 响应抓取角色名和词条，缓存到本地 JSON。"""
     try:
@@ -137,7 +137,7 @@ async def refresh_player_mappings(
                     wait_until="load",
                     timeout=timeout_ms,
                 )
-                await page.wait_for_timeout(10000)
+                await page.wait_for_timeout(8000)
                 if tasks:
                     await asyncio.gather(*tasks, return_exceptions=True)
             finally:

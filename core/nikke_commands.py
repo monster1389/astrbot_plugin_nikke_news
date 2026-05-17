@@ -1,5 +1,7 @@
 """NIKKE 指令业务逻辑（不含 AstrBot 装饰器）。"""
 
+import time
+
 from astrbot.api.event import AstrMessageEvent
 import astrbot.api.message_components as Comp
 
@@ -45,7 +47,10 @@ async def handle_query(plugin, event: AstrMessageEvent, text: str = ""):
         yield event.plain_result("角色服务未初始化，请等待插件启动完成。")
         return
 
-    if plugin._plugin_config.player_auto_refresh_mapping() and plugin._character_service.is_mapping_stale():
+    if (
+        plugin._plugin_config.player_auto_refresh_mapping()
+        and plugin._character_service.is_mapping_stale()
+    ):
         yield event.plain_result("正在刷新角色映射（约 10-15s）...")
 
     try:
@@ -98,6 +103,7 @@ async def handle_refresh(plugin, event: AstrMessageEvent):
         yield event.plain_result("角色服务模块未初始化。")
         return
 
+    t0 = time.monotonic()
     messages: list[str] = []
     plugin._character_service._load_caches()
     count = plugin._character_service.count()
@@ -108,20 +114,32 @@ async def handle_refresh(plugin, event: AstrMessageEvent):
     )
 
     yield event.plain_result("正在刷新角色映射（约 10-15s）...")
-    messages.append(await plugin._character_service.refresh_mappings(force=True))
+    mapping_msg = await plugin._character_service.refresh_mappings(force=True)
+    t1 = time.monotonic()
+    mapping_time = t1 - t0
+    messages.append(mapping_msg)
 
-    # 刷新头像映射和已缓存头像
+    avatar_time = 0.0
     if plugin._avatar_service:
         cookie = plugin._plugin_config.player_data_cookie()
         if cookie:
-            if plugin._avatar_service.is_mapping_stale():
-                yield event.plain_result("正在刷新头像映射（约 20-30s）...")
-            msg = await plugin._avatar_service.refresh_cached(cookie)
-            messages.append(msg)
+            yield event.plain_result("正在刷新头像映射（约 20-30s）...")
+            avatar_msg = await plugin._avatar_service.refresh_cached(cookie)
+            t2 = time.monotonic()
+            avatar_time = t2 - t1
+            messages.append(avatar_msg)
         else:
             messages.append("未配置玩家 Cookie，跳过头像刷新。")
     else:
         messages.append("头像服务未初始化，跳过头像刷新。")
+
+    total = mapping_time + avatar_time
+    if avatar_time > 0:
+        messages.append(
+            f"总耗时 {total:.0f}s（角色映射 {mapping_time:.0f}s + 头像 {avatar_time:.0f}s）"
+        )
+    else:
+        messages.append(f"总耗时 {total:.0f}s")
 
     yield event.plain_result("\n".join(messages))
 

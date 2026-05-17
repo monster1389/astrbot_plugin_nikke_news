@@ -174,7 +174,9 @@ class TestIsMappingStale:
         svc = _make_service()
         svc._en_cache = _fresh_cache()
         svc._target_cache = None
-        svc._config = PluginConfig({"玩家": {"nikke查询": {"mapping_language": "zh-TW"}}})
+        svc._config = PluginConfig(
+            {"玩家": {"nikke查询": {"mapping_language": "zh-TW"}}}
+        )
         assert svc.is_mapping_stale() is False
 
     def test_target_no_useful_data(self):
@@ -183,19 +185,25 @@ class TestIsMappingStale:
         target = PlayerMappingCache(None)
         target._data = target._empty_data()
         svc._target_cache = target
-        svc._config = PluginConfig({"玩家": {"nikke查询": {"mapping_language": "zh-TW"}}})
+        svc._config = PluginConfig(
+            {"玩家": {"nikke查询": {"mapping_language": "zh-TW"}}}
+        )
         assert svc.is_mapping_stale() is True
 
     def test_target_is_stale(self):
         svc = _make_service()
         svc._en_cache = _fresh_cache()
         svc._target_cache = _stale_cache()
-        svc._config = PluginConfig({"玩家": {"nikke查询": {"mapping_language": "zh-TW"}}})
+        svc._config = PluginConfig(
+            {"玩家": {"nikke查询": {"mapping_language": "zh-TW"}}}
+        )
         assert svc.is_mapping_stale() is True
 
     def test_both_fresh(self):
         svc = _make_service()
         svc._en_cache = _fresh_cache()
         svc._target_cache = _fresh_cache()
-        svc._config = PluginConfig({"玩家": {"nikke查询": {"mapping_language": "zh-TW"}}})
+        svc._config = PluginConfig(
+            {"玩家": {"nikke查询": {"mapping_language": "zh-TW"}}}
+        )
         assert svc.is_mapping_stale() is False
