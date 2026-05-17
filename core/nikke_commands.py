@@ -60,6 +60,11 @@ async def handle_query(plugin, event: AstrMessageEvent, text: str = ""):
 
             cookie = plugin._plugin_config.player_data_cookie()
             if cookie:
+                if (
+                    not plugin._avatar_service.exists(name_code)
+                    and plugin._avatar_service.is_mapping_stale()
+                ):
+                    yield event.plain_result("正在刷新头像映射（约 20-30s）...")
                 downloaded = await plugin._avatar_service.ensure_avatar(
                     name_code, cookie
                 )
@@ -105,6 +110,8 @@ async def handle_refresh(plugin, event: AstrMessageEvent):
     if plugin._avatar_service:
         cookie = plugin._plugin_config.player_data_cookie()
         if cookie:
+            if plugin._avatar_service.is_mapping_stale():
+                yield event.plain_result("正在刷新头像映射（约 20-30s）...")
             msg = await plugin._avatar_service.refresh_cached(cookie)
             messages.append(msg)
         else:

@@ -28,6 +28,23 @@ class TestAvatarPath:
     def test_exists_false(self, service):
         assert service.exists(999) is False
 
+    def test_is_mapping_stale_no_cache(self, service):
+        assert service.is_mapping_stale() is True
+
+    def test_is_mapping_stale_fresh(self, service, tmp_path):
+        cache_path = tmp_path / "avatar_mappings.json"
+        cache_path.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "mappings": {"5005": "https://example.com/a.webp"},
+                }
+            )
+        )
+        cache_path.chmod(0o666)
+        assert service.is_mapping_stale() is False
+
 
 class TestCachedCount:
     def test_empty(self, service):

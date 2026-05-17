@@ -31,6 +31,9 @@ class AvatarService:
         path = self.avatar_path(name_code)
         return path.exists() if path else False
 
+    def is_mapping_stale(self) -> bool:
+        return self._mapping_cache.is_stale()
+
     def cached_count(self) -> int:
         if not self._avatars_dir:
             return 0
