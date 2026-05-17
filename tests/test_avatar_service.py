@@ -97,7 +97,7 @@ class TestScrapeMappings:
 
         monkeypatch.setattr(builtins, "__import__", _mock_import)
 
-        result = await service._scrape_avatar_mappings("cookie=test")
+        result = await service._scraper.scrape("cookie=test")
         assert result == {}
 
 
@@ -120,7 +120,7 @@ class TestRefreshCached:
             called_with.append(dict(mappings))
             return len(mappings)
 
-        monkeypatch.setattr(service, "_scrape_avatar_mappings", fake_scrape)
+        monkeypatch.setattr(service._scraper, "scrape", fake_scrape)
         monkeypatch.setattr(service, "_download_mappings", fake_download)
 
         result = await service.refresh_cached("test_cookie")
@@ -135,7 +135,7 @@ class TestRefreshCached:
         async def fake_scrape(cookie):
             return mock_mappings
 
-        monkeypatch.setattr(service, "_scrape_avatar_mappings", fake_scrape)
+        monkeypatch.setattr(service._scraper, "scrape", fake_scrape)
 
         result = await service.refresh_cached("test_cookie")
         assert "未下载任何文件" in result
@@ -145,7 +145,7 @@ class TestRefreshCached:
         async def fake_scrape(cookie):
             return {}
 
-        monkeypatch.setattr(service, "_scrape_avatar_mappings", fake_scrape)
+        monkeypatch.setattr(service._scraper, "scrape", fake_scrape)
 
         result = await service.refresh_cached("test_cookie")
         assert "未获取到角色头像映射" in result
