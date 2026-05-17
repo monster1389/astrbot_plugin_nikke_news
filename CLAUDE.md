@@ -11,15 +11,15 @@ This is an [AstrBot](https://github.com/AstrBotDevs/AstrBot) plugin — it runs 
 **Packages**:
 - `core/` — config, constants, state, targets, time_utils, utils, message_builder, nikke_commands, poll_coordinator
 - `news/` — news_client (Blablalink API), news_poller (diff + push)
-- `player/` — player_client, player_poller, character_service, player_mapping_cache, player_mapping_refresher, portrait_service
+- `player/` — player_client, player_poller, character_service, character_formatter, player_mapping_cache, player_mapping_refresher, avatar_mapping_cache, avatar_scraper, avatar_service
 
 **Dependencies** (`requirements.txt`): `httpx>=0.28.1`, `playwright>=1.44.0`. Chromium binaries are provided by the runtime Docker image.
 
 **Runtime data**: persisted as JSON files in AstrBot's data directory (`StarTools.get_data_dir()`):
 - `state.json` — seen post UUIDs (capped at 500), initialized flag, player alert dedup state
 - `player_mappings_{lang}.json` — character name→code mappings and T10 option metadata (version 2, per-language)
-- `portrait_mappings.json` — name_code → CDN image URL (version 1, 24h TTL)
-- `portraits/` — downloaded `.webp` character portrait images
+- `avatar_mappings.json` — name_code → CDN image URL (version 1, 24h TTL)
+- `avatars/` — downloaded `.webp` character avatar images
 
 ## Commands
 
@@ -60,4 +60,4 @@ Tests mock the entire AstrBot SDK surface in `tests/conftest.py` so they run wit
 - Cookie config accepts both structured JSON (new) and raw header string (legacy). Character aliases accept both native dict and JSON string.
 - Time helpers use BJT (UTC+8) with a 4am day boundary for player alert dedup.
 - `player_mapping_refresher.py` navigates to `https://www.blablalink.com/shiftyspad/nikke-list?type=combat` and intercepts `sg-tools-cdn.blablalink.com` JSON responses via Playwright's response event.
-- `portrait_service.py` scrapes portrait URLs by polling the DOM during the ~5-second window when virtual-list cards are visible before truncation.
+- `avatar_scraper.py` scrapes avatar URLs via two-phase Playwright collection (default + obtained skin), injecting Vue store to expand the virtual list; `avatar_service.py` orchestrates scrape → download → per-request ensure.
