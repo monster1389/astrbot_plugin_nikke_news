@@ -83,6 +83,13 @@ class AvatarScraper:
                     else:
                         logger.info(f"NIKKE 阶段 1：{len(mappings)} 个默认头像 URL。")
 
+                    # 阶段 1 成功采集且 API 响应仍未到达时，追加等待窗口
+                    if mappings and not api_chars:
+                        for _ in range(25):
+                            if api_chars:
+                                break
+                            await page.wait_for_timeout(200)
+
                     obtained_mappings = await self._scrape_obtained_avatars(
                         page, mappings, cdn_chars, api_chars
                     )

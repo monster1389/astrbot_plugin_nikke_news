@@ -122,8 +122,12 @@ class CharacterService:
 
         return results
 
-    async def refresh_mappings(self) -> str:
-        """启动 Playwright 刷新角色映射（先 en 后目标语言），失败抛 PlayerMappingRefreshError。"""
+    async def refresh_mappings(self, *, force: bool = False) -> str:
+        """启动 Playwright 刷新角色映射（先 en 后目标语言）。
+
+        Args:
+            force: True 时跳过 TTL 检查，强制刷新所有缓存。
+        """
         if not self._en_cache:
             return "玩家映射缓存未初始化。"
 
@@ -133,8 +137,7 @@ class CharacterService:
         messages: list[str] = []
 
         # Always refresh en first
-        en_stale = not self._en_cache.has_useful_data() or self._en_cache.is_stale(ttl)
-        if en_stale:
+        if force or not self._en_cache.has_useful_data() or self._en_cache.is_stale(ttl):
             try:
                 names, options, sources = await refresh_player_mappings(
                     cookie_header=cookie,
@@ -155,11 +158,11 @@ class CharacterService:
 
         # Refresh target language if different from en
         if target_lang != "en" and self._target_cache:
-            target_stale = (
-                not self._target_cache.has_useful_data()
+            if (
+                force
+                or not self._target_cache.has_useful_data()
                 or self._target_cache.is_stale(ttl)
-            )
-            if target_stale:
+            ):
                 try:
                     names, options, sources = await refresh_player_mappings(
                         cookie_header=cookie,
