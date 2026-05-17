@@ -95,6 +95,10 @@ class AvatarService:
         if not url:
             return False
 
+        return await self._download_one(name_code, url)
+
+    async def _download_one(self, name_code: int, url: str) -> bool:
+        """下载单个角色头像到本地 avatars/ 目录。"""
         if self._avatars_dir:
             self._avatars_dir.mkdir(parents=True, exist_ok=True)
         path = self.avatar_path(name_code)
@@ -112,23 +116,13 @@ class AvatarService:
             return False
 
     async def _download_mappings(self, mappings: dict[int, str]) -> int:
-        """下载角色头像图片到本地 avatars/ 目录。"""
+        """批量下载角色头像图片到本地 avatars/ 目录。"""
         if self._avatars_dir:
             self._avatars_dir.mkdir(parents=True, exist_ok=True)
         new_count = 0
         for name_code, url in mappings.items():
-            path = self.avatar_path(name_code)
-            if path is None:
-                continue
-            try:
-                resp = await self._client.get(url)
-                resp.raise_for_status()
-                path.write_bytes(resp.content)
+            if await self._download_one(name_code, url):
                 new_count += 1
-            except Exception as exc:
-                logger.warning(
-                    f"NIKKE 头像下载失败 {name_code} ({url}): {exc}", exc_info=True
-                )
         if new_count:
             logger.info(f"NIKKE 头像下载完成：{new_count} 个。")
         return new_count
