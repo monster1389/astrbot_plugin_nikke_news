@@ -63,7 +63,7 @@ class CharacterService:
                 return True
         return False
 
-    def _load_caches(self) -> None:
+    def load_caches(self) -> None:
         if not self._en_cache:
             return
 
@@ -213,7 +213,7 @@ class CharacterService:
                         )
                     break
 
-        self._load_caches()
+        self.load_caches()
         return "\n".join(messages) if messages else "映射缓存均为最新，无需刷新。"
 
     async def query(self, name: str) -> tuple[str, int]:
@@ -290,7 +290,7 @@ class CharacterService:
         if not self._en_cache:
             return
 
-        self._load_caches()
+        self.load_caches()
 
         if (
             not self._config.player_auto_refresh_mapping()
@@ -299,7 +299,7 @@ class CharacterService:
             return
 
         msg = await self.refresh_mappings()
-        self._load_caches()
+        self.load_caches()
 
         target_lang = self._config.player_mapping_language()
         if not self._en_cache.has_useful_data():

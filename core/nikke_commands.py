@@ -105,7 +105,7 @@ async def handle_refresh(plugin, event: AstrMessageEvent):
 
     t0 = time.monotonic()
     messages: list[str] = []
-    plugin._character_service._load_caches()
+    plugin._character_service.load_caches()
     count = plugin._character_service.count()
     messages.append(
         f"已重载本地角色列表，共 {count} 个角色。"

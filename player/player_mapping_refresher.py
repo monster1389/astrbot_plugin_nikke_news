@@ -200,8 +200,6 @@ def parse_cookie_header(cookie_header: str) -> list[dict[str, Any]]:
 def _accept_language(language: str) -> str:
     if language == "en":
         return "en-US,en;q=0.9,zh-CN;q=0.6,zh;q=0.5"
-    if language == "zh":
-        return "zh-CN,zh;q=0.9,en;q=0.6"
     if language == "zh-TW":
         return "zh-TW,zh;q=0.9,en;q=0.6"
     return f"{language};q=1.0,en;q=0.7"

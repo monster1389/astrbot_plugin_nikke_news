@@ -39,7 +39,7 @@ from player.avatar_service import AvatarService
     PLUGIN_NAME,
     "monster1389",
     "Blablalink官方消息推送、日常/收菜提醒、角色查询。",
-    "v1.6.4",
+    "v1.6.5",
 )
 class NikkeNewsPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
@@ -85,7 +85,7 @@ class NikkeNewsPlugin(Star):
         self._character_service = CharacterService(
             self._client, self._plugin_config, en_cache, target_cache
         )
-        self._character_service._load_caches()
+        self._character_service.load_caches()
         if not self._character_service.is_loaded:
             logger.info("NIKKE 角色映射为空，请执行 /nikke_refresh 刷新角色列表。")
 
