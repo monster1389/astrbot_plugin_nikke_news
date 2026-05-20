@@ -11,7 +11,15 @@ from core.state_store import PluginStateStore
 
 
 class PollCoordinator:
-    """轮询调度器，按配置间隔循环执行新闻与玩家轮询。"""
+    """轮询调度器，按配置间隔循环执行新闻与玩家轮询。
+
+    Attributes:
+        _news_poller: 新闻轮询器实例。
+        _player_poller: 玩家状态轮询器实例。
+        _state: 插件状态 dict（共享引用）。
+        _state_path: state.json 文件路径。
+        _poll_interval_seconds: 轮询间隔秒数。
+    """
 
     def __init__(
         self,
@@ -28,7 +36,10 @@ class PollCoordinator:
         self._poll_interval_seconds = poll_interval_seconds
 
     async def run(self):
-        """启动轮询循环，每 poll_interval_seconds 秒执行一次 _poll_once。"""
+        """启动轮询循环，每 poll_interval_seconds 秒执行一次 _poll_once。
+
+        循环内部捕获非取消异常，确保单次失败不中断后续轮询。
+        """
         logger.info("NIKKE 轮询循环已开始。")
         while True:
             loop = asyncio.get_running_loop()

@@ -14,7 +14,14 @@ def day_key(now: datetime) -> str:
 
 
 def is_cookie_invalid_error(exc: Exception) -> bool:
-    """检测异常是否为 Cookie 失效错误。"""
+    """检测异常是否为 Cookie 失效错误。
+
+    Args:
+        exc: 捕获的异常。
+
+    Returns:
+        True 表示 Cookie 已失效（HTTP 401/403 或 API error code）。
+    """
     if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code in (401, 403)
     return "PLAYER_API_ERROR" in str(exc)

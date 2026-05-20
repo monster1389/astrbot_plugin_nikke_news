@@ -17,13 +17,24 @@ from .utils import (
 
 
 class MessageBuilder:
-    """构建推送消息链和玩家提醒消息文本。"""
+    """构建推送消息链和玩家提醒消息文本。
+
+    Attributes:
+        _config: 插件配置实例。
+    """
 
     def __init__(self, config: PluginConfig):
         self._config = config
 
     def format_post_message(self, post: dict[str, Any]) -> str:
-        """构建单条推送消息文本（标题+正文+时间戳+详情链接）。"""
+        """构建单条新闻推送文本。
+
+        Args:
+            post: 帖子数据 dict。
+
+        Returns:
+            含标题、正文、发布时间、详情链接的格式化文本。
+        """
         title = clean_text(post.get("title")) or "NIKKE 官方消息"
         body = self._format_post_body(post)
 
@@ -40,7 +51,14 @@ class MessageBuilder:
         return "\n\n".join(parts)
 
     def format_post_message_chain(self, post: dict[str, Any]) -> MessageChain:
-        """构建新闻推送消息链（文本 + 图片）。"""
+        """构建新闻推送消息链（文本 + 图片）。
+
+        Args:
+            post: 帖子数据 dict。
+
+        Returns:
+            包含文本和图片组件的 MessageChain。
+        """
         chain = MessageChain().message(self.format_post_message(post))
         for image_url in self.post_image_urls(post):
             chain.chain.append(Comp.Image.fromURL(image_url))
@@ -60,6 +78,14 @@ class MessageBuilder:
         return summary
 
     def post_image_urls(self, post: dict[str, Any]) -> list[str]:
+        """提取帖子中的图片 URL 列表。
+
+        Args:
+            post: 帖子数据 dict。
+
+        Returns:
+            去重后的图片 URL 列表，不超过 max_images 限制。
+        """
         if is_video_post(post):
             return []
 
@@ -82,7 +108,14 @@ class MessageBuilder:
         return urls
 
     def format_player_alert_message(self, lines: list[str]) -> str:
-        """构建玩家状态提醒消息文本。"""
+        """构建玩家状态提醒消息文本。
+
+        Args:
+            lines: 提醒内容行列表。
+
+        Returns:
+            含前缀、内容、时间的格式化文本。
+        """
         prefix = self._config.player_alert_prefix()
         parts = [prefix] if prefix else []
         parts.extend(lines)

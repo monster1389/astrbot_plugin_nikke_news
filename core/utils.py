@@ -8,7 +8,12 @@ from typing import Any
 
 
 class ReadableHtmlParser(HTMLParser):
-    """HTML 清洗解析器，提取纯文本内容并折叠空白。"""
+    """HTML 清洗解析器，提取纯文本内容并折叠空白。
+
+    Attributes:
+        _parts: 累积的文本片段列表。
+        _ignored_depth: 当前忽略标签嵌套深度。
+    """
 
     _BREAK_TAGS = {"br"}
     _BLOCK_TAGS = {"div", "p", "section", "article", "header", "footer", "li"}
@@ -60,6 +65,11 @@ class ReadableHtmlParser(HTMLParser):
             self._parts.append("\n")
 
     def text(self) -> str:
+        """返回清洗后的纯文本，多行去重并折叠空白。
+
+        Returns:
+            清洗后的文本字符串。
+        """
         raw = html.unescape("".join(self._parts))
         lines = [" ".join(line.split()) for line in raw.splitlines()]
         compact_lines = [line for line in lines if line]
@@ -67,14 +77,28 @@ class ReadableHtmlParser(HTMLParser):
 
 
 def clean_text(value: Any) -> str:
-    """去除 HTML 标签并折叠空白，返回纯文本。"""
+    """去除 HTML 标签并折叠空白，返回纯文本。
+
+    Args:
+        value: 输入值，非字符串会被转为字符串。
+
+    Returns:
+        清洗后的单行纯文本。
+    """
     text = re.sub(r"<[^>]*>", "", str(value or ""))
     text = html.unescape(text)
     return " ".join(text.split())
 
 
 def clean_html_with_linebreaks(value: Any) -> str:
-    """清理 HTML 标签，保留 <br> 为换行，不折叠空白。"""
+    """清理 HTML 标签，保留换行结构。
+
+    Args:
+        value: 输入值。
+
+    Returns:
+        保留换行的清洗后文本。
+    """
     parser = ReadableHtmlParser()
     parser.feed(str(value or ""))
     parser.close()
@@ -82,7 +106,14 @@ def clean_html_with_linebreaks(value: Any) -> str:
 
 
 def safe_int(value: Any) -> int:
-    """安全转换为 int，失败返回 0。"""
+    """安全转换为 int，失败返回 0。
+
+    Args:
+        value: 任意输入值。
+
+    Returns:
+        转换后的 int，或 0。
+    """
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -90,7 +121,14 @@ def safe_int(value: Any) -> int:
 
 
 def safe_float(value: Any) -> float:
-    """安全转换为 float，失败返回 0.0。"""
+    """安全转换为 float，失败返回 0.0。
+
+    Args:
+        value: 任意输入值。
+
+    Returns:
+        转换后的 float，或 0.0。
+    """
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -98,7 +136,14 @@ def safe_float(value: Any) -> float:
 
 
 def format_timestamp(value: Any) -> str:
-    """Unix 时间戳转日期字符串，无效时返回"未知"。"""
+    """Unix 时间戳转日期字符串。
+
+    Args:
+        value: Unix 时间戳。
+
+    Returns:
+        YYYY-MM-DD HH:MM 格式字符串，无效时返回"未知"。
+    """
     timestamp = safe_int(value)
     if timestamp <= 0:
         return "未知"
@@ -106,5 +151,12 @@ def format_timestamp(value: Any) -> str:
 
 
 def is_video_post(post: dict[str, Any]) -> bool:
-    """判断帖子是否为视频类型。"""
+    """判断帖子是否为视频类型。
+
+    Args:
+        post: 帖子数据 dict。
+
+    Returns:
+        True 表示视频帖。
+    """
     return safe_int(post.get("type")) == 3

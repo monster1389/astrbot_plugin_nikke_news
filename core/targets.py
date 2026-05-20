@@ -20,7 +20,16 @@ def parse_push_target(value: str) -> dict[str, str] | None:
 
 
 def enabled_targets(config: dict) -> list[dict[str, str]]:
-    """从配置中提取已启用的推送目标列表（兼容新旧格式）。"""
+    """从配置中提取已启用的推送目标列表。
+
+    兼容新格式（scheduled_push_groups）和旧格式（targets）。
+
+    Args:
+        config: 新闻配置子字典。
+
+    Returns:
+        [{"target_type": ..., "target_id": ...}, ...] 列表。
+    """
     enabled: list[dict[str, str]] = []
     group_targets = config.get("scheduled_push_groups", []) or []
 
