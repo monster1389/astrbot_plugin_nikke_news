@@ -16,7 +16,14 @@ from core.utils import safe_float, safe_int
 
 
 class PlayerPoller:
-    """周期检查玩家前哨满仓状态和日常完成情况，按阈值发送提醒。"""
+    """周期检查玩家前哨满仓状态和日常完成情况，按阈值发送提醒。
+
+    Attributes:
+        _client: httpx AsyncClient 实例。
+        _config: 插件配置实例。
+        _state: 插件状态 dict（共享引用）。
+        _save_state: 状态保存回调。
+    """
 
     def __init__(
         self,
@@ -31,7 +38,10 @@ class PlayerPoller:
         self._save_state = save_state
 
     async def poll(self) -> None:
-        """检查前哨基地满仓 & 日常任务完成情况，必要时推送提醒。"""
+        """检查前哨基地满仓和日常任务完成情况，必要时推送提醒。
+
+        Cookie 失效时发送首次通知并记录日志，后续仅写日志。
+        """
         if not self._config.player_data_enabled():
             return
 

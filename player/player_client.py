@@ -11,13 +11,28 @@ from core.utils import safe_int
 
 
 class PlayerClient:
-    """调用 Blablalink 玩家数据 API（前哨收菜、角色列表、角色详情）。"""
+    """调用 Blablalink 玩家数据 API（前哨收菜、角色列表、角色详情）。
+
+    Attributes:
+        _client: httpx AsyncClient 实例。
+    """
 
     def __init__(self, client: httpx.AsyncClient | None):
         self._client = client
 
     async def fetch_progress(self, cookie: str, area_id: int = 84) -> dict[str, Any]:
-        """获取日常进度（前哨收菜、日常任务等），返回原始 JSON 数据。"""
+        """获取日常进度数据。
+
+        Args:
+            cookie: 玩家 Cookie 字符串。
+            area_id: 区域 ID，默认 84。
+
+        Returns:
+            包含 outpost_battle_storage_fullness 等字段的 data dict。
+
+        Raises:
+            RuntimeError: HTTP 请求失败、API 返回非 0 code、或响应结构异常。
+        """
         if not self._client:
             raise RuntimeError("http client not ready")
 
@@ -51,7 +66,20 @@ class PlayerClient:
         language: str = "en",
         game_id: str = "29080",
     ) -> list[dict[str, Any]]:
-        """获取玩家拥有的角色列表，返回 character_list JSON。"""
+        """获取玩家拥有的角色列表。
+
+        Args:
+            cookie: 玩家 Cookie 字符串。
+            area_id: 区域 ID，默认 84。
+            language: 接口语言，默认 en。
+            game_id: 游戏 ID，默认 29080。
+
+        Returns:
+            角色 dict 列表（含 name_code、combat 等字段）。
+
+        Raises:
+            RuntimeError: 请求失败或响应结构异常。
+        """
         if not self._client:
             raise RuntimeError("http client not ready")
 
@@ -87,7 +115,22 @@ class PlayerClient:
         language: str = "en",
         game_id: str = "29080",
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        """获取指定角色详情（技能、装备、词条），返回 (details, effects) 元组。"""
+        """获取指定角色详情。
+
+        Args:
+            cookie: 玩家 Cookie 字符串。
+            area_id: 区域 ID。
+            name_codes: 角色 name_code 列表。
+            intl_open_id: 国际版 Open ID，可选。
+            language: 接口语言，默认 en。
+            game_id: 游戏 ID，默认 29080。
+
+        Returns:
+            (character_details 列表, state_effects 列表) 元组。
+
+        Raises:
+            RuntimeError: 请求失败或响应结构异常。
+        """
         if not self._client:
             raise RuntimeError("http client not ready")
 

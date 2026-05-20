@@ -14,14 +14,29 @@ from player.player_client import PlayerClient
 
 
 class CharacterQueryError(Exception):
-    """角色查询错误，包含面向用户的中文消息。"""
+    """角色查询错误，包含面向用户的中文消息。
+
+    Attributes:
+        message: 面向用户的中文错误描述。
+    """
 
     def __init__(self, message: str):
         self.message = message
 
 
 class CharacterService:
-    """玩家角色查询：别名查找、API 数据获取、映射刷新。"""
+    """玩家角色查询：别名查找、API 数据获取、映射刷新。
+
+    Attributes:
+        _client: httpx AsyncClient 实例。
+        _config: 插件配置实例。
+        _en_cache: 英文角色映射缓存。
+        _target_cache: 目标语言角色映射缓存（可能为 None）。
+        _code_to_en_name: name_code → 英文角色名映射。
+        _code_to_name: name_code → 目标语言角色名映射。
+        _state_effect_options: 词条 option ID → 元数据映射。
+        _aliases: 角色别名配置。
+    """
 
     def __init__(
         self,
@@ -41,9 +56,11 @@ class CharacterService:
 
     @property
     def is_loaded(self) -> bool:
+        """角色映射是否已加载（含至少一个角色）。"""
         return len(self._code_to_en_name) > 0
 
     def count(self) -> int:
+        """返回已加载的角色数量。"""
         return len(self._code_to_en_name)
 
     def is_mapping_stale(self) -> bool:
@@ -64,6 +81,10 @@ class CharacterService:
         return False
 
     def load_caches(self) -> None:
+        """从磁盘加载角色映射和词条选项到内存。
+
+        en 缓存必须存在且有效；目标语言缓存仅当与 en 不同时加载。
+        """
         if not self._en_cache:
             return
 
@@ -94,7 +115,17 @@ class CharacterService:
         return self._code_to_name.get(code) or fallback
 
     def lookup(self, query: str) -> list[tuple[int, str]]:
-        """多阶段角色查找：别名精确匹配→中英文字段精确匹配→子串匹配。"""
+        """多阶段角色查找。
+
+        匹配顺序：别名精确匹配 → 英文名精确匹配 → 目标语言名精确匹配
+        → 英文名子串匹配 → 目标语言名子串匹配。
+
+        Args:
+            query: 用户输入的角色名查询字符串。
+
+        Returns:
+            [(name_code, display_name), ...] 列表，无匹配返回空列表。
+        """
         if not query or not query.strip():
             return []
 
@@ -136,10 +167,13 @@ class CharacterService:
         return results
 
     async def refresh_mappings(self, *, force: bool = False) -> str:
-        """启动 Playwright 刷新角色映射（先 en 后目标语言）。
+        """启动 Playwright 刷新角色映射（先 en 后目标语言），每个语言最多重试 3 次。
 
         Args:
             force: True 时跳过 TTL 检查，强制刷新所有缓存。
+
+        Returns:
+            刷新结果描述文本。
         """
         if not self._en_cache:
             return "玩家映射缓存未初始化。"
@@ -217,7 +251,17 @@ class CharacterService:
         return "\n".join(messages) if messages else "映射缓存均为最新，无需刷新。"
 
     async def query(self, name: str) -> tuple[str, int]:
-        """处理 /nikke 查询：参数校验→映射准备→Lookup→API 调用→格式化结果。"""
+        """处理 /nikke 查询：校验 Cookie → 确保映射 → 查找 → API 调用 → 格式化。
+
+        Args:
+            name: 用户输入的角色名。
+
+        Returns:
+            (格式化统计文本, name_code) 元组。
+
+        Raises:
+            CharacterQueryError: Cookie 未配置、角色未找到、API 调用失败等。
+        """
         cookie = self._config.player_data_cookie()
         if not cookie:
             raise CharacterQueryError(

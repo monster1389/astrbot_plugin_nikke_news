@@ -12,7 +12,12 @@ MAPPING_CACHE_VERSION = 2
 
 
 class PlayerMappingCache:
-    """管理角色名↔name_code 和词条 option 的缓存，支持版本校验。"""
+    """管理角色名↔name_code 和词条 option 的缓存，支持版本校验。
+
+    Attributes:
+        _path: 缓存文件路径。
+        _data: 内存中的缓存数据 dict。
+    """
 
     def __init__(self, path: Path | None):
         self._path = path
@@ -31,6 +36,7 @@ class PlayerMappingCache:
 
     @property
     def character_names(self) -> dict[int, str]:
+        """name_code → 角色名映射。"""
         raw = self._data.get("character_names", {})
         if not isinstance(raw, dict):
             return {}
@@ -52,11 +58,16 @@ class PlayerMappingCache:
 
     @property
     def state_effect_options(self) -> dict[str, dict[str, Any]]:
+        """词条 option ID → 元数据映射。"""
         raw = self._data.get("state_effect_options", {})
         return raw if isinstance(raw, dict) else {}
 
     def load(self) -> bool:
-        """从磁盘加载缓存，校验版本，版本不匹配或损坏时从空数据开始。"""
+        """从磁盘加载缓存，校验版本。
+
+        Returns:
+            True 表示加载成功且版本匹配。
+        """
         if not self._path or not self._path.exists():
             self._data = self._empty_data()
             return False
@@ -87,7 +98,14 @@ class PlayerMappingCache:
         state_effect_options: dict[str, dict[str, Any]],
         sources: dict[str, dict[str, str]] | None = None,
     ) -> None:
-        """写入缓存到磁盘，失败时删除坏文件。"""
+        """写入缓存到磁盘。
+
+        Args:
+            language: 语言代码。
+            character_names: name_code → 角色名映射。
+            state_effect_options: 词条 option 映射。
+            sources: CDN 来源元数据（etag、last_modified），可选。
+        """
         self._data = {
             "version": MAPPING_CACHE_VERSION,
             "language": language,
@@ -110,7 +128,14 @@ class PlayerMappingCache:
             logger.warning(f"NIKKE 玩家映射缓存保存失败：{exc}")
 
     def is_stale(self, ttl_hours: int) -> bool:
-        """检查缓存是否超过 TTL。"""
+        """检查缓存是否超过 TTL。
+
+        Args:
+            ttl_hours: TTL 小时数。
+
+        Returns:
+            True 表示缓存过期或无效。
+        """
         raw = str(self._data.get("updated_at", "") or "")
         if not raw:
             return True

@@ -72,7 +72,19 @@ async def refresh_player_mappings(
     language: str = "en",
     timeout_ms: int = 20000,
 ) -> tuple[dict[int, str], dict[str, dict[str, Any]], dict[str, dict[str, str]]]:
-    """启动 Chromium 访问 Blablalink 尼姬列表页，拦截 CDN 响应抓取角色名和词条，缓存到本地 JSON。"""
+    """启动 Chromium 访问 Blablalink 尼姬列表页，拦截 CDN 响应抓取角色名和词条。
+
+    Args:
+        cookie_header: Cookie 请求头字符串。
+        language: 目标语言代码，默认 en。
+        timeout_ms: 页面加载超时毫秒数，默认 20000。
+
+    Returns:
+        (角色名映射, 词条选项映射, CDN 来源元数据) 元组。
+
+    Raises:
+        PlayerMappingRefreshError: Playwright 不可用、页面超时或未捕获到数据。
+    """
     try:
         from playwright.async_api import async_playwright
     except ImportError as exc:
