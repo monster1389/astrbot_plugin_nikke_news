@@ -8,14 +8,26 @@ from core.utils import safe_int
 
 
 class NewsClient:
-    """调用 Blablalink API 获取官方板块帖子列表。"""
+    """调用 Blablalink API 获取官方板块帖子列表。
+
+    Attributes:
+        _client: httpx AsyncClient 实例。
+        _config: 插件配置实例。
+    """
 
     def __init__(self, client: httpx.AsyncClient | None, config: PluginConfig):
         self._client = client
         self._config = config
 
     async def fetch_official_posts(self) -> list[dict[str, Any]]:
-        """POST 获取官方板块帖子，返回 data.post_list 或 []。"""
+        """POST 获取官方板块帖子，过滤非官方帖和缺失 UUID 的条目。
+
+        Returns:
+            帖子 dict 列表，客户端未就绪时返回空列表。
+
+        Raises:
+            RuntimeError: API 返回非 0 code 或响应结构异常。
+        """
         if not self._client:
             return []
 

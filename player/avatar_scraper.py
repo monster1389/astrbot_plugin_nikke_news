@@ -20,7 +20,14 @@ class AvatarScraper:
         self._mapping_cache = mapping_cache
 
     async def scrape(self, cookie: str) -> dict[int, str]:
-        """执行两阶段抓取，保存到缓存，返回完整 name_code → URL 映射。"""
+        """执行两阶段抓取，保存到缓存，返回完整 name_code → URL 映射。
+
+        Args:
+            cookie: 玩家 Cookie 字符串。
+
+        Returns:
+            {name_code: CDN URL} 映射，失败返回空 dict。
+        """
         try:
             from playwright.async_api import async_playwright
         except ImportError:

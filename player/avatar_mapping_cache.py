@@ -10,14 +10,23 @@ MAPPING_CACHE_VERSION = 1
 
 
 class AvatarMappingCache:
-    """头像映射 name_code → CDN URL 的磁盘持久化缓存。"""
+    """头像映射 name_code → CDN URL 的磁盘持久化缓存。
+
+    Attributes:
+        _path: 缓存文件路径。
+        _mappings: 内存中的 name_code → URL 映射。
+    """
 
     def __init__(self, path: Path | None):
         self._path = path
         self._mappings: dict[int, str] = {}
 
     def load(self) -> dict[int, str]:
-        """加载缓存，版本不匹配或损坏时返回空 dict。"""
+        """加载缓存，版本不匹配或损坏时返回空 dict。
+
+        Returns:
+            {name_code: CDN URL} 映射。
+        """
         if not self._path or not self._path.exists():
             return {}
         try:
@@ -37,7 +46,11 @@ class AvatarMappingCache:
             return {}
 
     def save(self, mappings: dict[int, str]) -> None:
-        """保存映射到磁盘，写入失败时记录日志。"""
+        """保存映射到磁盘。
+
+        Args:
+            mappings: {name_code: CDN URL} 映射。
+        """
         if not self._path:
             return
         data = {
@@ -54,6 +67,14 @@ class AvatarMappingCache:
             logger.warning(f"NIKKE 头像映射缓存保存失败：{exc}")
 
     def is_stale(self, ttl_hours: int) -> bool:
+        """检查缓存是否超过 TTL。
+
+        Args:
+            ttl_hours: TTL 小时数。
+
+        Returns:
+            True 表示缓存过期或文件不存在。
+        """
         if not self._path or not self._path.exists():
             return True
         try:

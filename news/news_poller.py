@@ -13,7 +13,15 @@ from core.utils import clean_text, safe_int
 
 
 class NewsPoller:
-    """对比已见帖子 UUID，将新帖推送到配置的目标群组。"""
+    """对比已见帖子 UUID，将新帖推送到配置的目标群组。
+
+    Attributes:
+        _client: httpx AsyncClient 实例。
+        _config: 插件配置实例。
+        _state: 插件状态 dict（共享引用）。
+        _save_state: 状态保存回调。
+        _mark_seen: 标记已见回调。
+    """
 
     def __init__(
         self,
@@ -23,7 +31,6 @@ class NewsPoller:
         save_state: Callable[[], None],
         mark_seen: Callable[[list[str]], None],
     ):
-        """client: httpx 客户端; config: 插件配置; state/save_state/mark_seen: 状态回调。"""
         self._client = client
         self._config = config
         self._state = state
@@ -31,7 +38,10 @@ class NewsPoller:
         self._mark_seen = mark_seen
 
     async def poll(self) -> None:
-        """拉取 API → 对比 seen 集合 → 推送新帖到配置的目标群。"""
+        """拉取 API → 对比 seen 集合 → 推送新帖到配置的目标群。
+
+        首次运行时初始化 seen 集合而不推送。
+        """
         posts = await NewsClient(self._client, self._config).fetch_official_posts()
         if not posts:
             logger.warning("NIKKE 未获取到任何帖子（API 返回空或客户端未就绪）。")

@@ -9,7 +9,15 @@ from player.avatar_scraper import AvatarScraper
 
 
 class AvatarService:
-    """角色头像管理：从 Blablalink CDN 抓取并缓存头像图片。"""
+    """角色头像管理：从 Blablalink CDN 抓取并缓存头像图片。
+
+    Attributes:
+        _client: httpx AsyncClient 实例。
+        _ttl_hours: 头像映射缓存 TTL 小时数。
+        _mapping_cache: 头像 URL 映射缓存实例。
+        _scraper: Playwright 头像抓取器。
+        _avatars_dir: 头像图片存储目录。
+    """
 
     def __init__(self, data_dir: Path, client: httpx.AsyncClient, ttl_hours: int):
         self._client = client
@@ -24,24 +32,46 @@ class AvatarService:
             self._avatars_dir = None
 
     def avatar_path(self, name_code: int) -> Path | None:
+        """返回指定角色的头像文件路径。
+
+        Args:
+            name_code: 角色 name_code。
+
+        Returns:
+            avatars/{name_code}.webp 路径，目录不可用时返回 None。
+        """
         if not self._avatars_dir:
             return None
         return self._avatars_dir / f"{name_code}.webp"
 
     def exists(self, name_code: int) -> bool:
+        """检查指定角色的头像文件是否已存在。
+
+        Args:
+            name_code: 角色 name_code。
+        """
         path = self.avatar_path(name_code)
         return path.exists() if path else False
 
     def is_mapping_stale(self) -> bool:
+        """头像 URL 映射是否过期。"""
         return self._mapping_cache.is_stale(self._ttl_hours)
 
     def cached_count(self) -> int:
+        """返回本地已缓存的头像文件数量。"""
         if not self._avatars_dir:
             return 0
         return len(list(self._avatars_dir.glob("*.webp")))
 
     async def refresh_all(self, cookie: str) -> str:
-        """抓取并下载所有角色头像缓存（/nikke_avatar_all）。"""
+        """抓取并下载所有角色头像缓存（/nikke_avatar_all）。
+
+        Args:
+            cookie: 玩家 Cookie 字符串。
+
+        Returns:
+            刷新结果描述文本（含角色数和耗时）。
+        """
         t0 = time.monotonic()
         mappings = await self._scraper.scrape(cookie)
         if not mappings:
@@ -60,7 +90,11 @@ class AvatarService:
     async def refresh_cached(self, cookie: str) -> str:
         """抓取头像映射并仅重新下载本地已有缓存文件的头像。
 
-        返回结果消息（不含耗时，耗时由调用方统一展示）。
+        Args:
+            cookie: 玩家 Cookie 字符串。
+
+        Returns:
+            刷新结果描述文本。
         """
         mappings = await self._scraper.scrape(cookie)
         if not mappings:
@@ -88,7 +122,15 @@ class AvatarService:
         return self._mapping_cache.load()
 
     async def ensure_avatar(self, name_code: int, cookie: str) -> bool:
-        """按需下载单个角色头像。先查磁盘缓存 → 过期则 Playwright 抓取 → 下载。"""
+        """按需下载单个角色头像。先查磁盘缓存，过期则 Playwright 抓取再下载。
+
+        Args:
+            name_code: 角色 name_code。
+            cookie: 玩家 Cookie 字符串。
+
+        Returns:
+            True 表示头像已就绪（已存在或下载成功）。
+        """
         if self.exists(name_code):
             return True
 
