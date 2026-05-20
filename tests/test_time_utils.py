@@ -29,12 +29,44 @@ def test_is_cookie_invalid_error_player_api():
     )
 
 
-def test_is_cookie_invalid_error_401():
-    assert is_cookie_invalid_error(Exception("HTTP 401 unauthorized")) is True
+def test_is_cookie_invalid_error_plain_401_not_matched():
+    """Plain Exception with '401' in message is NOT a cookie error (false positive)."""
+    assert is_cookie_invalid_error(Exception("HTTP 401 unauthorized")) is False
 
 
-def test_is_cookie_invalid_error_cookie():
-    assert is_cookie_invalid_error(Exception("invalid cookie header")) is True
+def test_is_cookie_invalid_error_plain_cookie_not_matched():
+    """Plain Exception with 'cookie' in message is NOT a cookie error (false positive)."""
+    assert is_cookie_invalid_error(Exception("invalid cookie header")) is False
+
+
+def test_is_cookie_invalid_error_httpx_401():
+    import httpx
+    from unittest.mock import MagicMock
+
+    resp = MagicMock()
+    resp.status_code = 401
+    exc = httpx.HTTPStatusError("401", request=MagicMock(), response=resp)
+    assert is_cookie_invalid_error(exc) is True
+
+
+def test_is_cookie_invalid_error_httpx_403():
+    import httpx
+    from unittest.mock import MagicMock
+
+    resp = MagicMock()
+    resp.status_code = 403
+    exc = httpx.HTTPStatusError("403", request=MagicMock(), response=resp)
+    assert is_cookie_invalid_error(exc) is True
+
+
+def test_is_cookie_invalid_error_httpx_500_not_matched():
+    import httpx
+    from unittest.mock import MagicMock
+
+    resp = MagicMock()
+    resp.status_code = 500
+    exc = httpx.HTTPStatusError("500", request=MagicMock(), response=resp)
+    assert is_cookie_invalid_error(exc) is False
 
 
 def test_is_cookie_invalid_error_no_match():
