@@ -39,7 +39,7 @@ from player.avatar_service import AvatarService
     PLUGIN_NAME,
     "monster1389",
     "Blablalink官方消息推送、日常/收菜提醒、角色查询。",
-    "v1.6.5",
+    "v1.6.6",
 )
 class NikkeNewsPlugin(Star):
     """NIKKE 官方消息推送、玩家状态提醒、角色查询插件。

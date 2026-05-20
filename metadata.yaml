@@ -1,7 +1,7 @@
 name: astrbot_plugin_nikke_news
 display_name: NIKKE 官方消息与角色查询
 desc: Blablalink官方消息推送、日常/收菜提醒、角色查询。
-version: v1.6.5
+version: v1.6.6
 author: monster1389
 repo: "https://github.com/monster1389/astrbot_plugin_nikke_news"
 support_platforms:
