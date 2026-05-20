@@ -7,7 +7,6 @@ from pathlib import Path
 from astrbot.api import logger
 
 MAPPING_CACHE_VERSION = 1
-MAPPING_CACHE_TTL_HOURS = 24
 
 
 class AvatarMappingCache:
@@ -54,8 +53,7 @@ class AvatarMappingCache:
         except Exception as exc:
             logger.warning(f"NIKKE 头像映射缓存保存失败：{exc}")
 
-    def is_stale(self) -> bool:
-        """检查缓存是否超过 TTL（24 小时）。"""
+    def is_stale(self, ttl_hours: int) -> bool:
         if not self._path or not self._path.exists():
             return True
         try:
@@ -66,8 +64,6 @@ class AvatarMappingCache:
             dt = datetime.fromisoformat(updated_at)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
-            return datetime.now(timezone.utc) - dt > timedelta(
-                hours=MAPPING_CACHE_TTL_HOURS
-            )
+            return datetime.now(timezone.utc) - dt > timedelta(hours=ttl_hours)
         except Exception:
             return True

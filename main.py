@@ -89,7 +89,9 @@ class NikkeNewsPlugin(Star):
         if not self._character_service.is_loaded:
             logger.info("NIKKE 角色映射为空，请执行 /nikke_refresh 刷新角色列表。")
 
-        self._avatar_service = AvatarService(data_dir, self._client)
+        self._avatar_service = AvatarService(
+            data_dir, self._client, self._plugin_config.player_mapping_cache_ttl_hours()
+        )
 
         self._news_poller = NewsPoller(
             self._client,

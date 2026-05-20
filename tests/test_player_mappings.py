@@ -217,7 +217,6 @@ def test_accept_language_en():
     assert "en-US" in _accept_language("en")
 
 
-
 def test_accept_language_zh_tw():
     assert "zh-TW" in _accept_language("zh-TW")
 

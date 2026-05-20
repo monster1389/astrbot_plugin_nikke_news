@@ -14,7 +14,7 @@ from player.avatar_service import AvatarService
 def service(tmp_path):
     client = MagicMock(spec=httpx.AsyncClient)
     client.get = AsyncMock()
-    return AvatarService(tmp_path, client)
+    return AvatarService(tmp_path, client, ttl_hours=168)
 
 
 class TestAvatarPath:
@@ -198,8 +198,9 @@ def test_cache_is_stale_fresh(tmp_path):
             }
         )
     )
+    ttl = 168
     cache = AvatarMappingCache(cache_path)
-    assert cache.is_stale() is False
+    assert cache.is_stale(ttl) is False
 
 
 def test_cache_is_stale_expired(tmp_path):
@@ -215,13 +216,14 @@ def test_cache_is_stale_expired(tmp_path):
             }
         )
     )
+    ttl = 168
     cache = AvatarMappingCache(cache_path)
-    assert cache.is_stale() is True
+    assert cache.is_stale(ttl) is True
 
 
 def test_cache_is_stale_no_file():
     cache = AvatarMappingCache(Path("/nonexistent/avatar_mappings.json"))
-    assert cache.is_stale() is True
+    assert cache.is_stale(168) is True
 
 
 def test_cache_load_wrong_version(tmp_path):

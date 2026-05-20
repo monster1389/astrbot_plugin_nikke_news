@@ -11,8 +11,9 @@ from player.avatar_scraper import AvatarScraper
 class AvatarService:
     """角色头像管理：从 Blablalink CDN 抓取并缓存头像图片。"""
 
-    def __init__(self, data_dir: Path, client: httpx.AsyncClient):
+    def __init__(self, data_dir: Path, client: httpx.AsyncClient, ttl_hours: int):
         self._client = client
+        self._ttl_hours = ttl_hours
         self._mapping_cache = AvatarMappingCache(data_dir / "avatar_mappings.json")
         self._scraper = AvatarScraper(self._mapping_cache)
         try:
@@ -32,7 +33,7 @@ class AvatarService:
         return path.exists() if path else False
 
     def is_mapping_stale(self) -> bool:
-        return self._mapping_cache.is_stale()
+        return self._mapping_cache.is_stale(self._ttl_hours)
 
     def cached_count(self) -> int:
         if not self._avatars_dir:
@@ -82,7 +83,7 @@ class AvatarService:
 
     def _load_mappings(self) -> dict[int, str]:
         """加载映射：优先磁盘缓存（未过期），否则返回空。"""
-        if self._mapping_cache.is_stale():
+        if self._mapping_cache.is_stale(self._ttl_hours):
             return {}
         return self._mapping_cache.load()
 
