@@ -42,6 +42,22 @@ from player.avatar_service import AvatarService
     "v1.6.5",
 )
 class NikkeNewsPlugin(Star):
+    """NIKKE 官方消息推送、玩家状态提醒、角色查询插件。
+
+    Attributes:
+        config: AstrBot 原始配置字典。
+        _plugin_config: 类型化配置封装。
+        _client: httpx AsyncClient 实例。
+        _news_poller: 新闻轮询器。
+        _player_poller: 玩家状态轮询器。
+        _character_service: 角色查询服务。
+        _avatar_service: 头像管理服务。
+        _coordinator: 轮询调度器。
+        _task: 后台轮询 asyncio Task。
+        _state_path: state.json 文件路径。
+        _state: 插件状态 dict。
+    """
+
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
         super().__init__(context)
         self.config = config or {}
@@ -57,7 +73,10 @@ class NikkeNewsPlugin(Star):
         self._state: dict[str, Any] = PluginStateStore.default_state()
 
     async def initialize(self):
-        """初始化数据目录、HTTP 客户端、各服务模块，启动后台轮询。"""
+        """初始化数据目录、HTTP 客户端、各服务模块，启动后台轮询。
+
+        插件被禁用时（enabled=false）直接返回，不执行任何初始化。
+        """
         if not self._config_bool("enabled", True):
             logger.info("NIKKE 官方消息推送插件已禁用。")
             return
@@ -119,7 +138,10 @@ class NikkeNewsPlugin(Star):
         logger.info("NIKKE 官方消息推送插件已启动。")
 
     async def terminate(self):
-        """取消轮询任务，关闭 HTTP 客户端，保存状态。"""
+        """取消后台轮询任务，关闭 HTTP 客户端，保存状态。
+
+        取消和清理操作各自容错，确保所有资源都被释放。
+        """
         if self._task:
             self._task.cancel()
             with suppress(asyncio.CancelledError):
@@ -158,19 +180,41 @@ class NikkeNewsPlugin(Star):
 
     @filter.command("nikke")
     async def cmd_nikke(self, event: AstrMessageEvent, text: str = ""):
-        """查询 NIKKE 角色数据：/nikke <角色名>"""
+        """查询 NIKKE 角色数据：/nikke <角色名>
+
+        Args:
+            event: AstrBot 消息事件。
+            text: 命令行参数文本。
+
+        Yields:
+            AstrBot plain_result 或 chain_result 消息（含头像图片）。
+        """
         async for result in handle_query(self, event, text):
             yield result
 
     @filter.command("nikke_refresh")
     async def cmd_nikke_refresh(self, event: AstrMessageEvent):
-        """刷新角色映射和已缓存头像：/nikke_refresh"""
+        """刷新角色映射和已缓存头像：/nikke_refresh
+
+        Args:
+            event: AstrBot 消息事件。
+
+        Yields:
+            AstrBot plain_result 消息（含分步耗时）。
+        """
         async for result in handle_refresh(self, event):
             yield result
 
     @filter.command("nikke_avatar_all")
     async def cmd_nikke_avatar_all(self, event: AstrMessageEvent):
-        """刷新头像映射并下载全部头像：/nikke_avatar_all"""
+        """刷新头像映射并下载全部头像：/nikke_avatar_all
+
+        Args:
+            event: AstrBot 消息事件。
+
+        Yields:
+            AstrBot plain_result 消息。
+        """
         async for result in handle_avatar_refresh_all(self, event):
             yield result
 

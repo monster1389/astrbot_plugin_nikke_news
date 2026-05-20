@@ -31,7 +31,19 @@ def handle_help() -> str:
 
 
 async def handle_query(plugin, event: AstrMessageEvent, text: str = ""):
-    """处理 /nikke <角色名> 角色查询。"""
+    """处理 /nikke <角色名> 角色查询。
+
+    执行流程：参数提取 → 映射过期自动刷新 → 角色查找 → API 调用 →
+    格式化结果 → 按需下载头像 → 组装回复。
+
+    Args:
+        plugin: NikkeNewsPlugin 实例。
+        event: AstrBot 消息事件。
+        text: 命令行参数文本。
+
+    Yields:
+        AstrBot plain_result 或 chain_result 消息。
+    """
     if not text or not text.strip():
         text = _recover_full_query(event)
     else:
@@ -98,7 +110,18 @@ async def handle_query(plugin, event: AstrMessageEvent, text: str = ""):
 
 
 async def handle_refresh(plugin, event: AstrMessageEvent):
-    """处理 /nikke_refresh 刷新角色映射和头像映射。"""
+    """处理 /nikke_refresh 刷新角色映射和头像映射。
+
+    流程：重载本地缓存 → 刷新角色映射（含重试） → 刷新头像映射 →
+    汇总分步耗时。
+
+    Args:
+        plugin: NikkeNewsPlugin 实例。
+        event: AstrBot 消息事件。
+
+    Yields:
+        AstrBot plain_result 进度消息。
+    """
     if not plugin._character_service:
         yield event.plain_result("角色服务模块未初始化。")
         return
@@ -145,7 +168,15 @@ async def handle_refresh(plugin, event: AstrMessageEvent):
 
 
 async def handle_avatar_refresh_all(plugin, event: AstrMessageEvent):
-    """处理 /nikke_avatar_all 刷新头像映射并下载全部头像。"""
+    """处理 /nikke_avatar_all 刷新头像映射并下载全部头像。
+
+    Args:
+        plugin: NikkeNewsPlugin 实例。
+        event: AstrBot 消息事件。
+
+    Yields:
+        AstrBot plain_result 消息。
+    """
     if not plugin._avatar_service:
         yield event.plain_result("头像服务未初始化。")
         return
