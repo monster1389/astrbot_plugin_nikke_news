@@ -63,7 +63,7 @@ async def handle_query(plugin, event: AstrMessageEvent, text: str = ""):
         plugin._plugin_config.player_auto_refresh_mapping()
         and plugin._character_service.is_mapping_stale()
     ):
-        yield event.plain_result("正在刷新角色映射（约 10-15s）...")
+        yield event.plain_result("正在刷新角色映射（约 20-30s）...")
 
     try:
         result_text, name_code = await plugin._character_service.query(text)
@@ -136,7 +136,7 @@ async def handle_refresh(plugin, event: AstrMessageEvent):
         else "本地角色列表加载失败，请执行 /nikke_refresh 刷新。"
     )
 
-    yield event.plain_result("正在刷新角色映射（约 10-15s）...")
+    yield event.plain_result("正在刷新角色映射（约 20-30s）...")
     mapping_msg = await plugin._character_service.refresh_mappings(force=True)
     t1 = time.monotonic()
     mapping_time = t1 - t0
