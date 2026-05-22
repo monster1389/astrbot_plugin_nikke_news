@@ -4,13 +4,12 @@ from typing import Any, Callable
 import httpx
 from astrbot.api import logger
 from astrbot.api.event import MessageChain
-from astrbot.api.star import StarTools
 
 from core.config import PluginConfig
 from core.constants import CST
 from core.message_builder import MessageBuilder
 from player.player_client import PlayerClient
-from core.targets import enabled_targets
+from core.targets import broadcast_to_targets, enabled_targets
 from core.time_utils import day_key, is_cookie_invalid_error
 from core.utils import safe_float, safe_int
 
@@ -135,15 +134,4 @@ class PlayerPoller:
         """向所有目标群发送玩家状态提醒。"""
         builder = MessageBuilder(self._config)
         chain = MessageChain().message(builder.format_player_alert_message(lines))
-        for target in targets:
-            try:
-                await StarTools.send_message_by_id(
-                    target["target_type"],
-                    target["target_id"],
-                    chain,
-                    platform="aiocqhttp",
-                )
-            except Exception as exc:
-                logger.warning(
-                    f"NIKKE 玩家提醒发送失败：target={target['target_type']}:{target['target_id']} error={exc}"
-                )
+        await broadcast_to_targets(targets, chain, "玩家提醒")

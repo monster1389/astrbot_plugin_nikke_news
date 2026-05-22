@@ -1,10 +1,12 @@
 """头像 URL 映射磁盘缓存：写入、加载、TTL 过期检查。"""
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 from astrbot.api import logger
+
+from core.utils import datetime_is_stale
 
 MAPPING_CACHE_VERSION = 1
 
@@ -20,6 +22,7 @@ class AvatarMappingCache:
     def __init__(self, path: Path | None):
         self._path = path
         self._mappings: dict[int, str] = {}
+        self._updated_at = ""
 
     def load(self) -> dict[int, str]:
         """加载缓存，版本不匹配或损坏时返回空 dict。
@@ -39,6 +42,7 @@ class AvatarMappingCache:
             raw_mappings = data.get("mappings", {})
             if not isinstance(raw_mappings, dict):
                 return {}
+            self._updated_at = str(data.get("updated_at", ""))
             self._mappings = {int(k): str(v) for k, v in raw_mappings.items() if v}
             return self._mappings
         except Exception as exc:
@@ -53,9 +57,10 @@ class AvatarMappingCache:
         """
         if not self._path:
             return
+        self._updated_at = datetime.now(timezone.utc).isoformat()
         data = {
             "version": MAPPING_CACHE_VERSION,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": self._updated_at,
             "mappings": {str(k): v for k, v in mappings.items()},
         }
         try:
@@ -67,7 +72,7 @@ class AvatarMappingCache:
             logger.warning(f"NIKKE 头像映射缓存保存失败：{exc}")
 
     def is_stale(self, ttl_hours: int) -> bool:
-        """检查缓存是否超过 TTL。
+        """检查缓存是否超过 TTL，优先使用内存中的 updated_at。
 
         Args:
             ttl_hours: TTL 小时数。
@@ -77,14 +82,11 @@ class AvatarMappingCache:
         """
         if not self._path or not self._path.exists():
             return True
+        if self._updated_at:
+            return datetime_is_stale(self._updated_at, ttl_hours)
         try:
             data = json.loads(self._path.read_text(encoding="utf-8"))
-            updated_at = data.get("updated_at", "")
-            if not updated_at:
-                return True
-            dt = datetime.fromisoformat(updated_at)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return datetime.now(timezone.utc) - dt > timedelta(hours=ttl_hours)
+            self._updated_at = str(data.get("updated_at", ""))
+            return datetime_is_stale(self._updated_at, ttl_hours)
         except Exception:
             return True

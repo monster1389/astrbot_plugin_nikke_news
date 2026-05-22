@@ -90,7 +90,6 @@ class NikkeNewsPlugin(Star):
             if mapping_lang != "en"
             else None
         )
-        en_cache.load()
         self._state = self._load_state()
         self._client = httpx.AsyncClient(
             timeout=REQUEST_TIMEOUT_SECONDS,

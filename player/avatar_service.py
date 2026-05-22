@@ -1,3 +1,4 @@
+import asyncio
 import time
 from pathlib import Path
 
@@ -6,6 +7,11 @@ from astrbot.api import logger
 
 from player.avatar_mapping_cache import AvatarMappingCache
 from player.avatar_scraper import AvatarScraper
+
+
+async def _download_with_sem(service, sem, name_code: int, url: str) -> bool:
+    async with sem:
+        return await service._download_one(name_code, url)
 
 
 class AvatarService:
@@ -162,13 +168,14 @@ class AvatarService:
             return False
 
     async def _download_mappings(self, mappings: dict[int, str]) -> int:
-        """批量下载角色头像图片到本地 avatars/ 目录。"""
+        """批量下载角色头像图片到本地 avatars/ 目录（并发）。"""
         if self._avatars_dir:
             self._avatars_dir.mkdir(parents=True, exist_ok=True)
-        new_count = 0
-        for name_code, url in mappings.items():
-            if await self._download_one(name_code, url):
-                new_count += 1
+        sem = asyncio.Semaphore(8)
+        items = list(mappings.items())
+        tasks = [_download_with_sem(self, sem, nc, url) for nc, url in items]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        new_count = sum(1 for r in results if r is True)
         if new_count:
             logger.info(f"NIKKE 头像下载完成：{new_count} 个。")
         return new_count

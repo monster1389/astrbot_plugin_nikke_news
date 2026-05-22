@@ -58,18 +58,22 @@ def format_character_stats(
     return "\n".join(lines)
 
 
+def _find_effect(
+    state_effects: list[dict[str, Any]], effect_id: str
+) -> dict[str, Any] | None:
+    """从状态效果列表中按 ID 查找单个 effect。"""
+    for se in state_effects:
+        if str(se.get("id", "")) == effect_id:
+            return se
+    return None
+
+
 def _extract_equip_options(
     char_detail: dict[str, Any],
     state_effects: list[dict[str, Any]],
     state_effect_options: dict[str, dict[str, Any]] | None = None,
 ) -> list[str]:
     """从角色详情提取四部位 T10 词条，同 function_type 聚合。"""
-    effect_map: dict[str, dict[str, Any]] = {}
-    for se in state_effects:
-        sid = str(se.get("id", ""))
-        if sid:
-            effect_map[sid] = se
-
     option_meta = state_effect_options or {}
     entries: dict[str, dict[str, Any]] = {}
     loose_lines: list[str] = []
@@ -80,7 +84,7 @@ def _extract_equip_options(
             opt_id = str(char_detail.get(key, "") or "")
             if not opt_id or opt_id == "0":
                 continue
-            se = effect_map.get(opt_id)
+            se = _find_effect(state_effects, opt_id)
             meta = option_meta.get(opt_id, {})
             if not se:
                 text = str(meta.get("description", "") or "").strip()

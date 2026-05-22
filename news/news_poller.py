@@ -3,12 +3,11 @@ from typing import Any, Callable
 
 import httpx
 from astrbot.api import logger
-from astrbot.api.star import StarTools
 
 from core.config import PluginConfig
 from core.message_builder import MessageBuilder
 from news.news_client import NewsClient
-from core.targets import enabled_targets
+from core.targets import broadcast_to_targets, enabled_targets
 from core.utils import clean_text, safe_int
 
 
@@ -81,31 +80,19 @@ class NewsPoller:
             return
 
         builder = MessageBuilder(self._config)
+        seen_uuids: list[str] = []
         for idx, post in enumerate(new_posts):
             post_uuid = post.get("post_uuid")
             chain = builder.format_post_message_chain(post)
 
-            for target in targets:
-                try:
-                    await StarTools.send_message_by_id(
-                        target["target_type"],
-                        target["target_id"],
-                        chain,
-                        platform="aiocqhttp",
-                    )
-                    logger.info(
-                        f"NIKKE 消息已发送：target={target['target_type']}:{target['target_id']} uuid={post_uuid}"
-                    )
-                except Exception as exc:
-                    logger.warning(
-                        f"NIKKE 消息发送失败：target={target['target_type']}:{target['target_id']} "
-                        f"type={type(exc).__name__} error={exc or '<empty>'}"
-                    )
-
+            await broadcast_to_targets(targets, chain, "新闻")
             if post_uuid:
-                self._mark_seen([post_uuid])
-                self._save_state()
+                seen_uuids.append(post_uuid)
 
             delay = min(30, max(0, self._config.push_delay_seconds()))
             if delay > 0 and idx < len(new_posts) - 1:
                 await asyncio.sleep(delay)
+
+        if seen_uuids:
+            self._mark_seen(seen_uuids)
+            self._save_state()

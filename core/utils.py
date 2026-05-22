@@ -2,7 +2,7 @@
 
 import html
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 from typing import Any
 
@@ -103,6 +103,27 @@ def clean_html_with_linebreaks(value: Any) -> str:
     parser.feed(str(value or ""))
     parser.close()
     return parser.text()
+
+
+def datetime_is_stale(iso_string: str, ttl_hours: int) -> bool:
+    """检查 ISO 时间戳是否超过 TTL 小时数。
+
+    Args:
+        iso_string: ISO 格式时间字符串。
+        ttl_hours: TTL 小时数。
+
+    Returns:
+        True 表示过期、无效或时间戳为空。
+    """
+    if not iso_string:
+        return True
+    try:
+        dt = datetime.fromisoformat(iso_string)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return True
+    return datetime.now(timezone.utc) - dt > timedelta(hours=ttl_hours)
 
 
 def safe_int(value: Any) -> int:

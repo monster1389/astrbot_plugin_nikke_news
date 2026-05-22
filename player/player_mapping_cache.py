@@ -1,11 +1,13 @@
 """角色映射缓存：角色名、词条选项的本地持久化与版本校验。"""
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from astrbot.api import logger
+
+from core.utils import datetime_is_stale
 
 
 MAPPING_CACHE_VERSION = 2
@@ -136,16 +138,7 @@ class PlayerMappingCache:
         Returns:
             True 表示缓存过期或无效。
         """
-        raw = str(self._data.get("updated_at", "") or "")
-        if not raw:
-            return True
-        try:
-            updated_at = datetime.fromisoformat(raw)
-            if updated_at.tzinfo is None:
-                updated_at = updated_at.replace(tzinfo=timezone.utc)
-        except ValueError:
-            return True
-        return datetime.now(timezone.utc) - updated_at > timedelta(hours=ttl_hours)
+        return datetime_is_stale(str(self._data.get("updated_at", "") or ""), ttl_hours)
 
     def has_useful_data(self) -> bool:
         """是否包含可用的角色名和词条数据。"""

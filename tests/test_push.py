@@ -350,7 +350,7 @@ async def test_push_partial_failure(caplog, captured, tmp_path):
 
     try:
         await plugin._poll_once()
-        assert "消息发送失败" in caplog.text
+        assert "发送失败" in caplog.text
         assert len(captured) == 3
     finally:
         mod.StarTools.send_message_by_id = original

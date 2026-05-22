@@ -20,6 +20,33 @@ class PlayerClient:
     def __init__(self, client: httpx.AsyncClient | None):
         self._client = client
 
+    @staticmethod
+    def _validate_response(data: Any, label: str) -> dict[str, Any]:
+        """校验 API 响应结构并提取 data 字段。
+
+        Args:
+            data: resp.json() 返回的原始数据。
+            label: 中文接口名称（用于错误消息）。
+
+        Returns:
+            API 响应中的 data dict。
+
+        Raises:
+            RuntimeError: 结构异常或 code 非 0。
+        """
+        if not isinstance(data, dict):
+            raise RuntimeError(f"{label}接口返回结构异常")
+
+        code = safe_int(data.get("code"))
+        if code != 0:
+            raise RuntimeError(f"PLAYER_API_ERROR:{code}:{data.get('msg', '')}")
+
+        payload = data.get("data")
+        if not isinstance(payload, dict):
+            raise RuntimeError(f"{label}缺少 data 字段")
+
+        return payload
+
     async def fetch_progress(self, cookie: str, area_id: int = 84) -> dict[str, Any]:
         """获取日常进度数据。
 
@@ -43,20 +70,7 @@ class PlayerClient:
             json={"nikke_area_id": area_id},
         )
         resp.raise_for_status()
-        data = resp.json()
-
-        if not isinstance(data, dict):
-            raise RuntimeError("玩家数据接口返回结构异常")
-
-        code = safe_int(data.get("code"))
-        if code != 0:
-            raise RuntimeError(f"PLAYER_API_ERROR:{code}:{data.get('msg', '')}")
-
-        payload = data.get("data")
-        if not isinstance(payload, dict):
-            raise RuntimeError("玩家数据缺少 data 字段")
-
-        return payload
+        return self._validate_response(resp.json(), "玩家数据")
 
     async def fetch_characters(
         self,
@@ -90,16 +104,9 @@ class PlayerClient:
             json={"nikke_area_id": area_id},
         )
         resp.raise_for_status()
-        data = resp.json()
+        payload = self._validate_response(resp.json(), "角色列表")
 
-        if not isinstance(data, dict):
-            raise RuntimeError("角色列表接口返回结构异常")
-
-        code = safe_int(data.get("code"))
-        if code != 0:
-            raise RuntimeError(f"PLAYER_API_ERROR:{code}:{data.get('msg', '')}")
-
-        characters = data.get("data", {}).get("characters")
+        characters = payload.get("characters")
         if not isinstance(characters, list):
             raise RuntimeError("角色列表缺少 characters 字段")
 
@@ -144,24 +151,13 @@ class PlayerClient:
             json=payload,
         )
         resp.raise_for_status()
-        data = resp.json()
+        data = self._validate_response(resp.json(), "角色详情")
 
-        if not isinstance(data, dict):
-            raise RuntimeError("角色详情接口返回结构异常")
-
-        code = safe_int(data.get("code"))
-        if code != 0:
-            raise RuntimeError(f"PLAYER_API_ERROR:{code}:{data.get('msg', '')}")
-
-        payload = data.get("data")
-        if not isinstance(payload, dict):
-            raise RuntimeError("角色详情缺少 data 字段")
-
-        details = payload.get("character_details")
+        details = data.get("character_details")
         if not isinstance(details, list):
             raise RuntimeError("角色详情缺少 character_details 字段")
 
-        effects = payload.get("state_effects")
+        effects = data.get("state_effects")
         if not isinstance(effects, list):
             effects = []
 

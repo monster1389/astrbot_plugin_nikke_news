@@ -1,6 +1,7 @@
 """推送目标解析：支持纯数字群号和 platform:type:id 格式。"""
 
 from astrbot.api import logger
+from astrbot.api.star import StarTools
 
 from .constants import SUPPORTED_TARGET_TYPES
 
@@ -60,3 +61,27 @@ def enabled_targets(config: dict) -> list[dict[str, str]]:
         enabled.append({"target_type": target_type, "target_id": target_id})
 
     return enabled
+
+
+async def broadcast_to_targets(targets: list[dict[str, str]], chain, label: str):
+    """向所有目标群发送消息链，各目标独立容错。
+
+    Args:
+        targets: [{"target_type": ..., "target_id": ...}] 列表。
+        chain: AstrBot MessageChain 实例。
+        label: 日志标签（如 "新闻"、"玩家提醒"）。
+    """
+    for target in targets:
+        try:
+            await StarTools.send_message_by_id(
+                target["target_type"],
+                target["target_id"],
+                chain,
+                platform="aiocqhttp",
+            )
+        except Exception as exc:
+            logger.warning(
+                f"NIKKE {label}发送失败："
+                f"target={target['target_type']}:{target['target_id']} "
+                f"type={type(exc).__name__} error={exc}"
+            )
