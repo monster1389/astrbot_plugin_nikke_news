@@ -68,6 +68,28 @@ def extract_state_effect_options(data: Any) -> dict[str, dict[str, Any]]:
     return result
 
 
+def extract_resource_ids(data: Any) -> dict[int, int]:
+    """从 CDN 角色列表 JSON 提取 name_code → resource_id 映射。
+
+    Args:
+        data: CDN JSON 数据（预期为 list[dict]）。
+
+    Returns:
+        {name_code: resource_id} 映射字典。
+    """
+    if not isinstance(data, list):
+        return {}
+    result: dict[int, int] = {}
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        code = item.get("name_code")
+        rid = item.get("resource_id")
+        if isinstance(code, int) and isinstance(rid, int):
+            result[code] = rid
+    return result
+
+
 async def refresh_player_mappings(
     *,
     cookie_header: str,

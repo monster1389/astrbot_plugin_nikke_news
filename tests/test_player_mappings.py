@@ -7,6 +7,7 @@ from core.utils import accept_language
 from player.player_mapping_refresher import (
     _localized_text,
     extract_character_names,
+    extract_resource_ids,
     extract_state_effect_options,
     parse_cookie_header,
 )
@@ -260,3 +261,21 @@ def test_extract_state_effect_options_non_dict_items():
     result = extract_state_effect_options(data)
     assert result["7001"]["description"] == "DEF"
     assert len(result) == 1
+
+
+def test_extract_resource_ids_from_character_list():
+    data = [
+        {"name_code": 5124, "resource_id": 511, "name_localkey": "Cinderella"},
+        {"name_code": 1489, "resource_id": 470, "name_localkey": "Red Hood"},
+        {"name_code": 9999, "name_localkey": "NoResource"},  # no resource_id
+        "not_a_dict",
+    ]
+
+    result = extract_resource_ids(data)
+    assert result == {5124: 511, 1489: 470}
+
+
+def test_extract_resource_ids_empty():
+    assert extract_resource_ids([]) == {}
+    assert extract_resource_ids(None) == {}
+    assert extract_resource_ids("not_a_list") == {}
