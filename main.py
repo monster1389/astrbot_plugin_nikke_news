@@ -25,6 +25,7 @@ from core.nikke_commands import (
     handle_avatar_refresh_all,
     handle_query,
     handle_refresh,
+    handle_skill,
 )
 from core.poll_coordinator import PollCoordinator
 from core.state_store import PluginStateStore
@@ -33,13 +34,14 @@ from player.character_service import CharacterService
 from player.player_mapping_cache import PlayerMappingCache
 from player.player_poller import PlayerPoller
 from player.avatar_service import AvatarService
+from player.skill_service import SkillService
 
 
 @register(
     PLUGIN_NAME,
     "monster1389",
     "Blablalink官方消息推送、日常/收菜提醒、角色查询。",
-    "v1.6.6",
+    "v1.7.0",
 )
 class NikkeNewsPlugin(Star):
     """NIKKE 官方消息推送、玩家状态提醒、角色查询插件。
@@ -67,6 +69,7 @@ class NikkeNewsPlugin(Star):
         self._player_poller: PlayerPoller | None = None
         self._character_service: CharacterService | None = None
         self._avatar_service: AvatarService | None = None
+        self._skill_service: SkillService | None = None
         self._coordinator: PollCoordinator | None = None
         self._task: asyncio.Task | None = None
         self._state_path: Path | None = None
@@ -109,6 +112,14 @@ class NikkeNewsPlugin(Star):
 
         self._avatar_service = AvatarService(
             data_dir, self._client, self._plugin_config.player_mapping_cache_ttl_hours()
+        )
+
+        self._skill_service = SkillService(
+            data_dir,
+            self._client,
+            self._plugin_config,
+            en_cache,
+            self._plugin_config.player_mapping_cache_ttl_hours(),
         )
 
         self._news_poller = NewsPoller(
@@ -215,6 +226,20 @@ class NikkeNewsPlugin(Star):
             AstrBot plain_result 消息。
         """
         async for result in handle_avatar_refresh_all(self, event):
+            yield result
+
+    @filter.command("nikke_skill")
+    async def cmd_nikke_skill(self, event: AstrMessageEvent, text: str = ""):
+        """查询角色技能详细描述：/nikke_skill <角色名>
+
+        Args:
+            event: AstrBot 消息事件。
+            text: 命令行参数文本。
+
+        Yields:
+            AstrBot plain_result 消息。
+        """
+        async for result in handle_skill(self, event, text):
             yield result
 
     @filter.command("nikke_help")
