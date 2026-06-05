@@ -3,8 +3,8 @@ from datetime import datetime, timedelta, timezone
 
 from player.character_formatter import format_character_stats
 from player.player_mapping_cache import PlayerMappingCache
+from core.utils import accept_language
 from player.player_mapping_refresher import (
-    _accept_language,
     _localized_text,
     extract_character_names,
     extract_state_effect_options,
@@ -210,19 +210,19 @@ def test_parse_cookie_header_empty():
     assert parse_cookie_header("") == []
 
 
-# ── _accept_language ─────────────────────────────────────────────
+# ── accept_language ─────────────────────────────────────────────
 
 
 def test_accept_language_en():
-    assert "en-US" in _accept_language("en")
+    assert "en-US" in accept_language("en")
 
 
 def test_accept_language_zh_tw():
-    assert "zh-TW" in _accept_language("zh-TW")
+    assert "zh-TW" in accept_language("zh-TW")
 
 
 def test_accept_language_other():
-    result = _accept_language("ja")
+    result = accept_language("ja")
     assert result.startswith("ja")
     assert "en" in result
 

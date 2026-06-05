@@ -181,3 +181,19 @@ def is_video_post(post: dict[str, Any]) -> bool:
         True 表示视频帖。
     """
     return safe_int(post.get("type")) == 3
+
+
+def accept_language(language: str) -> str:
+    """根据语言代码返回 Accept-Language 请求头值。
+
+    Args:
+        language: 语言代码（en、zh-TW、ja、ko）。
+
+    Returns:
+        Accept-Language 头字符串。
+    """
+    if language == "en":
+        return "en-US,en;q=0.9,zh-CN;q=0.6,zh;q=0.5"
+    if language == "zh-TW":
+        return "zh-TW,zh;q=0.9,en;q=0.6"
+    return f"{language};q=1.0,en;q=0.7"

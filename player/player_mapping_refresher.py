@@ -5,10 +5,12 @@ from typing import Any
 
 from astrbot.api import logger
 
+from core.constants import CDN_HOST
+from core.utils import accept_language
+
 SHIFTYSPAD_NIKKE_LIST_URL = (
     "https://www.blablalink.com/shiftyspad/nikke-list?type=combat"
 )
-CDN_HOST = "sg-tools-cdn.blablalink.com"
 
 
 class PlayerMappingRefreshError(Exception):
@@ -129,7 +131,7 @@ async def refresh_player_mappings(
                 context = await browser.new_context(
                     locale=language,
                     extra_http_headers={
-                        "Accept-Language": _accept_language(language),
+                        "Accept-Language": accept_language(language),
                         "x-language": language,
                     },
                 )
@@ -208,10 +210,3 @@ def parse_cookie_header(cookie_header: str) -> list[dict[str, Any]]:
             )
     return cookies
 
-
-def _accept_language(language: str) -> str:
-    if language == "en":
-        return "en-US,en;q=0.9,zh-CN;q=0.6,zh;q=0.5"
-    if language == "zh-TW":
-        return "zh-TW,zh;q=0.9,en;q=0.6"
-    return f"{language};q=1.0,en;q=0.7"

@@ -24,3 +24,4 @@ CONTENT_MODES = {"none", "summary", "content"}
 SUPPORTED_LANGUAGES = {"zh-TW", "en", "ja", "ko"}
 SUPPORTED_TARGET_TYPES = {"GroupMessage", "PrivateMessage", "FriendMessage"}
 CST = timezone(timedelta(hours=8))
+CDN_HOST = "sg-tools-cdn.blablalink.com"
