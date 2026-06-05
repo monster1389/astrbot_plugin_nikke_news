@@ -1,6 +1,7 @@
 """通过 Playwright 访问角色页面拦截 CDN JSON 提取技能数据。"""
 
 import asyncio
+import time
 from typing import Any
 
 from astrbot.api import logger
@@ -73,11 +74,18 @@ class SkillScraper:
         skill_data: dict[str, Any] | None = None
         skill_data_event = asyncio.Event()
 
-        async def handle_response(response):
-            nonlocal skill_data
+        tasks: set[asyncio.Task] = set()
+
+        def on_response(response):
             url = response.url
             if CDN_HOST not in url or not url.endswith(".json"):
                 return
+            task = asyncio.create_task(_parse_skill_response(response))
+            tasks.add(task)
+            task.add_done_callback(tasks.discard)
+
+        async def _parse_skill_response(response):
+            nonlocal skill_data
             try:
                 data = await response.json()
             except Exception:
@@ -88,6 +96,11 @@ class SkillScraper:
                 skill_data_event.set()
 
         page_url = f"{SHIFTYSPAD_NIKKE_URL}?from=list&nikke={resource_id}"
+        logger.debug(
+            f"NIKKE 开始使用 Playwright 获取技能数据 "
+            f"(resource_id={resource_id}, language={language})"
+        )
+        t_start = time.monotonic()
         try:
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=True)
@@ -100,14 +113,17 @@ class SkillScraper:
                         },
                     )
                     page = await context.new_page()
-                    page.on("response", handle_response)
+                    page.on("response", on_response)
                     await page.goto(
                         page_url,
-                        wait_until="networkidle",
+                        wait_until="load",
                         timeout=self._timeout_ms,
                     )
+                    await page.wait_for_timeout(5000)
+                    if tasks:
+                        await asyncio.gather(*tasks, return_exceptions=True)
                     try:
-                        await asyncio.wait_for(skill_data_event.wait(), timeout=10)
+                        await asyncio.wait_for(skill_data_event.wait(), timeout=5)
                     except asyncio.TimeoutError:
                         raise SkillScrapeError(
                             f"获取角色技能数据超时 (resource_id={resource_id})"
@@ -124,4 +140,9 @@ class SkillScraper:
             raise SkillScrapeError(
                 f"未从页面响应中捕获到角色技能数据 (resource_id={resource_id})"
             )
+        elapsed = time.monotonic() - t_start
+        logger.debug(
+            f"NIKKE 技能数据抓取完成 "
+            f"(resource_id={resource_id}, 耗时 {elapsed:.1f}s)"
+        )
         return skill_data
