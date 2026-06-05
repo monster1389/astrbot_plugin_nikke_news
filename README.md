@@ -5,6 +5,7 @@
 - 推送 Blablalink 的 Official 板块消息。
 - 支持日常/收菜提醒。（需配置cookie）
 - 支持 `/nikke <角色名>` 查询玩家角色数据。（需配置cookie）
+- 支持 `/nikke_skill <角色名>` 查询角色技能描述。（需配置cookie）
 - 支持 `/nikke_help` 查看所有命令。
 
 ## 前置要求
@@ -34,7 +35,7 @@
 
 ### 安装 Playwright / Chromium
 
-刷新角色映射和头像需要 Playwright + Chromium 浏览器：
+刷新角色映射、头像和技能数据需要 Playwright + Chromium 浏览器：
 
 - `requirements.txt` 已包含 `playwright>=1.44.0`，插件安装时会自动安装 Python 包。
 - Chromium 浏览器本体需由运行环境提供（AstrBot Docker 镜像已内置，手动部署需执行 `playwright install chromium`）。
@@ -109,6 +110,7 @@
 ### 玩家角色查询
 
 - `/nikke <角色名>` 查询账号内角色战力、技能、装备等级和 T10 词条。
+- `/nikke_skill <角色名>` 查询角色技能描述。
 - `/nikke_refresh` 刷新角色名和词条映射。
 - `/nikke_avatar_all` 用 Playwright 抓取全部角色头像并全量刷新本地缓存。
 - `/nikke_help` 查看所有命令。
@@ -118,6 +120,7 @@
 ```text
 /nikke anis
 /nikke rapi rh
+/nikke_skill cinderella
 /nikke_refresh
 /nikke_avatar_all
 /nikke_help
