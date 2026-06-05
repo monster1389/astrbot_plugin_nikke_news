@@ -191,7 +191,7 @@ class CharacterService:
         ):
             for attempt in range(3):
                 try:
-                    names, options, sources = await refresh_player_mappings(
+                    names, options, sources, resource_ids = await refresh_player_mappings(
                         cookie_header=cookie,
                         language="en",
                     )
@@ -208,6 +208,7 @@ class CharacterService:
                         character_names=names,
                         state_effect_options=options,
                         sources=sources,
+                        resource_ids=resource_ids,
                     )
                     messages.append(
                         f"英文映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。"
@@ -223,7 +224,7 @@ class CharacterService:
             ):
                 for attempt in range(3):
                     try:
-                        names, options, sources = await refresh_player_mappings(
+                        names, options, sources, resource_ids = await refresh_player_mappings(
                             cookie_header=cookie,
                             language=target_lang,
                         )
@@ -241,6 +242,7 @@ class CharacterService:
                             character_names=names,
                             state_effect_options=options,
                             sources=sources,
+                            resource_ids=resource_ids,
                         )
                         messages.append(
                             f"{target_lang} 映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。"

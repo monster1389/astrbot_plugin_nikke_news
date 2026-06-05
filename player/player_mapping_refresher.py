@@ -95,7 +95,12 @@ async def refresh_player_mappings(
     cookie_header: str,
     language: str = "en",
     timeout_ms: int = 20000,
-) -> tuple[dict[int, str], dict[str, dict[str, Any]], dict[str, dict[str, str]]]:
+) -> tuple[
+    dict[int, str],
+    dict[str, dict[str, Any]],
+    dict[str, dict[str, str]],
+    dict[int, int],
+]:
     """启动 Chromium 访问 Blablalink 尼姬列表页，拦截 CDN 响应抓取角色名和词条。
 
     Args:
@@ -117,6 +122,7 @@ async def refresh_player_mappings(
         ) from exc
 
     character_names: dict[int, str] = {}
+    resource_ids: dict[int, int] = {}
     options: dict[str, dict[str, Any]] = {}
     sources: dict[str, dict[str, str]] = {}
     tasks: set[asyncio.Task] = set()
@@ -134,6 +140,10 @@ async def refresh_player_mappings(
         found_options = extract_state_effect_options(data)
         if not found_names and not found_options:
             return
+
+        found_resource_ids = extract_resource_ids(data)
+        if found_resource_ids:
+            resource_ids.update(found_resource_ids)
 
         headers = await response.all_headers()
         sources[url] = {
@@ -192,7 +202,7 @@ async def refresh_player_mappings(
     logger.info(
         f"NIKKE 玩家映射刷新完成：角色 {len(character_names)} 个，词条 {len(options)} 个"
     )
-    return character_names, options, sources
+    return character_names, options, sources, resource_ids
 
 
 def _localized_text(value: Any) -> str:
