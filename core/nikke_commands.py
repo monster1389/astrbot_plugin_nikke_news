@@ -10,6 +10,7 @@ from player.character_service import CharacterQueryError
 HELP_TEXT = (
     "NIKKE 插件命令列表\n\n"
     "/nikke <角色名>  查询角色战力、技能、装备\n"
+    "/nikke_skill <角色名>  查询角色技能详细描述\n"
     "/nikke_refresh  刷新角色映射和已缓存头像\n"
     "/nikke_avatar_all  刷新头像映射并下载全部头像\n"
     "/nikke_help  显示本帮助"
@@ -190,3 +191,106 @@ async def handle_avatar_refresh_all(plugin, event: AstrMessageEvent):
     yield event.plain_result("正在抓取角色头像列表并下载全部头像（首次约需 20-30s）...")
     msg = await plugin._avatar_service.refresh_all(cookie)
     yield event.plain_result(msg)
+
+
+def _recover_skill_query(event: AstrMessageEvent) -> str:
+    """从原始消息中提取 /nikke_skill 后的角色名。"""
+    msg = event.message_str.strip()
+    for prefix in ("/nikke_skill ", "nikke_skill "):
+        if msg.startswith(prefix):
+            return msg[len(prefix):]
+    return ""
+
+
+async def handle_skill(plugin, event: AstrMessageEvent, text: str = ""):
+    """处理 /nikke_skill <角色名> 技能查询。
+
+    执行流程：参数提取 → 映射检查 → 角色查找 → 技能获取（缓存/抓取）
+    → API 查等级 → 格式化输出。
+
+    Args:
+        plugin: NikkeNewsPlugin 实例。
+        event: AstrBot 消息事件。
+        text: 命令行参数文本。
+
+    Yields:
+        AstrBot plain_result 消息。
+    """
+    if not text or not text.strip():
+        text = _recover_skill_query(event)
+    else:
+        full = _recover_skill_query(event)
+        if full and full != text:
+            text = full
+
+    if not text or not text.strip():
+        yield event.plain_result("请提供角色名，例如：/nikke_skill anis")
+        return
+
+    if not plugin._character_service:
+        yield event.plain_result("角色服务未初始化，请等待插件启动完成。")
+        return
+
+    if not plugin._skill_service:
+        yield event.plain_result("技能服务未初始化。")
+        return
+
+    cookie = plugin._plugin_config.player_data_cookie()
+    if not cookie:
+        yield event.plain_result(
+            "未配置玩家 Cookie，无法查询角色技能。"
+            "请先在插件配置中设置玩家状态提醒的 Cookie。"
+        )
+        return
+
+    if (
+        plugin._plugin_config.player_auto_refresh_mapping()
+        and plugin._character_service.is_mapping_stale()
+    ):
+        yield event.plain_result("正在刷新角色映射（约 20-30s）...")
+
+    try:
+        matches = plugin._character_service.lookup(text)
+        if not matches:
+            yield event.plain_result(
+                f"未找到角色「{text}」，请检查名称是否正确。"
+            )
+            return
+
+        if len(matches) > 1:
+            names = "、".join(f"「{n}」" for _, n in matches[:10])
+            hint = "\n请提供更精确的名称。" if len(matches) > 10 else ""
+            yield event.plain_result(
+                f"找到 {len(matches)} 个匹配：\n{names}{hint}"
+            )
+            return
+
+        name_code, display_name = matches[0]
+
+        if not plugin._skill_service.is_cached(name_code):
+            yield event.plain_result("正在获取技能数据，预计 10 秒...")
+
+        area_id = plugin._plugin_config.player_data_area_id()
+        language = plugin._plugin_config.player_mapping_language()
+        game_id = plugin._plugin_config.player_game_id()
+
+        result_text = await plugin._skill_service.get_skill_text(
+            cookie=cookie,
+            name_code=name_code,
+            display_name=display_name,
+            area_id=area_id,
+            language=language,
+            game_id=game_id,
+        )
+
+        yield event.plain_result(result_text)
+
+    except Exception as exc:
+        from player.skill_service import SkillError
+
+        if isinstance(exc, CharacterQueryError):
+            yield event.plain_result(exc.message)
+        elif isinstance(exc, SkillError):
+            yield event.plain_result(exc.message)
+        else:
+            yield event.plain_result(f"技能查询失败：{exc}")
