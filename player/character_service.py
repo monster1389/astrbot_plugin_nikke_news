@@ -285,7 +285,7 @@ class CharacterService:
 
         if not self.is_loaded:
             raise CharacterQueryError(
-                "角色数据尚未加载，请执行 /nikke refresh 刷新角色列表。"
+                "角色数据尚未加载，请执行 /nikke_refresh 刷新角色列表。"
             )
 
         matches = self.lookup(name)
@@ -359,10 +359,10 @@ class CharacterService:
 
         target_lang = self._config.player_mapping_language()
         if not self._en_cache.has_useful_data():
-            raise CharacterQueryError(f"{msg}\n请稍后重试或执行 /nikke refresh。")
+            raise CharacterQueryError(f"{msg}\n请稍后重试或执行 /nikke_refresh。")
         if (
             target_lang != "en"
             and self._target_cache
             and not self._target_cache.has_useful_data()
         ):
-            raise CharacterQueryError(f"{msg}\n请稍后重试或执行 /nikke refresh。")
+            raise CharacterQueryError(f"{msg}\n请稍后重试或执行 /nikke_refresh。")

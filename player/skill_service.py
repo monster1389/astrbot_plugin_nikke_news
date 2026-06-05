@@ -163,7 +163,7 @@ class SkillService:
             resource_id = self._mapping_cache.resource_ids.get(name_code)
             if resource_id is None:
                 raise SkillError(
-                    "未找到角色 resource_id，请先执行 /nikke refresh 刷新角色映射。"
+                    "未找到角色 resource_id，请先执行 /nikke_refresh 刷新角色映射。"
                 )
             try:
                 skill_data = await self._scraper.scrape(resource_id, language)
