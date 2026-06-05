@@ -198,7 +198,7 @@ def _recover_skill_query(event: AstrMessageEvent) -> str:
     msg = event.message_str.strip()
     for prefix in ("/nikke_skill ", "nikke_skill "):
         if msg.startswith(prefix):
-            return msg[len(prefix):]
+            return msg[len(prefix) :]
     return ""
 
 
@@ -252,17 +252,13 @@ async def handle_skill(plugin, event: AstrMessageEvent, text: str = ""):
     try:
         matches = plugin._character_service.lookup(text)
         if not matches:
-            yield event.plain_result(
-                f"未找到角色「{text}」，请检查名称是否正确。"
-            )
+            yield event.plain_result(f"未找到角色「{text}」，请检查名称是否正确。")
             return
 
         if len(matches) > 1:
             names = "、".join(f"「{n}」" for _, n in matches[:10])
             hint = "\n请提供更精确的名称。" if len(matches) > 10 else ""
-            yield event.plain_result(
-                f"找到 {len(matches)} 个匹配：\n{names}{hint}"
-            )
+            yield event.plain_result(f"找到 {len(matches)} 个匹配：\n{names}{hint}")
             return
 
         name_code, display_name = matches[0]

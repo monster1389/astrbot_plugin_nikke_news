@@ -1,10 +1,8 @@
 """技能服务测试。"""
+
 import json
-from pathlib import Path
 
-import pytest
 
-from core.utils import datetime_is_stale
 from player.skill_service import SkillService, SkillError
 
 
@@ -23,8 +21,34 @@ SAMPLE_SKILL_DATA = {
             "for {description_value_02} sec.</color>"
         ),
         "description_value_list": [
-            {"description_value": ["1.7", "1.8", "1.92", "2.02", "2.13", "2.26", "2.36", "2.49", "2.58", "2.71"]},
-            {"description_value": ["10", "10", "10", "10", "10", "10", "10", "10", "10", "10"]},
+            {
+                "description_value": [
+                    "1.7",
+                    "1.8",
+                    "1.92",
+                    "2.02",
+                    "2.13",
+                    "2.26",
+                    "2.36",
+                    "2.49",
+                    "2.58",
+                    "2.71",
+                ]
+            },
+            {
+                "description_value": [
+                    "10",
+                    "10",
+                    "10",
+                    "10",
+                    "10",
+                    "10",
+                    "10",
+                    "10",
+                    "10",
+                    "10",
+                ]
+            },
             {},
         ],
     },
@@ -33,7 +57,20 @@ SAMPLE_SKILL_DATA = {
         "info_description_localkey": "Skill 2",
         "description_localkey": "Decoy: {description_value_01}% HP.",
         "description_value_list": [
-            {"description_value": ["52.8", "57.6", "62.4", "67.2", "72", "76.8", "81.6", "86.4", "91.2", "96"]},
+            {
+                "description_value": [
+                    "52.8",
+                    "57.6",
+                    "62.4",
+                    "67.2",
+                    "72",
+                    "76.8",
+                    "81.6",
+                    "86.4",
+                    "91.2",
+                    "96",
+                ]
+            },
         ],
     },
     "ulti_skill_detail": {
@@ -41,8 +78,34 @@ SAMPLE_SKILL_DATA = {
         "info_description_localkey": "Burst Skill",
         "description_localkey": "Deals {description_value_01}% damage for {description_value_02} time(s).",
         "description_value_list": [
-            {"description_value": ["853.7", "910.62", "967.5", "1024.46", "1081.38", "1138.26", "1195.16", "1252.08", "1309", "1365.92"]},
-            {"description_value": ["10", "10", "10", "10", "10", "10", "10", "10", "10", "10"]},
+            {
+                "description_value": [
+                    "853.7",
+                    "910.62",
+                    "967.5",
+                    "1024.46",
+                    "1081.38",
+                    "1138.26",
+                    "1195.16",
+                    "1252.08",
+                    "1309",
+                    "1365.92",
+                ]
+            },
+            {
+                "description_value": [
+                    "10",
+                    "10",
+                    "10",
+                    "10",
+                    "10",
+                    "10",
+                    "10",
+                    "10",
+                    "10",
+                    "10",
+                ]
+            },
         ],
     },
 }

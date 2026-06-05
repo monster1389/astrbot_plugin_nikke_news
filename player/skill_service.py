@@ -266,11 +266,7 @@ class SkillService:
                 if not values:
                     continue
                 placeholder = f"{{description_value_{i + 1:02d}}}"
-                val = (
-                    values[level_index]
-                    if level_index < len(values)
-                    else values[-1]
-                )
+                val = values[level_index] if level_index < len(values) else values[-1]
                 desc = desc.replace(placeholder, str(val))
 
             desc = SkillService._strip_tags(desc)

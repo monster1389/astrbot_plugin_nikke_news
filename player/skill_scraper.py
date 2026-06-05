@@ -107,9 +107,7 @@ class SkillScraper:
                         timeout=self._timeout_ms,
                     )
                     try:
-                        await asyncio.wait_for(
-                            skill_data_event.wait(), timeout=10
-                        )
+                        await asyncio.wait_for(skill_data_event.wait(), timeout=10)
                     except asyncio.TimeoutError:
                         raise SkillScrapeError(
                             f"获取角色技能数据超时 (resource_id={resource_id})"
@@ -120,9 +118,7 @@ class SkillScraper:
             raise
         except Exception as exc:
             logger.warning(f"NIKKE 技能抓取失败 (resource_id={resource_id})：{exc}")
-            raise SkillScrapeError(
-                f"获取角色技能数据失败：{exc}"
-            ) from exc
+            raise SkillScrapeError(f"获取角色技能数据失败：{exc}") from exc
 
         if skill_data is None:
             raise SkillScrapeError(

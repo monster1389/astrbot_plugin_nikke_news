@@ -135,8 +135,7 @@ class PlayerMappingCache:
             },
             "state_effect_options": state_effect_options,
             "resource_ids": {
-                int(code): int(rid)
-                for code, rid in (resource_ids or {}).items()
+                int(code): int(rid) for code, rid in (resource_ids or {}).items()
             },
         }
         if not self._path:

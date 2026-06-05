@@ -241,4 +241,3 @@ def parse_cookie_header(cookie_header: str) -> list[dict[str, Any]]:
                 }
             )
     return cookies
-

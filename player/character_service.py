@@ -191,7 +191,12 @@ class CharacterService:
         ):
             for attempt in range(3):
                 try:
-                    names, options, sources, resource_ids = await refresh_player_mappings(
+                    (
+                        names,
+                        options,
+                        sources,
+                        resource_ids,
+                    ) = await refresh_player_mappings(
                         cookie_header=cookie,
                         language="en",
                     )
@@ -224,7 +229,12 @@ class CharacterService:
             ):
                 for attempt in range(3):
                     try:
-                        names, options, sources, resource_ids = await refresh_player_mappings(
+                        (
+                            names,
+                            options,
+                            sources,
+                            resource_ids,
+                        ) = await refresh_player_mappings(
                             cookie_header=cookie,
                             language=target_lang,
                         )

@@ -1,7 +1,4 @@
 """技能抓取器测试。"""
-import json
-
-import pytest
 
 from player.skill_scraper import SkillScraper, SkillScrapeError
 
