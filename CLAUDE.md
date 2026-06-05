@@ -20,6 +20,7 @@ This is an [AstrBot](https://github.com/AstrBotDevs/AstrBot) plugin — it runs 
 - `player_mappings_{lang}.json` — character name→code mappings and T10 option metadata (version 2, per-language)
 - `avatar_mappings.json` — name_code → CDN image URL (version 1, 24h TTL)
 - `avatars/` — downloaded `.webp` character avatar images
+- `skills/` — cached skill detail JSONs per character per language (`{name_code}_{lang}.json`, TTL)
 
 ## Commands
 
@@ -29,6 +30,9 @@ This is an [AstrBot](https://github.com/AstrBotDevs/AstrBot) plugin — it runs 
 
 # Run a single test file
 .venv/bin/python -m pytest tests/test_character_service.py -v
+
+# Run a single test file
+.venv/bin/python -m pytest tests/test_skill_service.py -v
 
 # Lint
 .venv/bin/ruff check .
@@ -55,6 +59,7 @@ Tests mock the entire AstrBot SDK surface in `tests/conftest.py` so they run wit
 - Messages are sent via `StarTools.send_message_by_id()`, bypassing the LLM reply pipeline.
 - Playwright/Chromium is only used for mapping refresh — never put it on the hot path for `/nikke` queries.
 - Character query stages: ensure mapping cache → alias lookup → `fetch_characters()` → `fetch_character_details()` → format stats → optionally ensure portrait.
+- `/nikke_skill` follows the same character lookup pattern as `/nikke`.
 - Equipment T10 options with the same `function_type` are aggregated before display; option values use `abs(function_value) / 100` formatted as percentage.
 - Push targets accept plain group IDs (`"957880653"`) or unified format (`"aiocqhttp:GroupMessage:957880653"`). Supported types: `GroupMessage`, `PrivateMessage`, `FriendMessage`.
 - Cookie config accepts both structured JSON (new) and raw header string (legacy). Character aliases accept both native dict and JSON string.
