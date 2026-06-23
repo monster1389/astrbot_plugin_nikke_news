@@ -12,7 +12,10 @@ def _unwrap(result, label: str) -> str:
     if isinstance(result, Exception):
         logger.warning(f"NIKKE {label}刷新失败：{result}", exc_info=True)
         return f"{label}刷新失败：{result}"
-    return str(result)
+    if isinstance(result, tuple):
+        msg, _ = result
+        return msg or f"{label}：无需刷新。"
+    return str(result or f"{label}：无需刷新。")
 
 
 class CacheRefresher:

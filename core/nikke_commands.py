@@ -21,6 +21,9 @@ def _parse_refresh_args(text: str) -> tuple[bool, bool]:
 def _unwrap_refresh_result(result, label: str) -> str:
     if isinstance(result, Exception):
         return f"{label}刷新失败：{result}"
+    if isinstance(result, tuple):
+        msg, _ = result
+        return msg or f"{label}：无需刷新。"
     return str(result or f"{label}：无需刷新。")
 
 
@@ -178,7 +181,7 @@ async def handle_refresh(plugin, event: AstrMessageEvent, text: str = ""):
 
     if char_only:
         yield event.plain_result("正在刷新角色映射（约 20-30s）...")
-        msg = await plugin._character_service.refresh_mappings(force=True)
+        msg, _ = await plugin._character_service.refresh_mappings(force=True)
         elapsed = time.monotonic() - t0
         plugin._character_service.load_caches()
         new_count = plugin._character_service.count()
