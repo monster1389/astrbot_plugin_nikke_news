@@ -82,14 +82,9 @@ class AvatarScraper:
 
                     mappings = await self._scrape_default_avatars(page)
 
-                    # 阶段 1 首次失败时等待页面就绪后重试一次
-                    if not mappings:
-                        await page.wait_for_timeout(5000)
-                        mappings = await self._scrape_default_avatars(page)
-
                     if not mappings:
                         logger.warning(
-                            "NIKKE 头像映射阶段 1 两次尝试均失败："
+                            "NIKKE 头像映射阶段 1 失败："
                             "未检测到 50+ 角色卡片，可能页面加载延迟或 DOM 结构变化。"
                         )
                     else:
