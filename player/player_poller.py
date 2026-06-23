@@ -53,9 +53,14 @@ class PlayerPoller:
         """检查前哨基地满仓和日常任务完成情况，必要时推送提醒。
 
         Cookie 失效时发送首次通知并记录日志，后续仅写日志。
+        注意：不检查 cookie_invalid_notified — poll 需要尝试 API 调用以检测 cookie 恢复。
         """
-        if self.cookie_status() != CookieStatus.AVAILABLE:
+        status = self.cookie_status()
+        if status == CookieStatus.DISABLED:
             return
+        if status == CookieStatus.EMPTY:
+            return
+        # CookieStatus.INVALID 时仍需尝试调用以检测恢复
 
         targets = enabled_targets(self._config.news_config())
         if not targets:

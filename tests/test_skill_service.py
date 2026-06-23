@@ -1,6 +1,7 @@
 """技能服务测试。"""
 
 import json
+from datetime import datetime, timezone
 
 
 from player.skill_service import SkillService, SkillError
@@ -182,7 +183,8 @@ class TestLoadCache:
         skills_dir = tmp_path / "skills"
         skills_dir.mkdir()
         cache_path = skills_dir / "5124_zh-TW.json"
-        cache_path.write_text(json.dumps(SAMPLE_SKILL_DATA, ensure_ascii=False))
+        data = dict(SAMPLE_SKILL_DATA, updated_at=datetime.now(timezone.utc).isoformat())
+        cache_path.write_text(json.dumps(data, ensure_ascii=False))
 
         service = SkillService.__new__(SkillService)
         service._skills_dir = skills_dir
