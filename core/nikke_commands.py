@@ -1,6 +1,5 @@
 """NIKKE 指令业务逻辑（不含 AstrBot 装饰器）。"""
 
-import asyncio
 import time
 
 from astrbot.api.event import AstrMessageEvent
@@ -18,24 +17,15 @@ def _parse_refresh_args(text: str) -> tuple[bool, bool]:
     return False, False
 
 
-def _unwrap_refresh_result(result, label: str) -> str:
-    if isinstance(result, Exception):
-        return f"{label}刷新失败：{result}"
-    if isinstance(result, tuple):
-        msg, _ = result
-        return msg or f"{label}：无需刷新。"
-    return str(result or f"{label}：无需刷新。")
-
-
-async def _async_none():
-    return None
-
-
 def _clear_refresh_failed(plugin):
-    """/nikke_refresh 成功后清除失败锁。"""
+    """清除所有刷新失败锁。"""
     state = plugin._state.setdefault("player_alert_state", {})
-    if state.get("mapping_refresh_failed"):
-        state["mapping_refresh_failed"] = False
+    changed = False
+    for key in ("char_refresh_failed", "avatar_refresh_failed"):
+        if state.get(key):
+            state[key] = False
+            changed = True
+    if changed:
         plugin._save_state()
 
 
@@ -183,13 +173,6 @@ async def handle_refresh(plugin, event: AstrMessageEvent, text: str = ""):
         yield event.plain_result("正在刷新角色映射（约 20-30s）...")
         msg, _ = await plugin._character_service.refresh_mappings(force=True)
         elapsed = time.monotonic() - t0
-        plugin._character_service.load_caches()
-        new_count = plugin._character_service.count()
-        yield event.plain_result(
-            f"已重载本地角色列表，共 {new_count} 个角色。"
-            if new_count
-            else "本地角色列表加载失败。"
-        )
         yield event.plain_result(f"{msg}\n总耗时 {elapsed:.0f}s")
         _clear_refresh_failed(plugin)
         return
@@ -197,39 +180,19 @@ async def handle_refresh(plugin, event: AstrMessageEvent, text: str = ""):
     if avatar_only:
         yield event.plain_result("正在刷新头像映射（约 20-30s）...")
         cookie = plugin._plugin_config.player_data_cookie()
-        msg = await plugin._avatar_service.refresh_cached(cookie)
+        msg, _ = await plugin._avatar_service.refresh_cached(cookie, force=True)
         elapsed = time.monotonic() - t0
         yield event.plain_result(f"{msg}\n总耗时 {elapsed:.0f}s")
         _clear_refresh_failed(plugin)
         return
 
     yield event.plain_result("正在刷新角色映射和头像映射（约 20-30s）...")
-    cookie = plugin._plugin_config.player_data_cookie()
-    results = await asyncio.gather(
-        plugin._character_service.refresh_mappings(force=True),
-        plugin._avatar_service.refresh_cached(cookie) if cookie else _async_none(),
-        return_exceptions=True,
-    )
-    role_msg = _unwrap_refresh_result(results[0], "角色映射")
-    avatar_msg = (
-        _unwrap_refresh_result(results[1], "头像")
-        if cookie
-        else "未配置玩家 Cookie，跳过头像刷新。"
-    )
-    elapsed = time.monotonic() - t0
-    plugin._character_service.load_caches()
-    reload_count = plugin._character_service.count()
-    messages = [
-        (
-            f"已重载本地角色列表，共 {reload_count} 个角色。"
-            if reload_count
-            else "本地角色列表加载失败。"
-        ),
-        role_msg,
-        avatar_msg,
-        f"总耗时 {elapsed:.0f}s",
-    ]
-    yield event.plain_result("\n".join(messages))
+    result = await plugin._cache_refresher.refresh(force=True)
+    if result is None:
+        yield event.plain_result("刷新失败：Cookie 不可用或正在刷新中。")
+        return
+    msg, _, _ = result
+    yield event.plain_result(msg)
     _clear_refresh_failed(plugin)
 
 
