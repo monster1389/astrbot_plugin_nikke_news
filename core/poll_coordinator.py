@@ -28,12 +28,14 @@ class PollCoordinator:
         state: dict[str, Any],
         state_path: Any,
         poll_interval_seconds: int,
+        cache_refresher=None,
     ):
         self._news_poller = news_poller
         self._player_poller = player_poller
         self._state = state
         self._state_path = state_path
         self._poll_interval_seconds = poll_interval_seconds
+        self._cache_refresher = cache_refresher
 
     async def run(self):
         """启动轮询循环，每 poll_interval_seconds 秒执行一次 _poll_once。
@@ -71,3 +73,38 @@ class PollCoordinator:
             logger.warning(
                 f"NIKKE 玩家数据轮询异常，将在下次重试：{exc}", exc_info=True
             )
+
+        if self._cache_refresher and self._player_poller:
+            from core.cookie_status import CookieStatus
+
+            if self._player_poller.cookie_status() == CookieStatus.AVAILABLE:
+                state = self._state.setdefault("player_alert_state", {})
+                state.setdefault("mapping_refresh_failed", False)
+                if not state.get("mapping_refresh_failed"):
+                    try:
+                        msg = await self._cache_refresher.refresh(force=False)
+                    except Exception as exc:
+                        logger.warning(
+                            f"NIKKE 缓存刷新异常：{exc}", exc_info=True
+                        )
+                        msg = f"缓存刷新失败：{exc}"
+                    if msg:
+                        from core.targets import (
+                            broadcast_to_targets,
+                            enabled_targets,
+                        )
+                        from astrbot.api.event import MessageChain as MC
+
+                        targets = enabled_targets(
+                            self._player_poller._config.news_config()
+                        )
+                        if targets:
+                            await broadcast_to_targets(
+                                targets,
+                                MC().message(msg),
+                                "缓存刷新",
+                            )
+                        state["mapping_refresh_failed"] = True
+                        from core.state_store import PluginStateStore as PSS
+
+                        PSS(self._state_path).save(self._state)
