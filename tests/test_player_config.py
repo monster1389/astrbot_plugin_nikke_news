@@ -73,8 +73,6 @@ def test_player_mapping_defaults_and_clamps():
     plugin = make_plugin()
     assert plugin._plugin_config.player_mapping_language() == "zh-TW"
     assert plugin._plugin_config.player_mapping_cache_ttl_hours() == 168
-    assert plugin._plugin_config.player_auto_refresh_mapping() is True
-
     plugin = make_plugin(mapping_language="bad", mapping_cache_ttl_hours=-3)
     assert plugin._plugin_config.player_mapping_language() == "zh-TW"
     assert plugin._plugin_config.player_mapping_cache_ttl_hours() == 1
