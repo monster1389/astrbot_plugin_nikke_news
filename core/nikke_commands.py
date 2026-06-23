@@ -1,5 +1,6 @@
 """NIKKE 指令业务逻辑（不含 AstrBot 装饰器）。"""
 
+import asyncio
 import time
 
 from astrbot.api.event import AstrMessageEvent
@@ -7,11 +8,39 @@ import astrbot.api.message_components as Comp
 
 from player.character_service import CharacterQueryError
 
+def _parse_refresh_args(text: str) -> tuple[bool, bool]:
+    """解析 /nikke_refresh 参数，返回 (character_only, avatar_only)。"""
+    arg = text.strip().lower()
+    if arg in ("-c", "--character"):
+        return True, False
+    if arg in ("-a", "--avatar"):
+        return False, True
+    return False, False
+
+
+def _unwrap_refresh_result(result, label: str) -> str:
+    if isinstance(result, Exception):
+        return f"{label}刷新失败：{result}"
+    return str(result or f"{label}：无需刷新。")
+
+
+async def _async_none():
+    return None
+
+
+def _clear_refresh_failed(plugin):
+    """/nikke_refresh 成功后清除失败锁。"""
+    state = plugin._state.setdefault("player_alert_state", {})
+    if state.get("mapping_refresh_failed"):
+        state["mapping_refresh_failed"] = False
+        plugin._save_state()
+
+
 HELP_TEXT = (
     "NIKKE 插件命令列表\n\n"
     "/nikke <角色名>  查询角色战力、技能、装备\n"
     "/nikke_skill <角色名>  查询角色技能详细描述\n"
-    "/nikke_refresh  刷新角色映射和已缓存头像\n"
+    "/nikke_refresh [-c|-a]  刷新角色映射和已缓存头像\n"
     "/nikke_avatar_all  刷新头像映射并下载全部头像\n"
     "/nikke_help  显示本帮助"
 )
@@ -60,12 +89,6 @@ async def handle_query(plugin, event: AstrMessageEvent, text: str = ""):
         yield event.plain_result("角色服务未初始化，请等待插件启动完成。")
         return
 
-    if (
-        plugin._plugin_config.player_auto_refresh_mapping()
-        and plugin._character_service.is_mapping_stale()
-    ):
-        yield event.plain_result("正在刷新角色映射（约 20-30s）...")
-
     try:
         result_text, name_code = await plugin._character_service.query(text)
 
@@ -110,62 +133,101 @@ async def handle_query(plugin, event: AstrMessageEvent, text: str = ""):
         yield event.plain_result(exc.message)
 
 
-async def handle_refresh(plugin, event: AstrMessageEvent):
-    """处理 /nikke_refresh 刷新角色映射和头像映射。
+async def handle_refresh(plugin, event: AstrMessageEvent, text: str = ""):
+    """处理 /nikke_refresh 刷新角色映射和/或头像映射。
 
-    流程：重载本地缓存 → 刷新角色映射（含重试） → 刷新头像映射 →
-    汇总分步耗时。
+    支持 -c/--character（仅角色映射）、-a/--avatar（仅头像），
+    无参数则并发刷新两者。
 
     Args:
         plugin: NikkeNewsPlugin 实例。
         event: AstrBot 消息事件。
+        text: 命令行参数文本。
 
     Yields:
         AstrBot plain_result 进度消息。
     """
+    char_only, avatar_only = _parse_refresh_args(text)
+
     if not plugin._character_service:
         yield event.plain_result("角色服务模块未初始化。")
         return
 
+    if not plugin._player_poller:
+        yield event.plain_result("玩家服务未初始化。")
+        return
+
+    need_cookie = avatar_only or (not char_only and not avatar_only)
+    if need_cookie:
+        from core.cookie_status import CookieStatus
+
+        status = plugin._player_poller.cookie_status()
+        if status == CookieStatus.DISABLED:
+            yield event.plain_result("玩家数据功能未启用，请在插件配置中启用。")
+            return
+        if status == CookieStatus.EMPTY:
+            yield event.plain_result(
+                "未配置玩家 Cookie，请先在插件配置中设置玩家状态提醒的 Cookie。"
+            )
+            return
+        if status == CookieStatus.INVALID:
+            yield event.plain_result("登录态已失效，请更新 player_data_cookie。")
+            return
+
     t0 = time.monotonic()
-    messages: list[str] = []
-    plugin._character_service.load_caches()
-    count = plugin._character_service.count()
-    messages.append(
-        f"已重载本地角色列表，共 {count} 个角色。"
-        if count
-        else "本地角色列表加载失败，请执行 /nikke_refresh 刷新。"
-    )
 
-    yield event.plain_result("正在刷新角色映射（约 20-30s）...")
-    mapping_msg = await plugin._character_service.refresh_mappings(force=True)
-    t1 = time.monotonic()
-    mapping_time = t1 - t0
-    messages.append(mapping_msg)
-
-    avatar_time = 0.0
-    if plugin._avatar_service:
-        cookie = plugin._plugin_config.player_data_cookie()
-        if cookie:
-            yield event.plain_result("正在刷新头像映射（约 20-30s）...")
-            avatar_msg = await plugin._avatar_service.refresh_cached(cookie)
-            t2 = time.monotonic()
-            avatar_time = t2 - t1
-            messages.append(avatar_msg)
-        else:
-            messages.append("未配置玩家 Cookie，跳过头像刷新。")
-    else:
-        messages.append("头像服务未初始化，跳过头像刷新。")
-
-    total = mapping_time + avatar_time
-    if avatar_time > 0:
-        messages.append(
-            f"总耗时 {total:.0f}s（角色映射 {mapping_time:.0f}s + 头像 {avatar_time:.0f}s）"
+    if char_only:
+        yield event.plain_result("正在刷新角色映射（约 20-30s）...")
+        msg = await plugin._character_service.refresh_mappings(force=True)
+        elapsed = time.monotonic() - t0
+        plugin._character_service.load_caches()
+        new_count = plugin._character_service.count()
+        yield event.plain_result(
+            f"已重载本地角色列表，共 {new_count} 个角色。"
+            if new_count
+            else "本地角色列表加载失败。"
         )
-    else:
-        messages.append(f"总耗时 {total:.0f}s")
+        yield event.plain_result(f"{msg}\n总耗时 {elapsed:.0f}s")
+        _clear_refresh_failed(plugin)
+        return
 
+    if avatar_only:
+        yield event.plain_result("正在刷新头像映射（约 20-30s）...")
+        cookie = plugin._plugin_config.player_data_cookie()
+        msg = await plugin._avatar_service.refresh_cached(cookie)
+        elapsed = time.monotonic() - t0
+        yield event.plain_result(f"{msg}\n总耗时 {elapsed:.0f}s")
+        _clear_refresh_failed(plugin)
+        return
+
+    yield event.plain_result("正在刷新角色映射和头像映射（约 20-30s）...")
+    cookie = plugin._plugin_config.player_data_cookie()
+    results = await asyncio.gather(
+        plugin._character_service.refresh_mappings(force=True),
+        plugin._avatar_service.refresh_cached(cookie) if cookie else _async_none(),
+        return_exceptions=True,
+    )
+    role_msg = _unwrap_refresh_result(results[0], "角色映射")
+    avatar_msg = (
+        _unwrap_refresh_result(results[1], "头像")
+        if cookie
+        else "未配置玩家 Cookie，跳过头像刷新。"
+    )
+    elapsed = time.monotonic() - t0
+    plugin._character_service.load_caches()
+    reload_count = plugin._character_service.count()
+    messages = [
+        (
+            f"已重载本地角色列表，共 {reload_count} 个角色。"
+            if reload_count
+            else "本地角色列表加载失败。"
+        ),
+        role_msg,
+        avatar_msg,
+        f"总耗时 {elapsed:.0f}s",
+    ]
     yield event.plain_result("\n".join(messages))
+    _clear_refresh_failed(plugin)
 
 
 async def handle_avatar_refresh_all(plugin, event: AstrMessageEvent):
@@ -242,12 +304,6 @@ async def handle_skill(plugin, event: AstrMessageEvent, text: str = ""):
             "请先在插件配置中设置玩家状态提醒的 Cookie。"
         )
         return
-
-    if (
-        plugin._plugin_config.player_auto_refresh_mapping()
-        and plugin._character_service.is_mapping_stale()
-    ):
-        yield event.plain_result("正在刷新角色映射（约 20-30s）...")
 
     try:
         matches = plugin._character_service.lookup(text)
