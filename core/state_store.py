@@ -31,6 +31,7 @@ class PluginStateStore:
             "seen_post_uuids": [],
             "player_alert_state": {
                 "cookie_invalid_notified": False,
+                "mapping_refresh_failed": False,
                 "last_outpost_alert_day_key": "",
                 "last_daily_mission_alert_day_key": "",
             },
@@ -62,6 +63,9 @@ class PluginStateStore:
         state["player_alert_state"] = {
             "cookie_invalid_notified": bool(
                 player_raw.get("cookie_invalid_notified", False)
+            ),
+            "mapping_refresh_failed": bool(
+                player_raw.get("mapping_refresh_failed", False)
             ),
             "last_outpost_alert_day_key": str(
                 player_raw.get("last_outpost_alert_day_key", "") or ""
