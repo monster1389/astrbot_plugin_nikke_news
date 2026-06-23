@@ -16,7 +16,7 @@ This is an [AstrBot](https://github.com/AstrBotDevs/AstrBot) plugin — it runs 
 **Dependencies** (`requirements.txt`): `httpx>=0.28.1`, `playwright>=1.44.0`. Chromium binaries are provided by the runtime Docker image.
 
 **Runtime data**: persisted as JSON files in AstrBot's data directory (`StarTools.get_data_dir()`):
-- `state.json` — seen post UUIDs (capped at 500), initialized flag, player alert dedup state (cookie_invalid_notified, mapping_refresh_failed, day keys)
+- `state.json` — seen post UUIDs (capped at 500), initialized flag, player alert dedup state (cookie_invalid_notified, char_refresh_failed, avatar_refresh_failed, day keys)
 - `player_mappings_{lang}.json` — character name→code mappings and T10 option metadata (version 2, per-language)
 - `avatar_mappings.json` — name_code → CDN image URL (version 1, TTL 同 mapping_cache_ttl_hours)
 - `avatars/` — downloaded `.webp` character avatar images
@@ -51,7 +51,7 @@ Tests mock the entire AstrBot SDK surface in `tests/conftest.py` so they run wit
 4. **Per-poll state reload**: `_poll_once()` calls `_load_state()` at the top of every cycle, so manual edits to `state.json` take effect without restart
 5. `terminate()` cancels the poll task, closes `httpx.AsyncClient`, saves state
 6. News and player poll failures are independently caught — one failure doesn't block the other
-7. **Per-poll cache refresh**: `_poll_once()` runs `CacheRefresher.refresh(force=False)` after player poll — TTL-expired character + avatar mappings get concurrently refreshed via Playwright. Refresh failure sets `mapping_refresh_failed` lock (no further attempts until `/nikke_refresh` succeeds)
+7. **Per-poll cache refresh**: `_poll_once()` runs `CacheRefresher.refresh(force=False)` after player poll — TTL-expired character + avatar mappings get concurrently refreshed via Playwright. Refresh failures set independent `char_refresh_failed` / `avatar_refresh_failed` locks (no further attempts for that component until `/nikke_refresh` succeeds). `refresh_cached()` checks `is_mapping_stale()` and skips when fresh.
 
 ## Cache TTL
 
@@ -60,7 +60,7 @@ Tests mock the entire AstrBot SDK surface in `tests/conftest.py` so they run wit
 | 缓存 | 刷新触发方式 |
 |---|---|
 | 角色映射 `player_mappings_{lang}.json` | **poll 后台并发自动刷新** — `PollCoordinator` 每轮通过 `CacheRefresher.refresh(force=False)` 检查 TTL，过期时用 `asyncio.gather` 并发 Playwright 重新抓取。失败后推送并锁止，`/nikke_refresh` 成功解除 |
-| 头像映射 `avatar_mappings.json` | **poll 后台并发自动刷新** — 同上，与角色映射并发。只刷新 URL 映射不下载图片，图片仍为查询时 lazy download |
+| 头像映射 `avatar_mappings.json` | **poll 后台并发自动刷新** — 同上，与角色映射并发。`refresh_cached()` 先检查 `is_mapping_stale()`，未过期静默跳过。只刷新 URL 映射不下载图片，图片仍为查询时 lazy download |
 | 技能缓存 `skills/{name_code}_{lang}.json` | **查询触发** — `/nikke_skill` 时，`skill_service._load_cache()` 发现过期则抓取该角色技能并缓存 |
 
 ## Key conventions
@@ -80,4 +80,5 @@ Tests mock the entire AstrBot SDK surface in `tests/conftest.py` so they run wit
 - `/nikke_refresh` 支持参数：`-c`/`--character` 只刷角色映射，`-a`/`--avatar` 只刷头像映射，无参数全刷
 - Cookie 校验统一入口 `PlayerPoller.cookie_status()`，返回 `CookieStatus` 枚举
 - `CacheRefresher` 负责 poll 后台缓存刷新调度
-- 映射刷新失败后通过 `mapping_refresh_failed` 状态锁止，`/nikke_refresh` 成功解除
+- 映射刷新失败后通过 `char_refresh_failed` / `avatar_refresh_failed` 状态分别锁止，`/nikke_refresh`（含 `-c`/`-a`）成功解除
+- `refresh_mappings()` 和 `refresh_cached()` 返回 `(消息文本, 是否失败)` 元组；`CacheRefresher.refresh()` 返回 `(消息文本, 角色是否失败, 头像是否失败)` 或 None。均无内部重试。
