@@ -9,7 +9,7 @@ This is an [AstrBot](https://github.com/AstrBotDevs/AstrBot) plugin — it runs 
 **Entrypoint**: `main.py` — `NikkeNewsPlugin(Star)` registered via `@register(...)`. Commands registered via `@filter.command(...)`.
 
 **Packages**:
-- `core/` — config, constants, state, targets, time_utils, utils, message_builder, nikke_commands, poll_coordinator
+- `core/` — config, constants, state, targets, time_utils, utils, message_builder, nikke_commands, poll_coordinator, cache_refresher
 - `news/` — news_client (Blablalink API), news_poller (diff + push)
 - `player/` — player_client, player_poller, character_service, character_formatter, player_mapping_cache, player_mapping_refresher, avatar_mapping_cache, avatar_scraper, avatar_service
 
@@ -18,9 +18,9 @@ This is an [AstrBot](https://github.com/AstrBotDevs/AstrBot) plugin — it runs 
 **Runtime data**: persisted as JSON files in AstrBot's data directory (`StarTools.get_data_dir()`):
 - `state.json` — seen post UUIDs (capped at 500), initialized flag, player alert dedup state
 - `player_mappings_{lang}.json` — character name→code mappings and T10 option metadata (version 2, per-language)
-- `avatar_mappings.json` — name_code → CDN image URL (version 1, 24h TTL)
+- `avatar_mappings.json` — name_code → CDN image URL (version 1, TTL 同 mapping_cache_ttl_hours)
 - `avatars/` — downloaded `.webp` character avatar images
-- `skills/` — cached skill detail JSONs per character per language (`{name_code}_{lang}.json`, TTL)
+- `skills/` — cached skill detail JSONs per character per language (`{name_code}_{lang}.json`, TTL 同 mapping_cache_ttl_hours)
 
 ## Commands
 
@@ -52,6 +52,16 @@ Tests mock the entire AstrBot SDK surface in `tests/conftest.py` so they run wit
 5. `terminate()` cancels the poll task, closes `httpx.AsyncClient`, saves state
 6. News and player poll failures are independently caught — one failure doesn't block the other
 
+## Cache TTL
+
+只有一个可配置 TTL：`player.mapping_cache_ttl_hours`（默认 168h = 7 天，下限 1h），复用于三类缓存。过期判断统一走 `core/utils.py:datetime_is_stale()`，比较 `updated_at` 与当前 UTC 时间。
+
+| 缓存 | 刷新触发方式 |
+|---|---|
+| 角色映射 `player_mappings_{lang}.json` | **poll 后台并发自动刷新** — `PollCoordinator` 每轮通过 `CacheRefresher.refresh(force=False)` 检查 TTL，过期时用 `asyncio.gather` 并发 Playwright 重新抓取。失败后推送并锁止，`/nikke_refresh` 成功解除 |
+| 头像映射 `avatar_mappings.json` | **poll 后台并发自动刷新** — 同上，与角色映射并发。只刷新 URL 映射不下载图片，图片仍为查询时 lazy download |
+| 技能缓存 `skills/{name_code}_{lang}.json` | **查询触发** — `/nikke_skill` 时，`skill_service._load_cache()` 发现过期则抓取该角色技能并缓存 |
+
 ## Key conventions
 
 - The `@register(name, author, desc, version)` decorator in `main.py` and the fields in `metadata.yaml` **must match**. If you change one, update the other.
@@ -66,3 +76,7 @@ Tests mock the entire AstrBot SDK surface in `tests/conftest.py` so they run wit
 - Time helpers use BJT (UTC+8) with a 4am day boundary for player alert dedup.
 - `player_mapping_refresher.py` navigates to `https://www.blablalink.com/shiftyspad/nikke-list?type=combat` and intercepts `sg-tools-cdn.blablalink.com` JSON responses via Playwright's response event.
 - `avatar_scraper.py` scrapes avatar URLs via two-phase Playwright collection (default + obtained skin), injecting Vue store to expand the virtual list; `avatar_service.py` orchestrates scrape → download → per-request ensure.
+- `/nikke_refresh` 支持参数：`-c`/`--character` 只刷角色映射，`-a`/`--avatar` 只刷头像映射，无参数全刷
+- Cookie 校验统一入口 `PlayerPoller.cookie_status()`，返回 `CookieStatus` 枚举
+- `CacheRefresher` 负责 poll 后台缓存刷新调度
+- 映射刷新失败后通过 `mapping_refresh_failed` 状态锁止，`/nikke_refresh` 成功解除
