@@ -102,8 +102,11 @@ class AvatarService:
         Returns:
             刷新结果描述文本。
         """
+        t0 = time.monotonic()
         mappings = await self._scraper.scrape(cookie)
         if not mappings:
+            elapsed = time.monotonic() - t0
+            logger.debug(f"NIKKE 头像映射刷新耗时 {elapsed:.0f}s")
             return (
                 "未获取到角色头像映射。请确认：\n"
                 "1. Cookie 是否有效\n"
@@ -111,14 +114,18 @@ class AvatarService:
             )
         cached = {code: url for code, url in mappings.items() if self.exists(code)}
         if not cached:
+            elapsed = time.monotonic() - t0
+            logger.debug(f"NIKKE 头像映射刷新耗时 {elapsed:.0f}s")
             return (
                 f"头像映射已更新（共 {len(mappings)} 个角色），"
-                "但本地无已缓存头像，未下载任何文件。"
+                f"但本地无已缓存头像，未下载任何文件。（{elapsed:.0f}s）"
             )
         new_count = await self._download_mappings(cached)
+        elapsed = time.monotonic() - t0
+        logger.debug(f"NIKKE 头像映射刷新耗时 {elapsed:.0f}s")
         return (
             f"头像缓存刷新完成：映射共 {len(mappings)} 个角色，"
-            f"已缓存 {len(cached)} 个，下载完成 {new_count} 个。"
+            f"已缓存 {len(cached)} 个，下载完成 {new_count} 个。（{elapsed:.0f}s）"
         )
 
     def _load_mappings(self) -> dict[int, str]:
