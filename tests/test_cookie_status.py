@@ -1,5 +1,4 @@
 # tests/test_cookie_status.py
-import pytest
 from core.cookie_status import CookieStatus
 from core.config import PluginConfig
 from player.player_poller import PlayerPoller
