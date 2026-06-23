@@ -16,7 +16,9 @@ def _make_poller(**kwargs):
     state = {}
     if kwargs.get("cookie_invalid"):
         state["player_alert_state"] = {"cookie_invalid_notified": True}
-    return PlayerPoller(client=None, config=config, state=state, save_state=lambda: None)
+    return PlayerPoller(
+        client=None, config=config, state=state, save_state=lambda: None
+    )
 
 
 class TestCookieStatus:

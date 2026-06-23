@@ -93,7 +93,9 @@ class AvatarService:
             f"下载完成 {new_count} 个（耗时 {elapsed:.0f}s）。"
         )
 
-    async def refresh_cached(self, cookie: str, *, force: bool = False) -> tuple[str, bool]:
+    async def refresh_cached(
+        self, cookie: str, *, force: bool = False
+    ) -> tuple[str, bool]:
         """抓取头像映射并仅重新下载本地已有缓存文件的头像。
 
         Args:

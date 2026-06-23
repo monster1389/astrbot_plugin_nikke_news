@@ -82,7 +82,10 @@ class PollCoordinator:
                 state.setdefault("char_refresh_failed", False)
                 state.setdefault("avatar_refresh_failed", False)
 
-                if not state["char_refresh_failed"] or not state["avatar_refresh_failed"]:
+                if (
+                    not state["char_refresh_failed"]
+                    or not state["avatar_refresh_failed"]
+                ):
                     try:
                         result = await self._cache_refresher.refresh(
                             force=False,
@@ -90,9 +93,7 @@ class PollCoordinator:
                             skip_avatar=state["avatar_refresh_failed"],
                         )
                     except Exception as exc:
-                        logger.warning(
-                            f"NIKKE 缓存刷新异常：{exc}", exc_info=True
-                        )
+                        logger.warning(f"NIKKE 缓存刷新异常：{exc}", exc_info=True)
                         result = (f"缓存刷新异常：{exc}", True, True)
 
                     if result is not None:

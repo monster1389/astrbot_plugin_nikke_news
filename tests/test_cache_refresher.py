@@ -11,7 +11,10 @@ from core.cookie_status import CookieStatus
 def mock_services():
     char_svc = MagicMock()
     char_svc.refresh_mappings = AsyncMock(
-        return_value=("英文映射已刷新：角色 122 个，词条 3 个。\n已重载本地角色列表，共 122 个角色。", False)
+        return_value=(
+            "英文映射已刷新：角色 122 个，词条 3 个。\n已重载本地角色列表，共 122 个角色。",
+            False,
+        )
     )
 
     avatar_svc = MagicMock()
@@ -82,9 +85,7 @@ class TestCacheRefresher:
 
     def test_failure_adds_reset_hint(self, mock_services):
         char_svc, avatar_svc, player_poller, config = mock_services
-        char_svc.refresh_mappings = AsyncMock(
-            side_effect=RuntimeError("crash")
-        )
+        char_svc.refresh_mappings = AsyncMock(side_effect=RuntimeError("crash"))
         cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
         msg, char_failed, avatar_failed = asyncio.run(cr.refresh(force=True))
         assert char_failed is True

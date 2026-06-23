@@ -171,15 +171,19 @@ class TestRefreshCached:
         assert "未获取到角色头像映射" in msg
 
     @pytest.mark.asyncio
-    async def test_refresh_cached_skips_when_fresh(self, service, monkeypatch, tmp_path):
+    async def test_refresh_cached_skips_when_fresh(
+        self, service, monkeypatch, tmp_path
+    ):
         """TTL 未过期时返回空串且不抓取。"""
         cache_path = tmp_path / "avatar_mappings.json"
         cache_path.write_text(
-            json.dumps({
-                "version": 1,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-                "mappings": {"5005": "https://example.com/a.webp"},
-            })
+            json.dumps(
+                {
+                    "version": 1,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "mappings": {"5005": "https://example.com/a.webp"},
+                }
+            )
         )
         scrape_called = False
 

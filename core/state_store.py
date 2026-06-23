@@ -65,9 +65,7 @@ class PluginStateStore:
             "cookie_invalid_notified": bool(
                 player_raw.get("cookie_invalid_notified", False)
             ),
-            "char_refresh_failed": bool(
-                player_raw.get("char_refresh_failed", False)
-            ),
+            "char_refresh_failed": bool(player_raw.get("char_refresh_failed", False)),
             "avatar_refresh_failed": bool(
                 player_raw.get("avatar_refresh_failed", False)
             ),

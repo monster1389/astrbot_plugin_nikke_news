@@ -142,7 +142,6 @@ class SkillScraper:
             )
         elapsed = time.monotonic() - t_start
         logger.debug(
-            f"NIKKE 技能数据抓取完成 "
-            f"(resource_id={resource_id}, 耗时 {elapsed:.1f}s)"
+            f"NIKKE 技能数据抓取完成 (resource_id={resource_id}, 耗时 {elapsed:.1f}s)"
         )
         return skill_data

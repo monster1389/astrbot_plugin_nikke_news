@@ -344,4 +344,3 @@ class CharacterService:
             self._state_effect_options,
         )
         return text, name_code
-

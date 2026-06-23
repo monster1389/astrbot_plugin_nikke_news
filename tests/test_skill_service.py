@@ -183,7 +183,9 @@ class TestLoadCache:
         skills_dir = tmp_path / "skills"
         skills_dir.mkdir()
         cache_path = skills_dir / "5124_zh-TW.json"
-        data = dict(SAMPLE_SKILL_DATA, updated_at=datetime.now(timezone.utc).isoformat())
+        data = dict(
+            SAMPLE_SKILL_DATA, updated_at=datetime.now(timezone.utc).isoformat()
+        )
         cache_path.write_text(json.dumps(data, ensure_ascii=False))
 
         service = SkillService.__new__(SkillService)

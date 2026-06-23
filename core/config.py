@@ -201,7 +201,6 @@ class PluginConfig:
         """返回映射缓存 TTL 小时数，下限 1h。"""
         return max(1, self._player_int("mapping_cache_ttl_hours", 168))
 
-
     def character_aliases(self) -> dict[str, list[str]]:
         """解析角色别名配置为规范化的 dict。
 

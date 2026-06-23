@@ -7,6 +7,7 @@ import astrbot.api.message_components as Comp
 
 from player.character_service import CharacterQueryError
 
+
 def _parse_refresh_args(text: str) -> tuple[bool, bool]:
     """解析 /nikke_refresh 参数，返回 (character_only, avatar_only)。"""
     arg = text.strip().lower()
