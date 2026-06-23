@@ -7,6 +7,7 @@ from astrbot.api.event import MessageChain
 
 from core.config import PluginConfig
 from core.constants import CST
+from core.cookie_status import CookieStatus
 from core.message_builder import MessageBuilder
 from player.player_client import PlayerClient
 from core.targets import broadcast_to_targets, enabled_targets
@@ -36,23 +37,32 @@ class PlayerPoller:
         self._state = state
         self._save_state = save_state
 
+    def cookie_status(self) -> CookieStatus:
+        """统一 Cookie 可用性检查。"""
+        if not self._config.player_data_enabled():
+            return CookieStatus.DISABLED
+        if not self._config.player_data_cookie():
+            return CookieStatus.EMPTY
+        if self._state.get("player_alert_state", {}).get(
+            "cookie_invalid_notified", False
+        ):
+            return CookieStatus.INVALID
+        return CookieStatus.AVAILABLE
+
     async def poll(self) -> None:
         """检查前哨基地满仓和日常任务完成情况，必要时推送提醒。
 
         Cookie 失效时发送首次通知并记录日志，后续仅写日志。
         """
-        if not self._config.player_data_enabled():
-            return
-
-        cookie = self._config.player_data_cookie()
-        if not cookie:
-            logger.warning("NIKKE 玩家数据功能已启用，但未配置玩家状态提醒的 Cookie。")
+        if self.cookie_status() != CookieStatus.AVAILABLE:
             return
 
         targets = enabled_targets(self._config.news_config())
         if not targets:
             logger.warning("NIKKE 玩家数据功能已启用，但未配置推送目标。")
             return
+
+        cookie = self._config.player_data_cookie()
 
         player_state = self._state.setdefault("player_alert_state", {})
         player_state.setdefault("cookie_invalid_notified", False)
