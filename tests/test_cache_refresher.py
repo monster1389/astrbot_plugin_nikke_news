@@ -11,12 +11,12 @@ from core.cookie_status import CookieStatus
 def mock_services():
     char_svc = MagicMock()
     char_svc.refresh_mappings = AsyncMock(
-        return_value="英文映射已刷新：角色 122 个，词条 3 个。（18s）"
+        return_value=("英文映射已刷新：角色 122 个，词条 3 个。\n已重载本地角色列表，共 122 个角色。", False)
     )
 
     avatar_svc = MagicMock()
     avatar_svc.refresh_cached = AsyncMock(
-        return_value="头像缓存刷新完成：已缓存 50 个，下载完成 0 个。（12s）"
+        return_value=("头像缓存刷新完成：已缓存 50 个，下载完成 0 个。（12s）", False)
     )
 
     player_poller = MagicMock()
@@ -32,27 +32,29 @@ class TestCacheRefresher:
     def test_refresh_concurrent(self, mock_services):
         char_svc, avatar_svc, player_poller, config = mock_services
         cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
-        msg = asyncio.run(cr.refresh(force=True))
+        msg, char_failed, avatar_failed = asyncio.run(cr.refresh(force=True))
+        assert char_failed is False
+        assert avatar_failed is False
         assert "英文映射已刷新" in msg
         assert "头像缓存刷新完成" in msg
         assert "总耗时" in msg
         char_svc.refresh_mappings.assert_called_once_with(force=True)
-        avatar_svc.refresh_cached.assert_called_once_with("ck=abc")
+        avatar_svc.refresh_cached.assert_called_once_with("ck=abc", force=True)
 
     def test_returns_none_when_cookie_unavailable(self, mock_services):
         char_svc, avatar_svc, player_poller, config = mock_services
         player_poller.cookie_status.return_value = CookieStatus.EMPTY
         cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
-        msg = asyncio.run(cr.refresh())
-        assert msg is None
+        result = asyncio.run(cr.refresh())
+        assert result is None
         char_svc.refresh_mappings.assert_not_called()
 
     def test_returns_none_on_concurrent_call(self, mock_services):
         char_svc, avatar_svc, player_poller, config = mock_services
         cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
         cr._in_progress = True
-        msg = asyncio.run(cr.refresh())
-        assert msg is None
+        result = asyncio.run(cr.refresh())
+        assert result is None
 
     def test_handles_refresh_exception(self, mock_services):
         char_svc, avatar_svc, player_poller, config = mock_services
@@ -60,6 +62,30 @@ class TestCacheRefresher:
             side_effect=RuntimeError("Playwright crash")
         )
         cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
-        msg = asyncio.run(cr.refresh(force=True))
+        msg, char_failed, avatar_failed = asyncio.run(cr.refresh(force=True))
+        assert char_failed is True
+        assert avatar_failed is False
         assert "角色映射刷新失败" in msg
         assert "头像缓存刷新完成" in msg
+
+    def test_skip_character_and_avatar(self, mock_services):
+        char_svc, avatar_svc, player_poller, config = mock_services
+        cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
+        msg, char_failed, avatar_failed = asyncio.run(
+            cr.refresh(skip_character=True, skip_avatar=True)
+        )
+        assert char_failed is False
+        assert avatar_failed is False
+        assert "总耗时" in msg
+        char_svc.refresh_mappings.assert_not_called()
+        avatar_svc.refresh_cached.assert_not_called()
+
+    def test_failure_adds_reset_hint(self, mock_services):
+        char_svc, avatar_svc, player_poller, config = mock_services
+        char_svc.refresh_mappings = AsyncMock(
+            side_effect=RuntimeError("crash")
+        )
+        cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
+        msg, char_failed, avatar_failed = asyncio.run(cr.refresh(force=True))
+        assert char_failed is True
+        assert "请执行 /nikke_refresh 重置失败状态后重试。" in msg

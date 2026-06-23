@@ -4,18 +4,7 @@
 import asyncio
 import time
 
-from astrbot.api import logger
 from core.cookie_status import CookieStatus
-
-
-def _unwrap(result, label: str) -> str:
-    if isinstance(result, Exception):
-        logger.warning(f"NIKKE {label}刷新失败：{result}", exc_info=True)
-        return f"{label}刷新失败：{result}"
-    if isinstance(result, tuple):
-        msg, _ = result
-        return msg or f"{label}：无需刷新。"
-    return str(result or f"{label}：无需刷新。")
 
 
 class CacheRefresher:
@@ -28,14 +17,21 @@ class CacheRefresher:
         self._config = config
         self._in_progress = False
 
-    async def refresh(self, force: bool = False) -> str | None:
+    async def refresh(
+        self,
+        force: bool = False,
+        skip_character: bool = False,
+        skip_avatar: bool = False,
+    ) -> tuple[str, bool, bool] | None:
         """并发刷新角色映射和头像映射。
 
         Args:
-            force: True 跳过 TTL 检查强制刷新，False 仅过期时刷新。
+            force: True 跳过 TTL 检查强制刷新。
+            skip_character: True 跳过角色映射刷新。
+            skip_avatar: True 跳过头像映射刷新。
 
         Returns:
-            结果消息字符串（含耗时），或 None（cookie 不可用 / 并发冲突）。
+            (消息文本, 角色是否失败, 头像是否失败)，不可用时返回 None。
         """
         if self._in_progress:
             return None
@@ -46,14 +42,43 @@ class CacheRefresher:
 
             t0 = time.monotonic()
             cookie = self._config.player_data_cookie()
-            results = await asyncio.gather(
-                self._character_service.refresh_mappings(force=force),
-                self._avatar_service.refresh_cached(cookie),
-                return_exceptions=True,
+
+            async def _noop():
+                return ("", False)
+
+            char_task = (
+                _noop()
+                if skip_character
+                else self._character_service.refresh_mappings(force=force)
             )
-            role_msg = _unwrap(results[0], "角色映射")
-            avatar_msg = _unwrap(results[1], "头像")
+            avatar_task = (
+                _noop()
+                if skip_avatar
+                else self._avatar_service.refresh_cached(cookie, force=force)
+            )
+
+            results = await asyncio.gather(
+                char_task, avatar_task, return_exceptions=True
+            )
+
+            if isinstance(results[0], Exception):
+                role_msg = f"角色映射刷新失败：{results[0]}"
+                char_failed = True
+            else:
+                role_msg, char_failed = results[0]
+
+            if isinstance(results[1], Exception):
+                avatar_msg = f"头像刷新失败：{results[1]}"
+                avatar_failed = True
+            else:
+                avatar_msg, avatar_failed = results[1]
+
+            parts = [p for p in [role_msg, avatar_msg] if p]
+            has_failure = char_failed or avatar_failed
+            if has_failure:
+                parts.append("请执行 /nikke_refresh 重置失败状态后重试。")
             elapsed = time.monotonic() - t0
-            return f"{role_msg}\n{avatar_msg}\n总耗时 {elapsed:.0f}s"
+            parts.append(f"总耗时 {elapsed:.0f}s")
+            return ("\n".join(parts), char_failed, avatar_failed)
         finally:
             self._in_progress = False
