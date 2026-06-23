@@ -140,10 +140,11 @@ class TestRefreshCached:
         monkeypatch.setattr(service._scraper, "scrape", fake_scrape)
         monkeypatch.setattr(service, "_download_mappings", fake_download)
 
-        result = await service.refresh_cached("test_cookie")
+        msg, failed = await service.refresh_cached("test_cookie")
 
+        assert failed is False
         assert called_with == [{101: "https://cdn.example.com/101.webp"}]
-        assert "已缓存 1 个" in result
+        assert "已缓存 1 个" in msg
 
     @pytest.mark.asyncio
     async def test_refresh_cached_no_local_files(self, service, monkeypatch):
@@ -154,8 +155,9 @@ class TestRefreshCached:
 
         monkeypatch.setattr(service._scraper, "scrape", fake_scrape)
 
-        result = await service.refresh_cached("test_cookie")
-        assert "未下载任何文件" in result
+        msg, failed = await service.refresh_cached("test_cookie")
+        assert failed is False
+        assert "未下载任何文件" in msg
 
     @pytest.mark.asyncio
     async def test_refresh_cached_scrape_returns_empty(self, service, monkeypatch):
@@ -164,8 +166,49 @@ class TestRefreshCached:
 
         monkeypatch.setattr(service._scraper, "scrape", fake_scrape)
 
-        result = await service.refresh_cached("test_cookie")
-        assert "未获取到角色头像映射" in result
+        msg, failed = await service.refresh_cached("test_cookie")
+        assert failed is True
+        assert "未获取到角色头像映射" in msg
+
+    @pytest.mark.asyncio
+    async def test_refresh_cached_skips_when_fresh(self, service, monkeypatch, tmp_path):
+        """TTL 未过期时返回空串且不抓取。"""
+        cache_path = tmp_path / "avatar_mappings.json"
+        cache_path.write_text(
+            json.dumps({
+                "version": 1,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "mappings": {"5005": "https://example.com/a.webp"},
+            })
+        )
+        scrape_called = False
+
+        async def fake_scrape(cookie):
+            nonlocal scrape_called
+            scrape_called = True
+            return {}
+
+        monkeypatch.setattr(service._scraper, "scrape", fake_scrape)
+
+        msg, failed = await service.refresh_cached("test_cookie")
+        assert (msg, failed) == ("", False)
+        assert scrape_called is False
+
+    @pytest.mark.asyncio
+    async def test_refresh_cached_force_bypasses_ttl(self, service, monkeypatch):
+        """force=True 时跳过 TTL 检查直接抓取。"""
+        scrape_called = False
+
+        async def fake_scrape(cookie):
+            nonlocal scrape_called
+            scrape_called = True
+            return {}
+
+        monkeypatch.setattr(service._scraper, "scrape", fake_scrape)
+
+        msg, failed = await service.refresh_cached("test_cookie", force=True)
+        assert failed is True
+        assert scrape_called is True
 
 
 # ── AvatarMappingCache ──────────────────────────────────────────
