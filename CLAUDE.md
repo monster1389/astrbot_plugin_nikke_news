@@ -9,14 +9,14 @@ This is an [AstrBot](https://github.com/AstrBotDevs/AstrBot) plugin — it runs 
 **Entrypoint**: `main.py` — `NikkeNewsPlugin(Star)` registered via `@register(...)`. Commands registered via `@filter.command(...)`.
 
 **Packages**:
-- `core/` — config, constants, state, targets, time_utils, utils, message_builder, nikke_commands, poll_coordinator, cache_refresher
+- `core/` — config, constants, state, targets, time_utils, utils, message_builder, nikke_commands, poll_coordinator, cache_refresher, cookie_status
 - `news/` — news_client (Blablalink API), news_poller (diff + push)
 - `player/` — player_client, player_poller, character_service, character_formatter, player_mapping_cache, player_mapping_refresher, avatar_mapping_cache, avatar_scraper, avatar_service
 
 **Dependencies** (`requirements.txt`): `httpx>=0.28.1`, `playwright>=1.44.0`. Chromium binaries are provided by the runtime Docker image.
 
 **Runtime data**: persisted as JSON files in AstrBot's data directory (`StarTools.get_data_dir()`):
-- `state.json` — seen post UUIDs (capped at 500), initialized flag, player alert dedup state
+- `state.json` — seen post UUIDs (capped at 500), initialized flag, player alert dedup state (cookie_invalid_notified, mapping_refresh_failed, day keys)
 - `player_mappings_{lang}.json` — character name→code mappings and T10 option metadata (version 2, per-language)
 - `avatar_mappings.json` — name_code → CDN image URL (version 1, TTL 同 mapping_cache_ttl_hours)
 - `avatars/` — downloaded `.webp` character avatar images
@@ -51,6 +51,7 @@ Tests mock the entire AstrBot SDK surface in `tests/conftest.py` so they run wit
 4. **Per-poll state reload**: `_poll_once()` calls `_load_state()` at the top of every cycle, so manual edits to `state.json` take effect without restart
 5. `terminate()` cancels the poll task, closes `httpx.AsyncClient`, saves state
 6. News and player poll failures are independently caught — one failure doesn't block the other
+7. **Per-poll cache refresh**: `_poll_once()` runs `CacheRefresher.refresh(force=False)` after player poll — TTL-expired character + avatar mappings get concurrently refreshed via Playwright. Refresh failure sets `mapping_refresh_failed` lock (no further attempts until `/nikke_refresh` succeeds)
 
 ## Cache TTL
 
@@ -68,7 +69,7 @@ Tests mock the entire AstrBot SDK surface in `tests/conftest.py` so they run wit
 - Command handlers must be **async generators**: `yield event.plain_result(...)` for text replies, `yield event.chain_result([...])` for mixed content (text + images).
 - Messages are sent via `StarTools.send_message_by_id()`, bypassing the LLM reply pipeline.
 - Playwright/Chromium is only used for mapping refresh — never put it on the hot path for `/nikke` queries.
-- Character query stages: ensure mapping cache → alias lookup → `fetch_characters()` → `fetch_character_details()` → format stats → optionally ensure portrait.
+- Character query stages: load caches from disk → alias lookup → `fetch_characters()` → `fetch_character_details()` → format stats → optionally ensure portrait. No auto-refresh blocking — poll keeps caches fresh in background.
 - `/nikke_skill` follows the same character lookup pattern as `/nikke`.
 - Equipment T10 options with the same `function_type` are aggregated before display; option values use `abs(function_value) / 100` formatted as percentage.
 - Push targets accept plain group IDs (`"957880653"`) or unified format (`"aiocqhttp:GroupMessage:957880653"`). Supported types: `GroupMessage`, `PrivateMessage`, `FriendMessage`.
