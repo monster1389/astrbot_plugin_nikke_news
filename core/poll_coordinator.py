@@ -79,32 +79,44 @@ class PollCoordinator:
 
             if self._player_poller.cookie_status() == CookieStatus.AVAILABLE:
                 state = self._state.setdefault("player_alert_state", {})
-                state.setdefault("mapping_refresh_failed", False)
-                if not state.get("mapping_refresh_failed"):
+                state.setdefault("char_refresh_failed", False)
+                state.setdefault("avatar_refresh_failed", False)
+
+                if not state["char_refresh_failed"] or not state["avatar_refresh_failed"]:
                     try:
-                        msg = await self._cache_refresher.refresh(force=False)
+                        result = await self._cache_refresher.refresh(
+                            force=False,
+                            skip_character=state["char_refresh_failed"],
+                            skip_avatar=state["avatar_refresh_failed"],
+                        )
                     except Exception as exc:
                         logger.warning(
                             f"NIKKE 缓存刷新异常：{exc}", exc_info=True
                         )
-                        msg = f"缓存刷新失败：{exc}"
-                    if msg:
-                        from core.targets import (
-                            broadcast_to_targets,
-                            enabled_targets,
-                        )
-                        from astrbot.api.event import MessageChain as MC
+                        result = (f"缓存刷新异常：{exc}", True, True)
 
-                        targets = enabled_targets(
-                            self._player_poller._config.news_config()
-                        )
-                        if targets:
-                            await broadcast_to_targets(
-                                targets,
-                                MC().message(msg),
-                                "缓存刷新",
+                    if result is not None:
+                        msg, char_failed, avatar_failed = result
+                        if char_failed:
+                            state["char_refresh_failed"] = True
+                        if avatar_failed:
+                            state["avatar_refresh_failed"] = True
+                        if char_failed or avatar_failed:
+                            from core.targets import (
+                                broadcast_to_targets,
+                                enabled_targets,
                             )
-                        state["mapping_refresh_failed"] = True
-                        from core.state_store import PluginStateStore as PSS
+                            from astrbot.api.event import MessageChain as MC
 
-                        PSS(self._state_path).save(self._state)
+                            targets = enabled_targets(
+                                self._player_poller._config.news_config()
+                            )
+                            if targets:
+                                await broadcast_to_targets(
+                                    targets,
+                                    MC().message(msg),
+                                    "缓存刷新",
+                                )
+                            from core.state_store import PluginStateStore as PSS
+
+                            PSS(self._state_path).save(self._state)
