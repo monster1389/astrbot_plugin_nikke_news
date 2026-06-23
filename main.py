@@ -27,6 +27,7 @@ from core.nikke_commands import (
     handle_refresh,
     handle_skill,
 )
+from core.cache_refresher import CacheRefresher
 from core.poll_coordinator import PollCoordinator
 from core.state_store import PluginStateStore
 from news.news_poller import NewsPoller
@@ -70,6 +71,7 @@ class NikkeNewsPlugin(Star):
         self._character_service: CharacterService | None = None
         self._avatar_service: AvatarService | None = None
         self._skill_service: SkillService | None = None
+        self._cache_refresher: CacheRefresher | None = None
         self._coordinator: PollCoordinator | None = None
         self._task: asyncio.Task | None = None
         self._state_path: Path | None = None
@@ -135,12 +137,19 @@ class NikkeNewsPlugin(Star):
             self._state,
             self._save_state,
         )
+        self._cache_refresher = CacheRefresher(
+            self._character_service,
+            self._avatar_service,
+            self._player_poller,
+            self._plugin_config,
+        )
         self._coordinator = PollCoordinator(
             news_poller=self._news_poller,
             player_poller=self._player_poller,
             state=self._state,
             state_path=self._state_path,
             poll_interval_seconds=self._poll_interval_seconds(),
+            cache_refresher=self._cache_refresher,
         )
         self._task = asyncio.create_task(
             self._coordinator.run(), name=f"{PLUGIN_NAME}_poll"
@@ -203,16 +212,17 @@ class NikkeNewsPlugin(Star):
             yield result
 
     @filter.command("nikke_refresh")
-    async def cmd_nikke_refresh(self, event: AstrMessageEvent):
+    async def cmd_nikke_refresh(self, event: AstrMessageEvent, text: str = ""):
         """刷新角色映射和已缓存头像：/nikke_refresh
 
         Args:
             event: AstrBot 消息事件。
+            text: 命令行参数文本。
 
         Yields:
             AstrBot plain_result 消息（含分步耗时）。
         """
-        async for result in handle_refresh(self, event):
+        async for result in handle_refresh(self, event, text):
             yield result
 
     @filter.command("nikke_avatar_all")
