@@ -111,7 +111,7 @@
 
 - `/nikke <角色名>` 查询账号内角色战力、技能、装备等级和 T10 词条。
 - `/nikke_skill <角色名>` 查询角色技能描述。
-- `/nikke_refresh` 刷新角色名和词条映射。
+- `/nikke_refresh` 刷新角色映射和已缓存头像（支持 `-c`/`-a` 参数，见下）。
 - `/nikke_avatar_all` 用 Playwright 抓取全部角色头像并全量刷新本地缓存。
 - `/nikke_help` 查看所有命令。
 
@@ -122,9 +122,16 @@
 /nikke rapi rh
 /nikke_skill cinderella
 /nikke_refresh
+/nikke_refresh -c
+/nikke_refresh --avatar
 /nikke_avatar_all
 /nikke_help
 ```
+
+`/nikke_refresh` 参数说明：
+- 无参数 — 并发刷新角色映射和已缓存头像
+- `-c` / `--character` — 只刷新角色映射
+- `-a` / `--avatar` — 只刷新头像映射
 
 常见问题：
 
