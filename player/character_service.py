@@ -1,3 +1,5 @@
+"""角色查询服务——模糊匹配、映射刷新、角色详情。"""
+
 import time
 from typing import Any
 

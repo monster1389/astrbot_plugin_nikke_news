@@ -1,3 +1,5 @@
+"""玩家数据 API 客户端——进度、角色列表、角色详情。"""
+
 from typing import Any
 
 import httpx
@@ -169,7 +171,7 @@ class PlayerClient:
 
 
 def _player_headers(cookie: str, language: str, game_id: str) -> dict[str, str]:
-    """构建玩家 API 请求头（x-language、x-common-params、Cookie）。"""
+    """构建玩家 API 的共用请求头（x-language、x-common-params、Cookie）。"""
     headers = {
         "x-language": language,
         "x-channel-type": "2",

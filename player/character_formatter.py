@@ -12,7 +12,18 @@ def format_character_stats(
     state_effects: list[dict[str, Any]] | None = None,
     state_effect_options: dict[str, dict[str, Any]] | None = None,
 ) -> str:
-    """格式化角色战斗力、技能、装备及 T10 词条表格文本。"""
+    """格式化角色战力、技能、装备及 T10 词条为表格文本。
+
+    Args:
+        char_info: fetch_characters 返回的单角色 dict，含 combat 字段。
+        char_detail: fetch_character_details 返回的角色详情 dict。
+        name_map: {"en": str, "zh": str} 角色名映射。
+        state_effects: 状态效果列表（T10 词条元数据来源之一）。
+        state_effect_options: state_effect_option_id → 元数据映射。
+
+    Returns:
+        多行格式化文本，含名字、战力、技能等级、装备等级及 T10 词条。
+    """
     en_name = name_map.get("en", "")
     zh_name = name_map.get("zh", "")
 

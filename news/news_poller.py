@@ -1,3 +1,5 @@
+"""轮询官方公告新增并推送到目标群。"""
+
 import asyncio
 from typing import Any, Callable
 

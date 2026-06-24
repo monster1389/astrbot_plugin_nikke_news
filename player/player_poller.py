@@ -1,3 +1,5 @@
+"""玩家状态轮询——日常进度变化提醒。"""
+
 from datetime import datetime
 from typing import Any, Callable
 

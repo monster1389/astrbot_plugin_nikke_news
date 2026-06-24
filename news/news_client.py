@@ -1,3 +1,5 @@
+"""Blablalink 官方公告 API 客户端。"""
+
 from typing import Any
 
 import httpx

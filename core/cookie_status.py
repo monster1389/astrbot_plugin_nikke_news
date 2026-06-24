@@ -1,4 +1,6 @@
 # core/cookie_status.py
+"""Cookie 可用性状态枚举。"""
+
 from enum import Enum, auto
 
 

@@ -15,6 +15,14 @@ class CacheRefresher:
     """并发调度角色映射和头像映射的 TTL/强制刷新。"""
 
     def __init__(self, character_service, avatar_service, player_poller, config):
+        """初始化缓存刷新调度器。
+
+        Args:
+            character_service: CharacterService 实例，用于角色映射刷新。
+            avatar_service: AvatarService 实例，用于头像映射刷新。
+            player_poller: PlayerPoller 实例，用于 Cookie 状态检查。
+            config: PluginConfig 实例，取 player_data_cookie。
+        """
         self._character_service = character_service
         self._avatar_service = avatar_service
         self._player_poller = player_poller

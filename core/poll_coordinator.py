@@ -30,6 +30,16 @@ class PollCoordinator:
         poll_interval_seconds: int,
         cache_refresher=None,
     ):
+        """初始化轮询协调器。
+
+        Args:
+            news_poller: NewsPoller 实例。
+            player_poller: PlayerPoller 实例。
+            state: 持久化状态 dict（state.json）。
+            state_path: state.json 文件路径。
+            poll_interval_seconds: 轮询间隔秒数。
+            cache_refresher: CacheRefresher 实例。
+        """
         self._news_poller = news_poller
         self._player_poller = player_poller
         self._state = state

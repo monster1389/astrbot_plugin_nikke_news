@@ -109,7 +109,8 @@ async def refresh_player_mappings(
         timeout_ms: 页面加载超时毫秒数，默认 20000。
 
     Returns:
-        (角色名映射, 词条选项映射, CDN 来源元数据) 元组。
+        (角色名映射, 词条选项映射, CDN 来源元数据, resource_id 映射) 元组。
+            resource_ids: name_code → CDN resource_id 的映射字典。
 
     Raises:
         PlayerMappingRefreshError: Playwright 不可用、页面超时或未捕获到数据。
@@ -217,7 +218,14 @@ def _localized_text(value: Any) -> str:
 
 
 def parse_cookie_header(cookie_header: str) -> list[dict[str, Any]]:
-    """解析 Cookie 字符串为 Playwright cookie 对象列表。"""
+    """解析 Cookie 头字符串为 Playwright cookie 对象列表。
+
+    Args:
+        cookie_header: 完整的 Cookie 头字符串。
+
+    Returns:
+        Playwright cookie 对象列表，每个元素含 name、value、domain 等字段。
+    """
     cookies: list[dict[str, Any]] = []
     for part in cookie_header.split(";"):
         if "=" not in part:

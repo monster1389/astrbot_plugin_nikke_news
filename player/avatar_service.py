@@ -1,3 +1,5 @@
+"""角色头像映射与图片管理——抓取、缓存、下载。"""
+
 import asyncio
 import time
 from pathlib import Path

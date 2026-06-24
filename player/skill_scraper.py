@@ -24,6 +24,11 @@ class SkillScraper:
     """
 
     def __init__(self, timeout_ms: int = 20000):
+        """初始化技能抓取器。
+
+        Args:
+            timeout_ms: Playwright 页面加载超时毫秒数，默认 20000。
+        """
         self._timeout_ms = timeout_ms
 
     @staticmethod
