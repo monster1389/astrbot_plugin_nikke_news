@@ -8,7 +8,7 @@ def _make_poller(**kwargs):
     config_data = {
         "新闻": {"enabled": True},
         "玩家": {
-            "cookie": kwargs.get("cookie", "ck=abc"),
+            "cookie": kwargs.get("cookie", {"game_token": "abc"}),
             "状态提醒": {"enabled": kwargs.get("enabled", True)},
         },
     }
@@ -23,7 +23,7 @@ def _make_poller(**kwargs):
 
 class TestCookieStatus:
     def test_available(self):
-        poller = _make_poller(enabled=True, cookie="ck=abc")
+        poller = _make_poller(enabled=True, cookie={"game_token": "abc"})
         assert poller.cookie_status() == CookieStatus.AVAILABLE
 
     def test_disabled(self):
@@ -35,5 +35,7 @@ class TestCookieStatus:
         assert poller.cookie_status() == CookieStatus.EMPTY
 
     def test_invalid(self):
-        poller = _make_poller(enabled=True, cookie="ck=abc", cookie_invalid=True)
+        poller = _make_poller(
+            enabled=True, cookie={"game_token": "abc"}, cookie_invalid=True
+        )
         assert poller.cookie_status() == CookieStatus.INVALID

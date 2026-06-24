@@ -21,7 +21,7 @@ def make_plugin(**config) -> NikkeNewsPlugin:
     base = {
         "新闻": {"enabled": True, "scheduled_push_groups": ["123456"]},
         "玩家": {
-            "cookie": "cookie=abc",
+            "cookie": {"game_token": "abc"},
             "状态提醒": {
                 "enabled": True,
                 "daily_mission_remind_time": "00:00",
@@ -149,7 +149,7 @@ async def test_player_api_error_does_not_raise():
 @pytest.mark.asyncio
 async def test_player_poll_exception_does_not_break_news_flow(captured, tmp_path):
     plugin = make_plugin(
-        player_data_cookie="cookie=abc", scheduled_push_groups=["123456"]
+        player_data_cookie={"game_token": "abc"}, scheduled_push_groups=["123456"]
     )
     plugin._state_path = tmp_path / "state.json"
     plugin._state_path.write_text(

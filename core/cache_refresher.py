@@ -7,6 +7,10 @@ import time
 from core.cookie_status import CookieStatus
 
 
+async def _noop_refresh() -> tuple[str, bool]:
+    return ("", False)
+
+
 class CacheRefresher:
     """并发调度角色映射和头像映射的 TTL/强制刷新。"""
 
@@ -43,16 +47,13 @@ class CacheRefresher:
             t0 = time.monotonic()
             cookie = self._config.player_data_cookie()
 
-            async def _noop():
-                return ("", False)
-
             char_task = (
-                _noop()
+                _noop_refresh()
                 if skip_character
                 else self._character_service.refresh_mappings(force=force)
             )
             avatar_task = (
-                _noop()
+                _noop_refresh()
                 if skip_avatar
                 else self._avatar_service.refresh_cached(cookie, force=force)
             )

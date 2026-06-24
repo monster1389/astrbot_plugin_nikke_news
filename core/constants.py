@@ -25,3 +25,5 @@ SUPPORTED_LANGUAGES = {"zh-TW", "en", "ja", "ko"}
 SUPPORTED_TARGET_TYPES = {"GroupMessage", "PrivateMessage", "FriendMessage"}
 CST = timezone(timedelta(hours=8))
 CDN_HOST = "sg-tools-cdn.blablalink.com"
+DEFAULT_GAME_ID = "29080"
+DEFAULT_AREA_ID = 84

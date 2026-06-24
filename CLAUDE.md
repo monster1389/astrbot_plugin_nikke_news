@@ -73,7 +73,7 @@ Tests mock the entire AstrBot SDK surface in `tests/conftest.py` so they run wit
 - `/nikke_skill` follows the same character lookup pattern as `/nikke`.
 - Equipment T10 options with the same `function_type` are aggregated before display; option values use `abs(function_value) / 100` formatted as percentage.
 - Push targets accept plain group IDs (`"957880653"`) or unified format (`"aiocqhttp:GroupMessage:957880653"`). Supported types: `GroupMessage`, `PrivateMessage`, `FriendMessage`.
-- Cookie config accepts both structured JSON (new) and raw header string (legacy). Character aliases accept both native dict and JSON string.
+- Cookie config uses structured JSON only. Character aliases accept both native dict and JSON string.
 - Time helpers use BJT (UTC+8) with a 4am day boundary for player alert dedup.
 - `player_mapping_refresher.py` navigates to `https://www.blablalink.com/shiftyspad/nikke-list?type=combat` and intercepts `sg-tools-cdn.blablalink.com` JSON responses via Playwright's response event.
 - `avatar_scraper.py` scrapes avatar URLs via two-phase Playwright collection (default + obtained skin), injecting Vue store to expand the virtual list; `avatar_service.py` orchestrates scrape → download → per-request ensure.
@@ -82,3 +82,8 @@ Tests mock the entire AstrBot SDK surface in `tests/conftest.py` so they run wit
 - `CacheRefresher` 负责 poll 后台缓存刷新调度
 - 映射刷新失败后通过 `char_refresh_failed` / `avatar_refresh_failed` 状态分别锁止，`/nikke_refresh`（含 `-c`/`-a`）成功解除
 - `refresh_mappings()` 和 `refresh_cached()` 返回 `(消息文本, 是否失败)` 元组；`CacheRefresher.refresh()` 返回 `(消息文本, 角色是否失败, 头像是否失败)` 或 None。均无内部重试。
+
+## 文档与 spec 规范
+
+- Superpowers 文档（`docs/superpowers/`）不入 git，不提交
+- Spec 文档用中文撰写

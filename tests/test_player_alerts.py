@@ -11,7 +11,7 @@ def make_plugin(**config) -> NikkeNewsPlugin:
     base = {
         "新闻": {"enabled": True, "scheduled_push_groups": ["123456"]},
         "玩家": {
-            "cookie": "cookie=abc",
+            "cookie": {"game_token": "abc"},
             "状态提醒": {
                 "enabled": True,
                 "daily_mission_remind_time": "23:59",

@@ -89,6 +89,7 @@ class SkillScraper:
             try:
                 data = await response.json()
             except Exception:
+                logger.debug("技能 CDN JSON 解析失败", exc_info=True)
                 return
             extracted = self._extract_skill_data(data)
             if extracted is not None:
@@ -130,8 +131,6 @@ class SkillScraper:
                         )
                 finally:
                     await browser.close()
-        except SkillScrapeError:
-            raise
         except Exception as exc:
             logger.warning(f"NIKKE 技能抓取失败 (resource_id={resource_id})：{exc}")
             raise SkillScrapeError(f"获取角色技能数据失败：{exc}") from exc

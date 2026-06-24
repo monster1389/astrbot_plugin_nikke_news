@@ -134,6 +134,7 @@ async def refresh_player_mappings(
         try:
             data = await response.json()
         except Exception:
+            logger.debug("角色映射 CDN JSON 解析失败", exc_info=True)
             return
 
         found_names = extract_character_names(data)
@@ -188,8 +189,6 @@ async def refresh_player_mappings(
                     await asyncio.gather(*tasks, return_exceptions=True)
             finally:
                 await browser.close()
-    except PlayerMappingRefreshError:
-        raise
     except Exception as exc:
         logger.warning(f"NIKKE Playwright 刷新玩家映射失败：{exc}")
         raise PlayerMappingRefreshError(f"Chromium 刷新玩家映射失败：{exc}") from exc

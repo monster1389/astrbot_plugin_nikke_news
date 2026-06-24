@@ -6,7 +6,12 @@ from typing import Any
 
 from astrbot.api import AstrBotConfig, logger
 
-from .constants import CONTENT_MODES, SUPPORTED_LANGUAGES
+from .constants import (
+    CONTENT_MODES,
+    DEFAULT_AREA_ID,
+    DEFAULT_GAME_ID,
+    SUPPORTED_LANGUAGES,
+)
 
 _PLAYER_MAPPING_LANGUAGES = {"en", "zh-TW", "ja", "ko"}
 
@@ -26,8 +31,9 @@ class PluginConfig:
         player_section = self._as_dict(self._config.get("玩家"))
         self._player: dict[str, Any] = {}
         for key, value in player_section.items():
-            if not isinstance(value, dict):
-                self._player[key] = value
+            if key in ("状态提醒", "nikke查询"):
+                continue  # merged below
+            self._player[key] = value
         self._player.update(self._as_dict(player_section.get("状态提醒")))
         self._player.update(self._as_dict(player_section.get("nikke查询")))
         if self._config.get("新闻") is not None and not isinstance(
@@ -144,10 +150,7 @@ class PluginConfig:
         return {}
 
     def player_data_cookie(self) -> str:
-        """返回玩家数据请求的 Cookie 字符串。
-
-        优先从结构化 JSON 拼装，回退到旧版纯文本 Cookie。
-        """
+        """返回玩家数据请求的 Cookie 字符串。从结构化 JSON 拼装。"""
         cfg = self._parse_cookie_json()
         if cfg:
             parts = []
@@ -157,10 +160,6 @@ class PluginConfig:
                     parts.append(f"{key}={value}")
             if parts:
                 return "; ".join(parts)
-        # Fallback: plain string cookie (backward compat)
-        cookie_cfg = self._player.get("cookie")
-        if isinstance(cookie_cfg, str) and cookie_cfg.strip():
-            return cookie_cfg.strip()
         return ""
 
     def player_data_area_id(self) -> int:
@@ -168,10 +167,10 @@ class PluginConfig:
         cfg = self._parse_cookie_json()
         if cfg:
             try:
-                return int(cfg.get("nikke_area_id", 84))
+                return int(cfg.get("nikke_area_id", DEFAULT_AREA_ID))
             except (TypeError, ValueError):
                 pass
-        return 84
+        return DEFAULT_AREA_ID
 
     def player_open_id(self) -> str:
         """返回玩家 Open ID，优先从结构化 JSON 读取。"""
@@ -187,7 +186,7 @@ class PluginConfig:
         value = str(cfg.get("game_gameid", "") or "").strip() if cfg else ""
         if value:
             return value
-        return self._cookie_header_value("game_gameid") or "29080"
+        return self._cookie_header_value("game_gameid") or DEFAULT_GAME_ID
 
     def player_mapping_language(self) -> str:
         """返回角色映射语言代码，无效值时回退 zh-TW。"""
@@ -255,7 +254,7 @@ class PluginConfig:
             if 0 <= hour <= 23 and 0 <= minute <= 59:
                 return time(hour=hour, minute=minute)
             raise ValueError("out of range")
-        except Exception:
+        except (ValueError, TypeError):
             logger.warning(f"NIKKE 玩家提醒时间配置无效，已使用 21:00：{raw}")
             return time(hour=21, minute=0)
 

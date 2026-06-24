@@ -40,10 +40,10 @@ HELP_TEXT = (
 )
 
 
-def _recover_full_query(event: AstrMessageEvent) -> str:
-    """从原始消息中提取 /nikke 后的角色名（处理多词查询）。"""
+def _recover_query(event: AstrMessageEvent, prefixes: tuple[str, ...]) -> str:
+    """从原始消息中提取指定前缀后的角色名。"""
     msg = event.message_str.strip()
-    for prefix in ("/nikke ", "nikke "):
+    for prefix in prefixes:
         if msg.startswith(prefix):
             return msg[len(prefix) :]
     return ""
@@ -69,9 +69,9 @@ async def handle_query(plugin, event: AstrMessageEvent, text: str = ""):
         AstrBot plain_result 或 chain_result 消息。
     """
     if not text or not text.strip():
-        text = _recover_full_query(event)
+        text = _recover_query(event, ("/nikke ", "nikke "))
     else:
-        full = _recover_full_query(event)
+        full = _recover_query(event, ("/nikke ", "nikke "))
         if full and full != text:
             text = full
 
@@ -222,15 +222,6 @@ async def handle_avatar_refresh_all(plugin, event: AstrMessageEvent):
     yield event.plain_result(msg)
 
 
-def _recover_skill_query(event: AstrMessageEvent) -> str:
-    """从原始消息中提取 /nikke_skill 后的角色名。"""
-    msg = event.message_str.strip()
-    for prefix in ("/nikke_skill ", "nikke_skill "):
-        if msg.startswith(prefix):
-            return msg[len(prefix) :]
-    return ""
-
-
 async def handle_skill(plugin, event: AstrMessageEvent, text: str = ""):
     """处理 /nikke_skill <角色名> 技能查询。
 
@@ -246,9 +237,9 @@ async def handle_skill(plugin, event: AstrMessageEvent, text: str = ""):
         AstrBot plain_result 消息。
     """
     if not text or not text.strip():
-        text = _recover_skill_query(event)
+        text = _recover_query(event, ("/nikke_skill ", "nikke_skill "))
     else:
-        full = _recover_skill_query(event)
+        full = _recover_query(event, ("/nikke_skill ", "nikke_skill "))
         if full and full != text:
             text = full
 

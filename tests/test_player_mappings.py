@@ -118,18 +118,6 @@ def test_equipment_option_value_abs_and_aggregate_same_type():
     assert "ATK: 3.50%" in msg
 
 
-def test_mapping_cache_name_to_code_reverses_character_names():
-    cache = PlayerMappingCache(None)
-    cache.save(
-        language="en",
-        character_names={101: "Anis", 102: "Rapi"},
-        state_effect_options={"9001": {"description": "ATK"}},
-    )
-
-    assert cache.has_useful_data() is True
-    assert cache.name_to_code() == {"Anis": 101, "Rapi": 102}
-
-
 def test_mapping_cache_stale(tmp_path):
     path = tmp_path / "player_mappings_en.json"
     path.write_text(
@@ -156,7 +144,6 @@ def test_mapping_cache_stale(tmp_path):
 def test_mapping_cache_empty_has_no_useful_data():
     cache = PlayerMappingCache(None)
     assert cache.has_useful_data() is False
-    assert cache.name_to_code() == {}
 
 
 # ── _localized_text ──────────────────────────────────────────────

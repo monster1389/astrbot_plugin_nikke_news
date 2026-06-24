@@ -46,16 +46,6 @@ class TestAvatarPath:
         assert service.is_mapping_stale() is False
 
 
-class TestCachedCount:
-    def test_empty(self, service):
-        assert service.cached_count() == 0
-
-    def test_nonempty(self, service):
-        (service._avatars_dir / "101.webp").write_bytes(b"a")
-        (service._avatars_dir / "102.webp").write_bytes(b"b")
-        assert service.cached_count() == 2
-
-
 class TestDownloadMappings:
     @pytest.mark.asyncio
     async def test_downloads_new_files(self, service):

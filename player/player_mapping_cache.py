@@ -51,14 +51,6 @@ class PlayerMappingCache:
                 continue
         return result
 
-    def name_to_code(self) -> dict[str, int]:
-        """反向映射：角色名 → name_code。"""
-        result: dict[str, int] = {}
-        for code, name in self.character_names.items():
-            if name:
-                result[name] = code
-        return result
-
     @property
     def state_effect_options(self) -> dict[str, dict[str, Any]]:
         """词条 option ID → 元数据映射。"""

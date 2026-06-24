@@ -118,6 +118,4 @@ class PollCoordinator:
                                     MC().message(msg),
                                     "缓存刷新",
                                 )
-                            from core.state_store import PluginStateStore as PSS
-
-                            PSS(self._state_path).save(self._state)
+                            PluginStateStore(self._state_path).save(self._state)

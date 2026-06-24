@@ -6,6 +6,7 @@ from player.player_mapping_refresher import parse_cookie_header
 from astrbot.api import logger
 
 SHIFTYSPAD_COMBAT_URL = "https://www.blablalink.com/shiftyspad/nikke-list?type=combat"
+_WAIT_MS = 200
 
 
 class AvatarScraper:
@@ -68,12 +69,16 @@ class AvatarScraper:
                                 ):
                                     cdn_chars = data
                             except Exception:
-                                pass
+                                logger.debug(
+                                    "CDN 角色头像 JSON 解析失败", exc_info=True
+                                )
                         if "GetUserCharacters" in url and not api_chars:
                             try:
                                 api_chars = await response.json()
                             except Exception:
-                                pass
+                                logger.debug(
+                                    "GetUserCharacters JSON 解析失败", exc_info=True
+                                )
 
                     page.on("response", _on_response)
                     await page.goto(
@@ -95,7 +100,7 @@ class AvatarScraper:
                         for _ in range(25):
                             if api_chars:
                                 break
-                            await page.wait_for_timeout(200)
+                            await page.wait_for_timeout(_WAIT_MS)
 
                     obtained_mappings = await self._scrape_obtained_avatars(
                         page, mappings, cdn_chars, api_chars
@@ -135,7 +140,7 @@ class AvatarScraper:
             }""")
             if store_ready:
                 break
-            await page.wait_for_timeout(200)
+            await page.wait_for_timeout(_WAIT_MS)
 
         mappings: dict[int, str] = {}
         had_window = False
@@ -166,7 +171,7 @@ class AvatarScraper:
                         mappings[code] = url
             elif had_window:
                 break
-            await page.wait_for_timeout(200)
+            await page.wait_for_timeout(_WAIT_MS)
 
         return mappings
 

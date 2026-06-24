@@ -3,6 +3,8 @@ from typing import Any
 import httpx
 
 from core.constants import (
+    DEFAULT_AREA_ID,
+    DEFAULT_GAME_ID,
     GET_USER_CHARACTERS_URL,
     GET_USER_CHARACTER_DETAILS_URL,
     PLAYER_PROGRESS_URL,
@@ -47,7 +49,9 @@ class PlayerClient:
 
         return payload
 
-    async def fetch_progress(self, cookie: str, area_id: int = 84) -> dict[str, Any]:
+    async def fetch_progress(
+        self, cookie: str, area_id: int = DEFAULT_AREA_ID
+    ) -> dict[str, Any]:
         """获取日常进度数据。
 
         Args:
@@ -75,10 +79,10 @@ class PlayerClient:
     async def fetch_characters(
         self,
         cookie: str,
-        area_id: int = 84,
+        area_id: int = DEFAULT_AREA_ID,
         *,
         language: str = "en",
-        game_id: str = "29080",
+        game_id: str = DEFAULT_GAME_ID,
     ) -> list[dict[str, Any]]:
         """获取玩家拥有的角色列表。
 
@@ -120,7 +124,7 @@ class PlayerClient:
         *,
         intl_open_id: str = "",
         language: str = "en",
-        game_id: str = "29080",
+        game_id: str = DEFAULT_GAME_ID,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """获取指定角色详情。
 
@@ -171,7 +175,7 @@ def _player_headers(cookie: str, language: str, game_id: str) -> dict[str, str]:
         "x-channel-type": "2",
         "x-common-params": (
             '{"game_id":"16","area_id":"global","source":"pc_web",'
-            f'"intl_game_id":"{game_id or "29080"}","language":"{language}",'
+            f'"intl_game_id":"{game_id or DEFAULT_GAME_ID}","language":"{language}",'
             '"env":"prod","data_statistics_scene":"outer",'
             '"data_statistics_page_id":"https://www.blablalink.com/shiftyspad/nikke-list",'
             '"data_statistics_client_type":"pc_web",'
