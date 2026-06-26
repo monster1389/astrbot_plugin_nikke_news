@@ -63,14 +63,18 @@ def enabled_targets(config: dict) -> list[dict[str, str]]:
     return enabled
 
 
-async def broadcast_to_targets(targets: list[dict[str, str]], chain, label: str):
+async def broadcast_to_targets(targets: list[dict[str, str]], chain, label: str) -> bool:
     """向所有目标群发送消息链，各目标独立容错。
 
     Args:
         targets: [{"target_type": ..., "target_id": ...}] 列表。
         chain: AstrBot MessageChain 实例。
         label: 日志标签（如 "新闻"、"玩家提醒"）。
+
+    Returns:
+        True 如果至少一个目标发送成功。
     """
+    success = False
     for target in targets:
         try:
             await StarTools.send_message_by_id(
@@ -79,9 +83,11 @@ async def broadcast_to_targets(targets: list[dict[str, str]], chain, label: str)
                 chain,
                 platform="aiocqhttp",
             )
+            success = True
         except Exception as exc:
             logger.warning(
                 f"NIKKE {label}发送失败："
                 f"target={target['target_type']}:{target['target_id']} "
                 f"type={type(exc).__name__} error={exc}"
             )
+    return success

@@ -87,8 +87,8 @@ class NewsPoller:
             post_uuid = post.get("post_uuid")
             chain = builder.format_post_message_chain(post)
 
-            await broadcast_to_targets(targets, chain, "新闻")
-            if post_uuid:
+            ok = await broadcast_to_targets(targets, chain, "新闻")
+            if post_uuid and ok:
                 seen_uuids.append(post_uuid)
 
             delay = min(30, max(0, self._config.push_delay_seconds()))
