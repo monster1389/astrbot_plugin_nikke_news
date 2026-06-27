@@ -5,6 +5,7 @@ from typing import Any
 
 from astrbot.api import logger
 
+from core.browser_context import browser_context, BrowserLaunchError
 from core.constants import CDN_HOST
 from core.utils import accept_language
 
@@ -115,13 +116,6 @@ async def refresh_player_mappings(
     Raises:
         PlayerMappingRefreshError: Playwright 不可用、页面超时或未捕获到数据。
     """
-    try:
-        from playwright.async_api import async_playwright
-    except ImportError as exc:
-        raise PlayerMappingRefreshError(
-            "当前环境未安装 Playwright，无法刷新玩家映射。"
-        ) from exc
-
     character_names: dict[int, str] = {}
     resource_ids: dict[int, int] = {}
     options: dict[str, dict[str, Any]] = {}
@@ -159,37 +153,31 @@ async def refresh_player_mappings(
 
     logger.info(f"NIKKE Chromium 刷新玩家映射启动（语言：{language}）...")
     try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            try:
-                context = await browser.new_context(
-                    locale=language,
-                    extra_http_headers={
-                        "Accept-Language": accept_language(language),
-                        "x-language": language,
-                    },
-                )
-                cookies = parse_cookie_header(cookie_header)
-                if cookies:
-                    await context.add_cookies(cookies)
-                page = await context.new_page()
+        async with browser_context(
+            cookie_header=cookie_header,
+            language=language,
+            extra_http_headers={
+                "Accept-Language": accept_language(language),
+                "x-language": language,
+            },
+        ) as page:
 
-                def on_response(response):
-                    task = asyncio.create_task(handle_response(response))
-                    tasks.add(task)
-                    task.add_done_callback(tasks.discard)
+            def on_response(response):
+                task = asyncio.create_task(handle_response(response))
+                tasks.add(task)
+                task.add_done_callback(tasks.discard)
 
-                page.on("response", on_response)
-                await page.goto(
-                    SHIFTYSPAD_NIKKE_LIST_URL,
-                    wait_until="load",
-                    timeout=timeout_ms,
-                )
-                await page.wait_for_timeout(8000)
-                if tasks:
-                    await asyncio.gather(*tasks, return_exceptions=True)
-            finally:
-                await browser.close()
+            page.on("response", on_response)
+            await page.goto(
+                SHIFTYSPAD_NIKKE_LIST_URL,
+                wait_until="load",
+                timeout=timeout_ms,
+            )
+            await page.wait_for_timeout(8000)
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+    except BrowserLaunchError as exc:
+        raise PlayerMappingRefreshError(str(exc)) from exc
     except Exception as exc:
         logger.warning(f"NIKKE Playwright 刷新玩家映射失败：{exc}")
         raise PlayerMappingRefreshError(f"Chromium 刷新玩家映射失败：{exc}") from exc
@@ -215,36 +203,3 @@ def _localized_text(value: Any) -> str:
             if text:
                 return text
     return ""
-
-
-def parse_cookie_header(cookie_header: str) -> list[dict[str, Any]]:
-    """解析 Cookie 头字符串为 Playwright cookie 对象列表。
-
-    Args:
-        cookie_header: 完整的 Cookie 头字符串。
-
-    Returns:
-        Playwright cookie 对象列表，每个元素含 name、value、domain 等字段。
-    """
-    cookies: list[dict[str, Any]] = []
-    for part in cookie_header.split(";"):
-        if "=" not in part:
-            continue
-        name, value = part.split("=", 1)
-        name = name.strip()
-        value = value.strip()
-        if not name:
-            continue
-        for domain in (".blablalink.com", "www.blablalink.com"):
-            cookies.append(
-                {
-                    "name": name,
-                    "value": value,
-                    "domain": domain,
-                    "path": "/",
-                    "httpOnly": False,
-                    "secure": True,
-                    "sameSite": "Lax",
-                }
-            )
-    return cookies

@@ -4,12 +4,12 @@ from datetime import datetime, timedelta, timezone
 from player.character_formatter import format_character_stats
 from player.player_mapping_cache import PlayerMappingCache
 from core.utils import accept_language
+from core.browser_context import parse_cookie_header
 from player.player_mapping_refresher import (
     _localized_text,
     extract_character_names,
     extract_resource_ids,
     extract_state_effect_options,
-    parse_cookie_header,
 )
 
 

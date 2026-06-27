@@ -6,6 +6,7 @@ from typing import Any
 
 from astrbot.api import logger
 
+from core.browser_context import browser_context, BrowserLaunchError
 from core.constants import CDN_HOST
 from core.utils import accept_language
 
@@ -69,13 +70,6 @@ class SkillScraper:
         Raises:
             SkillScrapeError: Playwright 不可用、超时或未捕获到数据。
         """
-        try:
-            from playwright.async_api import async_playwright
-        except ImportError as exc:
-            raise SkillScrapeError(
-                "当前环境未安装 Playwright，无法获取技能数据。"
-            ) from exc
-
         skill_data: dict[str, Any] | None = None
         skill_data_event = asyncio.Event()
 
@@ -108,34 +102,30 @@ class SkillScraper:
         )
         t_start = time.monotonic()
         try:
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
+            async with browser_context(
+                language=language,
+                extra_http_headers={
+                    "Accept-Language": accept_language(language),
+                    "x-language": language,
+                },
+            ) as page:
+                page.on("response", on_response)
+                await page.goto(
+                    page_url,
+                    wait_until="load",
+                    timeout=self._timeout_ms,
+                )
+                await page.wait_for_timeout(5000)
+                if tasks:
+                    await asyncio.gather(*tasks, return_exceptions=True)
                 try:
-                    context = await browser.new_context(
-                        locale=language,
-                        extra_http_headers={
-                            "Accept-Language": accept_language(language),
-                            "x-language": language,
-                        },
+                    await asyncio.wait_for(skill_data_event.wait(), timeout=5)
+                except asyncio.TimeoutError:
+                    raise SkillScrapeError(
+                        f"获取角色技能数据超时 (resource_id={resource_id})"
                     )
-                    page = await context.new_page()
-                    page.on("response", on_response)
-                    await page.goto(
-                        page_url,
-                        wait_until="load",
-                        timeout=self._timeout_ms,
-                    )
-                    await page.wait_for_timeout(5000)
-                    if tasks:
-                        await asyncio.gather(*tasks, return_exceptions=True)
-                    try:
-                        await asyncio.wait_for(skill_data_event.wait(), timeout=5)
-                    except asyncio.TimeoutError:
-                        raise SkillScrapeError(
-                            f"获取角色技能数据超时 (resource_id={resource_id})"
-                        )
-                finally:
-                    await browser.close()
+        except BrowserLaunchError as exc:
+            raise SkillScrapeError(str(exc)) from exc
         except Exception as exc:
             logger.warning(f"NIKKE 技能抓取失败 (resource_id={resource_id})：{exc}")
             raise SkillScrapeError(f"获取角色技能数据失败：{exc}") from exc

@@ -1,7 +1,7 @@
 """Playwright 头像映射抓取：两阶段采集 name_code → CDN URL。"""
 
+from core.browser_context import browser_context, BrowserLaunchError
 from player.avatar_mapping_cache import AvatarMappingCache
-from player.player_mapping_refresher import parse_cookie_header
 
 from astrbot.api import logger
 
@@ -29,98 +29,94 @@ class AvatarScraper:
         Returns:
             {name_code: CDN URL} 映射，失败返回空 dict。
         """
+        return await self._scrape_with_playwright(cookie)
+
+    async def _scrape_with_playwright(
+        self, cookie: str, language: str = "zh-TW"
+    ) -> dict[int, str]:
+        """Playwright 抓取头像 URL 映射。
+
+        Returns:
+            {name_code: CDN URL} 映射，失败返回空 dict。
+        """
         try:
-            from playwright.async_api import async_playwright
-        except ImportError:
+            async with browser_context(
+                cookie_header=cookie,
+                language=language,
+                viewport={"width": 1280, "height": 900},
+            ) as page:
+                cdn_chars: list | None = None
+                api_chars: dict | None = None
+
+                async def _on_response(response):
+                    nonlocal cdn_chars, api_chars
+                    url = response.url
+                    if (
+                        "sg-tools-cdn" in url
+                        and url.endswith(".json")
+                        and not cdn_chars
+                    ):
+                        try:
+                            data = await response.json()
+                            if (
+                                isinstance(data, list)
+                                and data
+                                and "name_code" in data[0]
+                            ):
+                                cdn_chars = data
+                        except Exception:
+                            logger.debug(
+                                "CDN 角色头像 JSON 解析失败", exc_info=True
+                            )
+                    if "GetUserCharacters" in url and not api_chars:
+                        try:
+                            api_chars = await response.json()
+                        except Exception:
+                            logger.debug(
+                                "GetUserCharacters JSON 解析失败", exc_info=True
+                            )
+
+                page.on("response", _on_response)
+                await page.goto(
+                    SHIFTYSPAD_COMBAT_URL, wait_until="load", timeout=60000
+                )
+
+                mappings = await self._scrape_default_avatars(page)
+
+                if not mappings:
+                    logger.warning(
+                        "NIKKE 头像映射阶段 1 失败："
+                        "未检测到 50+ 角色卡片，可能页面加载延迟或 DOM 结构变化。"
+                    )
+                else:
+                    logger.info(f"NIKKE 阶段 1：{len(mappings)} 个默认头像 URL。")
+
+                if mappings and not api_chars:
+                    for _ in range(25):
+                        if api_chars:
+                            break
+                        await page.wait_for_timeout(_WAIT_MS)
+
+                obtained_mappings = await self._scrape_obtained_avatars(
+                    page, mappings, cdn_chars, api_chars
+                )
+                if obtained_mappings:
+                    mappings.update(obtained_mappings)
+
+                logger.info(
+                    f"NIKKE 头像映射抓取完成：{len(mappings)} 个角色"
+                    + (
+                        f"（{len(obtained_mappings)} 个皮肤 URL）"
+                        if obtained_mappings
+                        else ""
+                    )
+                )
+                if mappings:
+                    self._mapping_cache.save(mappings)
+                return mappings
+        except BrowserLaunchError:
             logger.warning("NIKKE 头像抓取需要 Playwright，当前环境未安装。")
             return {}
-
-        logger.info("NIKKE Chromium 头像映射抓取启动...")
-        try:
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                try:
-                    context = await browser.new_context(
-                        locale="zh-TW",
-                        viewport={"width": 1280, "height": 900},
-                    )
-                    cookies = parse_cookie_header(cookie)
-                    if cookies:
-                        await context.add_cookies(cookies)
-                    page = await context.new_page()
-
-                    cdn_chars: list | None = None
-                    api_chars: dict | None = None
-
-                    async def _on_response(response):
-                        nonlocal cdn_chars, api_chars
-                        url = response.url
-                        if (
-                            "sg-tools-cdn" in url
-                            and url.endswith(".json")
-                            and not cdn_chars
-                        ):
-                            try:
-                                data = await response.json()
-                                if (
-                                    isinstance(data, list)
-                                    and data
-                                    and "name_code" in data[0]
-                                ):
-                                    cdn_chars = data
-                            except Exception:
-                                logger.debug(
-                                    "CDN 角色头像 JSON 解析失败", exc_info=True
-                                )
-                        if "GetUserCharacters" in url and not api_chars:
-                            try:
-                                api_chars = await response.json()
-                            except Exception:
-                                logger.debug(
-                                    "GetUserCharacters JSON 解析失败", exc_info=True
-                                )
-
-                    page.on("response", _on_response)
-                    await page.goto(
-                        SHIFTYSPAD_COMBAT_URL, wait_until="load", timeout=60000
-                    )
-
-                    mappings = await self._scrape_default_avatars(page)
-
-                    if not mappings:
-                        logger.warning(
-                            "NIKKE 头像映射阶段 1 失败："
-                            "未检测到 50+ 角色卡片，可能页面加载延迟或 DOM 结构变化。"
-                        )
-                    else:
-                        logger.info(f"NIKKE 阶段 1：{len(mappings)} 个默认头像 URL。")
-
-                    # 阶段 1 成功采集且 API 响应仍未到达时，追加等待窗口
-                    if mappings and not api_chars:
-                        for _ in range(25):
-                            if api_chars:
-                                break
-                            await page.wait_for_timeout(_WAIT_MS)
-
-                    obtained_mappings = await self._scrape_obtained_avatars(
-                        page, mappings, cdn_chars, api_chars
-                    )
-                    if obtained_mappings:
-                        mappings.update(obtained_mappings)
-
-                    logger.info(
-                        f"NIKKE 头像映射抓取完成：{len(mappings)} 个角色"
-                        + (
-                            f"（{len(obtained_mappings)} 个皮肤 URL）"
-                            if obtained_mappings
-                            else ""
-                        )
-                    )
-                    if mappings:
-                        self._mapping_cache.save(mappings)
-                    return mappings
-                finally:
-                    await browser.close()
         except Exception as exc:
             logger.warning(f"NIKKE Playwright 头像抓取失败：{exc}")
             return {}
