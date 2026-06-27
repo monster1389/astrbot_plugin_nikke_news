@@ -9,6 +9,7 @@ from astrbot.api import logger
 
 from core.json_cache import JsonCache
 from core.utils import safe_int
+from player.character_formatter import extract_skill_levels
 from player.player_client import PlayerClient
 from player.skill_scraper import SkillScraper, SkillScrapeError
 
@@ -175,19 +176,11 @@ class SkillService:
             raise SkillError(f"未在账号中找到角色「{display_name}」。")
 
         char_detail = details[0]
+        raw_levels = extract_skill_levels(char_detail, default=1)
         levels = {
-            "skill1": safe_int(
-                char_detail.get("skill1_lv", char_detail.get("s1_lv", 1))
-            ),
-            "skill2": safe_int(
-                char_detail.get("skill2_lv", char_detail.get("s2_lv", 1))
-            ),
-            "burst": safe_int(
-                char_detail.get(
-                    "ulti_skill_lv",
-                    char_detail.get("burst_skill_lv", char_detail.get("s3_lv", 1)),
-                )
-            ),
+            "skill1": safe_int(raw_levels["skill1"]),
+            "skill2": safe_int(raw_levels["skill2"]),
+            "burst": safe_int(raw_levels["burst"]),
         }
 
         return self._format_skills(skill_data, levels, display_name)

@@ -5,6 +5,29 @@ from typing import Any
 from core.utils import safe_float, safe_int
 
 
+def extract_skill_levels(char_detail: dict, default: object = 1) -> dict[str, object]:
+    """从角色详情提取技能等级，含多键回退。
+
+    Args:
+        char_detail: 角色详情 dict。
+        default: 字段缺失时的默认值。
+
+    Returns:
+        {"skill1": value, "skill2": value, "burst": value} dict。
+    """
+    return {
+        "skill1": char_detail.get("skill1_lv", char_detail.get("s1_lv", default)),
+        "skill2": char_detail.get("skill2_lv", char_detail.get("s2_lv", default)),
+        "burst": char_detail.get(
+            "ulti_skill_lv",
+            char_detail.get(
+                "burst_skill_lv",
+                char_detail.get("skill3_lv", char_detail.get("s3_lv", default)),
+            ),
+        ),
+    }
+
+
 def format_character_stats(
     char_info: dict[str, Any],
     char_detail: dict[str, Any],
@@ -33,19 +56,10 @@ def format_character_stats(
 
     combat = char_info.get("combat", "?")
 
-    skill1 = str(safe_int(char_detail.get("skill1_lv", char_detail.get("s1_lv", "?"))))
-    skill2 = str(safe_int(char_detail.get("skill2_lv", char_detail.get("s2_lv", "?"))))
-    burst = str(
-        safe_int(
-            char_detail.get(
-                "ulti_skill_lv",
-                char_detail.get(
-                    "burst_skill_lv",
-                    char_detail.get("skill3_lv", char_detail.get("s3_lv", "?")),
-                ),
-            )
-        )
-    )
+    raw_levels = extract_skill_levels(char_detail, default="?")
+    skill1 = str(safe_int(raw_levels["skill1"]))
+    skill2 = str(safe_int(raw_levels["skill2"]))
+    burst = str(safe_int(raw_levels["burst"]))
     skills = f"{skill1}/{skill2}/{burst}"
 
     head_lv = safe_int(char_detail.get("head_equip_lv", 0))
