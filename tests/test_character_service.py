@@ -19,20 +19,21 @@ def _make_service(**overrides) -> CharacterService:
 
 def _stale_cache() -> PlayerMappingCache:
     cache = PlayerMappingCache(None)
-    cache._data = {"version": 999, "updated_at": "2000-01-01T00:00:00+00:00"}
+    cache._data = {
+        "character_names": {"101": "Anis"},
+        "state_effect_options": {"skill_1": {"id": "skill_1"}},
+    }
+    cache._updated_at = "2000-01-01T00:00:00+00:00"
     return cache
 
 
 def _fresh_cache() -> PlayerMappingCache:
     cache = PlayerMappingCache(None)
-    cache._data = cache._empty_data()
-    cache._data.update(
-        {
-            "character_names": {"101": "Anis"},
-            "state_effect_options": {"skill_1": {"id": "skill_1"}},
-            "updated_at": "2099-12-31T23:59:59+00:00",
-        }
-    )
+    cache._data = {
+        "character_names": {"101": "Anis"},
+        "state_effect_options": {"skill_1": {"id": "skill_1"}},
+    }
+    cache._updated_at = "2099-12-31T23:59:59+00:00"
     return cache
 
 
@@ -164,7 +165,7 @@ class TestIsMappingStale:
     def test_en_cache_no_useful_data(self):
         svc = _make_service()
         cache = PlayerMappingCache(None)
-        cache._data = cache._empty_data()
+        # _data is already {} from __init__, so has_useful_data() → False
         svc._en_cache = cache
         assert svc.is_mapping_stale() is True
 
@@ -199,7 +200,7 @@ class TestIsMappingStale:
         svc = _make_service()
         svc._en_cache = _fresh_cache()
         target = PlayerMappingCache(None)
-        target._data = target._empty_data()
+        # _data is already {} from __init__, so has_useful_data() → False
         svc._target_cache = target
         svc._config = PluginConfig(
             {"玩家": {"nikke查询": {"mapping_language": "zh-TW"}}}

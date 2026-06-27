@@ -1,15 +1,14 @@
 """技能描述查询服务：缓存管理、Playwright 抓取编排、格式化输出。"""
 
-import json
 import re
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import httpx
 from astrbot.api import logger
 
-from core.utils import datetime_is_stale, safe_int
+from core.json_cache import JsonCache
+from core.utils import safe_int
 from player.player_client import PlayerClient
 from player.skill_scraper import SkillScraper, SkillScrapeError
 
@@ -80,21 +79,15 @@ class SkillService:
             技能数据 dict，无效时返回 None。
         """
         path = self._cache_path(name_code, language)
-        if not path.exists():
+        cache = JsonCache(path)
+        data = cache.load()
+        if not data:
             return None
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            if not isinstance(data, dict):
-                return None
-            updated_at = str(data.get("updated_at", "") or "")
-            if datetime_is_stale(updated_at, self._ttl_hours):
-                return None
-            if "skill1_detail" not in data:
-                return None
-            return data
-        except Exception as exc:
-            logger.warning(f"NIKKE 技能缓存加载失败 ({path})：{exc}")
+        if cache.is_stale(self._ttl_hours):
             return None
+        if "skill1_detail" not in data:
+            return None
+        return data
 
     def _save_cache(
         self, name_code: int, language: str, skill_data: dict[str, Any]
@@ -108,15 +101,8 @@ class SkillService:
         """
         self._ensure_skills_dir()
         path = self._cache_path(name_code, language)
-        data = dict(skill_data)
-        data["updated_at"] = datetime.now(timezone.utc).isoformat()
-        try:
-            path.write_text(
-                json.dumps(data, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-        except Exception as exc:
-            logger.warning(f"NIKKE 技能缓存保存失败 ({path})：{exc}")
+        cache = JsonCache(path)
+        cache.save(skill_data)
 
     def is_cached(self, name_code: int, language: str | None = None) -> bool:
         """检查指定角色的技能数据是否已缓存且未过期。

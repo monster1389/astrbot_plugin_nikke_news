@@ -136,7 +136,7 @@ def test_mapping_cache_stale(tmp_path):
     )
 
     cache = PlayerMappingCache(path)
-    assert cache.load() is True
+    assert bool(cache.load()) is True
     assert cache.has_useful_data() is True
     assert cache.is_stale(168) is True
 
