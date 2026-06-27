@@ -197,3 +197,24 @@ def accept_language(language: str) -> str:
     if language == "zh-TW":
         return "zh-TW,zh;q=0.9,en;q=0.6"
     return f"{language};q=1.0,en;q=0.7"
+
+
+def parse_cookie_pairs(cookie_header: str) -> list[tuple[str, str]]:
+    """解析 Cookie 头字符串为 (name, value) 对列表。
+
+    Args:
+        cookie_header: "key1=val1; key2=val2" 格式的 Cookie 头。
+
+    Returns:
+        (name, value) 元组列表，跳过无效段。
+    """
+    pairs: list[tuple[str, str]] = []
+    for part in cookie_header.split(";"):
+        if "=" not in part:
+            continue
+        name, value = part.split("=", 1)
+        name = name.strip()
+        value = value.strip()
+        if name:
+            pairs.append((name, value))
+    return pairs

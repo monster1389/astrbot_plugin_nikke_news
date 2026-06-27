@@ -6,6 +6,8 @@ from typing import Any
 
 from astrbot.api import AstrBotConfig, logger
 
+from .utils import parse_cookie_pairs
+
 from .constants import (
     CONTENT_MODES,
     DEFAULT_AREA_ID,
@@ -270,12 +272,9 @@ class PluginConfig:
 
     def _cookie_header_value(self, key: str) -> str:
         cookie = self.player_data_cookie()
-        for part in cookie.split(";"):
-            if "=" not in part:
-                continue
-            name, value = part.split("=", 1)
-            if name.strip() == key:
-                return value.strip()
+        for name, value in parse_cookie_pairs(cookie):
+            if name == key:
+                return value
         return ""
 
     def _nested_bool(self, source: dict, key: str, default: bool) -> bool:
