@@ -192,6 +192,7 @@ class CharacterService:
             ttl = self._config.player_mapping_cache_ttl_hours()
             messages: list[str] = []
             has_failure = False
+            did_refresh = False
 
             # en
             if (
@@ -199,6 +200,7 @@ class CharacterService:
                 or not self._en_cache.has_useful_data()
                 or self._en_cache.is_stale(ttl)
             ):
+                did_refresh = True
                 try:
                     (
                         names,
@@ -231,6 +233,7 @@ class CharacterService:
                     or not self._target_cache.has_useful_data()
                     or self._target_cache.is_stale(ttl)
                 ):
+                    did_refresh = True
                     try:
                         (
                             names,
@@ -262,7 +265,7 @@ class CharacterService:
                 messages.append(f"已重载本地角色列表，共 {reload_count} 个角色。")
 
             elapsed = time.monotonic() - t0
-            if messages:
+            if did_refresh:
                 logger.info(f"NIKKE 角色映射刷新完成（{elapsed:.0f}s）")
             return ("\n".join(messages), has_failure)
         finally:
