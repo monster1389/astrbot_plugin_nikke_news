@@ -43,6 +43,22 @@ This is an [AstrBot](https://github.com/AstrBotDevs/AstrBot) plugin — it runs 
 
 Tests mock the entire AstrBot SDK surface in `tests/conftest.py` so they run without the framework. `AstrBotConfig` is aliased to `dict`. Sent messages are captured in a global `_SENT_MESSAGES` list via a recording `StarTools.send_message_by_id`.
 
+## 环境约束
+
+- **所有 Python 操作必须走 `.venv` 内的二进制**：用 `.venv/bin/pytest`、`.venv/bin/ruff`、`.venv/bin/pip` 等绝对路径
+- **禁止向系统 Python 安装包**：不得 `pip install` 到全局环境，subagent 也必须用 `.venv/bin/pip`
+- **依赖已在 requirements.txt 声明**：新增依赖先加文件再 install
+
+## 编码规范
+
+- **无兜底**：错误直接暴露，不静默吞掉
+- **无死代码、无冗余**：不写用不到的代码，高度复用、解耦
+- **Docstring**：中文，Google Style（`"""一句话概述。\n\nArgs:\n    x: ...\nReturns:\n    ...\n"""`）
+- **类型注解**：所有函数签名必须有完整类型注解
+- **测试**：ruff 零告警 + pytest 覆盖核心逻辑
+- **Superpowers 文档**：不提交到 git（已在 `.gitignore` 排除 `docs/superpowers/`）
+- **Superpowers spec**：用中文写，写完自审后交出（自查：TBD/占位符、内部矛盾、范围过大、歧义表述）
+
 ## Plugin lifecycle and key behaviors
 
 1. `__init__` → `initialize()` (async) → poll loop / commands → `terminate()` (async, on unload/disable)
