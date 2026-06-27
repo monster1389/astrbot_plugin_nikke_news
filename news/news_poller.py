@@ -38,7 +38,7 @@ class NewsPoller:
         self._save_state = save_state
         self._mark_seen = mark_seen
 
-    async def poll(self) -> None:
+    async def poll(self) -> str:
         """拉取 API → 对比 seen 集合 → 推送新帖到配置的目标群。
 
         首次运行时初始化 seen 集合而不推送。
@@ -46,7 +46,7 @@ class NewsPoller:
         posts = await NewsClient(self._client, self._config).fetch_official_posts()
         if not posts:
             logger.warning("NIKKE 未获取到任何帖子（API 返回空或客户端未就绪）。")
-            return
+            return ""
 
         seen = set(self._state.get("seen_post_uuids", []))
         fetched_uuids = [post["post_uuid"] for post in posts if post.get("post_uuid")]
@@ -58,12 +58,11 @@ class NewsPoller:
             logger.info(
                 f"NIKKE 首次初始化完成，已记录 {len(fetched_uuids)} 条历史消息。"
             )
-            return
+            return ""
 
         new_posts = [post for post in posts if post.get("post_uuid") not in seen]
         if not new_posts:
-            logger.debug(f"NIKKE 轮询完成，无新帖（已跟踪 {len(seen)} 条）。")
-            return
+            return f"无新帖({len(seen)})"
 
         new_posts.sort(key=lambda post: safe_int(post.get("created_on")))
         logger.info(
@@ -79,7 +78,7 @@ class NewsPoller:
             self._mark_seen([post["post_uuid"] for post in new_posts])
             self._save_state()
             logger.warning("NIKKE 发现新帖，但未配置推送目标。")
-            return
+            return ""
 
         builder = MessageBuilder(self._config)
         seen_uuids: list[str] = []
@@ -98,3 +97,5 @@ class NewsPoller:
         if seen_uuids:
             self._mark_seen(seen_uuids)
             self._save_state()
+            return f"已推送 {len(seen_uuids)} 条新帖"
+        return ""

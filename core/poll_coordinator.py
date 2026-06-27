@@ -73,16 +73,21 @@ class PollCoordinator:
         """单次轮询：重读磁盘状态 → 新闻 → 玩家数据，两者独立容错。"""
         self._state.clear()
         self._state.update(PluginStateStore(self._state_path).load())
+        news_status = ""
         try:
-            await self._news_poller.poll()
+            news_status = await self._news_poller.poll()
         except Exception as exc:
             logger.warning(f"NIKKE 新闻轮询异常，将在下次重试：{exc}", exc_info=True)
+        player_status = ""
         try:
-            await self._player_poller.poll()
+            player_status = await self._player_poller.poll()
         except Exception as exc:
             logger.warning(
                 f"NIKKE 玩家数据轮询异常，将在下次重试：{exc}", exc_info=True
             )
+        parts = [p for p in [news_status, player_status] if p]
+        if parts:
+            logger.debug(f"NIKKE 轮询完成 | {' | '.join(parts)}")
 
         if self._cache_refresher and self._player_poller:
             from core.cookie_status import CookieStatus

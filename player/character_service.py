@@ -262,7 +262,8 @@ class CharacterService:
                 messages.append(f"已重载本地角色列表，共 {reload_count} 个角色。")
 
             elapsed = time.monotonic() - t0
-            logger.debug(f"NIKKE 角色映射刷新耗时 {elapsed:.0f}s")
+            if messages:
+                logger.info(f"NIKKE 角色映射刷新完成（{elapsed:.0f}s）")
             return ("\n".join(messages), has_failure)
         finally:
             self._refreshing = False

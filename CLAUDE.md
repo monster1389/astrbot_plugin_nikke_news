@@ -51,7 +51,8 @@ Tests mock the entire AstrBot SDK surface in `tests/conftest.py` so they run wit
 4. **Per-poll state reload**: `_poll_once()` calls `_load_state()` at the top of every cycle, so manual edits to `state.json` take effect without restart
 5. `terminate()` cancels the poll task, closes `httpx.AsyncClient`, saves state
 6. News and player poll failures are independently caught — one failure doesn't block the other
-7. **Per-poll cache refresh**: `_poll_once()` runs `CacheRefresher.refresh(force=False)` after player poll — TTL-expired character + avatar mappings get concurrently refreshed via Playwright. Refresh failures set independent `char_refresh_failed` / `avatar_refresh_failed` locks (no further attempts for that component until `/nikke_refresh` succeeds). `refresh_cached()` checks `is_mapping_stale()` and skips when fresh.
+7. **Poll 返回值**: `NewsPoller.poll()` 和 `PlayerPoller.poll()` 返回 `str`（状态片段），由 `PollCoordinator._poll_once()` 合并为一条 `NIKKE 轮询完成 | ...` DEBUG 日志。`PlayerPoller` 跟踪上次 fullness/points，只在数值变化时返回非空状态。
+8. **Per-poll cache refresh**: `_poll_once()` runs `CacheRefresher.refresh(force=False)` after player poll — TTL-expired character + avatar mappings get concurrently refreshed via Playwright. Refresh failures set independent `char_refresh_failed` / `avatar_refresh_failed` locks (no further attempts for that component until `/nikke_refresh` succeeds). `refresh_cached()` checks `is_mapping_stale()` and skips when fresh. `refresh_mappings()` 有实际刷新内容时才打 INFO 日志（TTL 未过期时静默跳过）。
 
 ## Cache TTL
 
@@ -81,6 +82,7 @@ Tests mock the entire AstrBot SDK surface in `tests/conftest.py` so they run wit
 - Cookie 校验统一入口 `PlayerPoller.cookie_status()`，返回 `CookieStatus` 枚举
 - `CacheRefresher` 负责 poll 后台缓存刷新调度
 - 映射刷新失败后通过 `char_refresh_failed` / `avatar_refresh_failed` 状态分别锁止，`/nikke_refresh`（含 `-c`/`-a`）成功解除
+- `NewsPoller.poll()` 和 `PlayerPoller.poll()` 返回 `str`（状态片段，空串表示无事发生）
 - `refresh_mappings()` 和 `refresh_cached()` 返回 `(消息文本, 是否失败)` 元组；`CacheRefresher.refresh()` 返回 `(消息文本, 角色是否失败, 头像是否失败)` 或 None。均无内部重试。
 
 ## 文档与 spec 规范

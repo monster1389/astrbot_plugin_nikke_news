@@ -38,6 +38,8 @@ class PlayerPoller:
         self._config = config
         self._state = state
         self._save_state = save_state
+        self._last_fullness: float | None = None
+        self._last_points: int | None = None
 
     def cookie_status(self) -> CookieStatus:
         """统一 Cookie 可用性检查。"""
@@ -51,7 +53,7 @@ class PlayerPoller:
             return CookieStatus.INVALID
         return CookieStatus.AVAILABLE
 
-    async def poll(self) -> None:
+    async def poll(self) -> str:
         """检查前哨基地满仓和日常任务完成情况，必要时推送提醒。
 
         Cookie 失效时发送首次通知并记录日志，后续仅写日志。
@@ -59,15 +61,15 @@ class PlayerPoller:
         """
         status = self.cookie_status()
         if status == CookieStatus.DISABLED:
-            return
+            return ""
         if status == CookieStatus.EMPTY:
-            return
+            return ""
         # CookieStatus.INVALID 时仍需尝试调用以检测恢复
 
         targets = enabled_targets(self._config.news_config())
         if not targets:
             logger.warning("NIKKE 玩家数据功能已启用，但未配置推送目标。")
-            return
+            return ""
 
         cookie = self._config.player_data_cookie()
 
@@ -95,7 +97,7 @@ class PlayerPoller:
                     player_state["cookie_invalid_notified"] = True
                     self._save_state()
                 logger.warning(f"NIKKE 玩家 Cookie 失效：{exc}")
-                return
+                return ""
             raise
 
         now = datetime.now(CST)
@@ -140,10 +142,14 @@ class PlayerPoller:
         if save_needed:
             self._save_state()
 
-        logger.debug(
-            f"NIKKE 玩家数据轮询完成（前哨 {fullness_percent:.0f}%，"
-            f"日常积分 {points}）。"
+        changed = (
+            self._last_fullness is None
+            or self._last_fullness != fullness_percent
+            or self._last_points != points
         )
+        self._last_fullness = fullness_percent
+        self._last_points = points
+        return f"前哨 {fullness_percent:.0f}% 日常 {points}" if changed else ""
 
     async def _send_player_alert(
         self, targets: list[dict[str, str]], lines: list[str]
