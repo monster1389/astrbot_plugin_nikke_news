@@ -47,39 +47,54 @@ class AvatarScraper:
             ) as page:
                 cdn_chars: list | None = None
                 api_chars: dict | None = None
+                pending_responses: list = []
 
                 async def _on_response(response):
-                    nonlocal cdn_chars, api_chars
                     url = response.url
                     if (
                         "sg-tools-cdn" in url
                         and url.endswith(".json")
                         and not cdn_chars
-                    ):
-                        try:
-                            data = await response.json()
-                            if (
-                                isinstance(data, list)
-                                and data
-                                and "name_code" in data[0]
-                            ):
-                                cdn_chars = data
-                        except Exception:
-                            logger.debug(
-                                "CDN 角色头像 JSON 解析失败", exc_info=True
-                            )
-                    if "GetUserCharacters" in url and not api_chars:
-                        try:
-                            api_chars = await response.json()
-                        except Exception:
-                            logger.debug(
-                                "GetUserCharacters JSON 解析失败", exc_info=True
-                            )
+                    ) or ("GetUserCharacters" in url and not api_chars):
+                        pending_responses.append(response)
 
                 page.on("response", _on_response)
                 await page.goto(
                     SHIFTYSPAD_COMBAT_URL, wait_until="load", timeout=60000
                 )
+
+                # 轮询等待并处理 CDN/API 响应（async 回调靠 wait 让出事件循环来执行）
+                for _ in range(90):
+                    await page.wait_for_timeout(_WAIT_MS)
+                    while pending_responses:
+                        response = pending_responses.pop(0)
+                        url = response.url
+                        if (
+                            "sg-tools-cdn" in url
+                            and url.endswith(".json")
+                            and not cdn_chars
+                        ):
+                            try:
+                                data = await response.json()
+                                if (
+                                    isinstance(data, list)
+                                    and data
+                                    and "name_code" in data[0]
+                                ):
+                                    cdn_chars = data
+                            except Exception:
+                                logger.debug(
+                                    "CDN 角色头像 JSON 解析失败", exc_info=True
+                                )
+                        if "GetUserCharacters" in url and not api_chars:
+                            try:
+                                api_chars = await response.json()
+                            except Exception:
+                                logger.debug(
+                                    "GetUserCharacters JSON 解析失败", exc_info=True
+                                )
+                    if cdn_chars and len(cdn_chars) >= 50:
+                        break
 
                 mappings = await self._scrape_default_avatars(page)
 

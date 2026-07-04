@@ -94,7 +94,7 @@ async def refresh_player_mappings(
     *,
     cookie_header: str,
     language: str = "en",
-    timeout_ms: int = 20000,
+    timeout_ms: int = 30000,
 ) -> tuple[
     dict[int, str],
     dict[str, dict[str, Any]],
@@ -106,7 +106,7 @@ async def refresh_player_mappings(
     Args:
         cookie_header: Cookie 请求头字符串。
         language: 目标语言代码，默认 en。
-        timeout_ms: 页面加载超时毫秒数，默认 20000。
+        timeout_ms: 页面加载超时毫秒数，默认 30000。
 
     Returns:
         (角色名映射, 词条选项映射, CDN 来源元数据, resource_id 映射) 元组。
@@ -121,23 +121,6 @@ async def refresh_player_mappings(
     sources: dict[str, dict[str, str]] = {}
     cdn_entries: list[tuple[str, Any, dict[str, str]]] = []
 
-    async def _on_cdn_response(response):
-        url = response.url
-        if CDN_HOST not in url or not url.endswith(".json"):
-            return
-        try:
-            data = await response.json()
-        except Exception:
-            logger.debug(
-                f"[{language}] 角色映射 CDN JSON 解析失败：{url}", exc_info=True
-            )
-            return
-        try:
-            headers = await response.all_headers()
-        except Exception:
-            headers = {}
-        cdn_entries.append((url, data, headers))
-
     logger.info(f"NIKKE Chromium 刷新玩家映射启动（语言：{language}）...")
     try:
         async with browser_context(
@@ -149,13 +132,56 @@ async def refresh_player_mappings(
             },
         ) as page:
 
+            pending_responses: list = []
+
+            def _on_cdn_response(response):
+                url = response.url
+                if CDN_HOST in url and url.endswith(".json"):
+                    pending_responses.append(response)
+
             page.on("response", _on_cdn_response)
             await page.goto(
                 SHIFTYSPAD_NIKKE_LIST_URL,
                 wait_until="load",
                 timeout=timeout_ms,
             )
-            await page.wait_for_timeout(8000)
+
+            got_names = False
+            got_options = False
+            _WAIT_MS = 200
+            stall = 0
+            prev_count = 0
+            for _ in range(150):
+                await page.wait_for_timeout(_WAIT_MS)
+                while pending_responses:
+                    response = pending_responses.pop(0)
+                    url = response.url
+                    try:
+                        data = await response.json()
+                    except Exception:
+                        logger.debug(
+                            f"[{language}] 角色映射 CDN JSON 解析失败：{url}",
+                            exc_info=True,
+                        )
+                        continue
+                    try:
+                        headers = await response.all_headers()
+                    except Exception:
+                        headers = {}
+                    cdn_entries.append((url, data, headers))
+                    if not got_names and extract_character_names(data):
+                        got_names = True
+                    if not got_options and extract_state_effect_options(data):
+                        got_options = True
+                if got_names and got_options:
+                    break
+                if len(cdn_entries) > prev_count:
+                    prev_count = len(cdn_entries)
+                    stall = 0
+                elif cdn_entries:
+                    stall += 1
+                    if stall >= 25:
+                        break
     except BrowserLaunchError as exc:
         raise PlayerMappingRefreshError(str(exc)) from exc
     except Exception as exc:
