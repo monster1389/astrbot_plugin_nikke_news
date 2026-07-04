@@ -83,10 +83,18 @@ class TestCacheRefresher:
         char_svc.refresh_mappings.assert_not_called()
         avatar_svc.refresh_cached.assert_not_called()
 
-    def test_failure_adds_reset_hint(self, mock_services):
+    def test_failure_adds_reset_hint_when_not_force(self, mock_services):
+        char_svc, avatar_svc, player_poller, config = mock_services
+        char_svc.refresh_mappings = AsyncMock(side_effect=RuntimeError("crash"))
+        cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
+        msg, char_failed, avatar_failed = asyncio.run(cr.refresh(force=False))
+        assert char_failed is True
+        assert "请执行 /nikke_refresh 重置失败状态后重试。" in msg
+
+    def test_failure_no_reset_hint_when_force(self, mock_services):
         char_svc, avatar_svc, player_poller, config = mock_services
         char_svc.refresh_mappings = AsyncMock(side_effect=RuntimeError("crash"))
         cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
         msg, char_failed, avatar_failed = asyncio.run(cr.refresh(force=True))
         assert char_failed is True
-        assert "请执行 /nikke_refresh 重置失败状态后重试。" in msg
+        assert "请执行 /nikke_refresh 重置失败状态后重试。" not in msg

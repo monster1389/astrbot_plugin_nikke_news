@@ -83,8 +83,7 @@ class CacheRefresher:
                 avatar_msg, avatar_failed = results[1]
 
             parts = [p for p in [role_msg, avatar_msg] if p]
-            has_failure = char_failed or avatar_failed
-            if has_failure:
+            if not force and (char_failed or avatar_failed):
                 parts.append("请执行 /nikke_refresh 重置失败状态后重试。")
             elapsed = time.monotonic() - t0
             parts.append(f"总耗时 {elapsed:.0f}s")
