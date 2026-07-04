@@ -135,8 +135,12 @@ async def refresh_player_mappings(
         found_names = extract_character_names(data)
         found_options = extract_state_effect_options(data)
         if not found_names and not found_options:
+            logger.debug(f"角色映射 CDN 响应未提取到数据：{url}")
             return
 
+        logger.debug(
+            f"角色映射 CDN 响应：角色 {len(found_names)} 个，词条 {len(found_options)} 个"
+        )
         found_resource_ids = extract_resource_ids(data)
         if found_resource_ids:
             resource_ids.update(found_resource_ids)
