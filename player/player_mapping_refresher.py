@@ -1,6 +1,5 @@
 """通过 Playwright 从 Blablalink CDN 抓取角色名和词条映射。"""
 
-import asyncio
 from typing import Any
 
 from astrbot.api import logger
@@ -120,40 +119,24 @@ async def refresh_player_mappings(
     resource_ids: dict[int, int] = {}
     options: dict[str, dict[str, Any]] = {}
     sources: dict[str, dict[str, str]] = {}
-    tasks: set[asyncio.Task] = set()
+    cdn_entries: list[tuple[str, Any, dict[str, str]]] = []
 
-    async def handle_response(response):
+    async def _on_cdn_response(response):
         url = response.url
         if CDN_HOST not in url or not url.endswith(".json"):
             return
         try:
             data = await response.json()
         except Exception:
-            logger.debug("角色映射 CDN JSON 解析失败", exc_info=True)
+            logger.debug(
+                f"[{language}] 角色映射 CDN JSON 解析失败：{url}", exc_info=True
+            )
             return
-
-        found_names = extract_character_names(data)
-        found_options = extract_state_effect_options(data)
-        if not found_names and not found_options:
-            logger.debug(f"角色映射 CDN 响应未提取到数据：{url}")
-            return
-
-        logger.debug(
-            f"角色映射 CDN 响应：角色 {len(found_names)} 个，词条 {len(found_options)} 个"
-        )
-        found_resource_ids = extract_resource_ids(data)
-        if found_resource_ids:
-            resource_ids.update(found_resource_ids)
-
-        headers = await response.all_headers()
-        sources[url] = {
-            "etag": headers.get("etag", ""),
-            "last_modified": headers.get("last-modified", ""),
-        }
-        if found_names:
-            character_names.update(found_names)
-        if found_options:
-            options.update(found_options)
+        try:
+            headers = await response.all_headers()
+        except Exception:
+            headers = {}
+        cdn_entries.append((url, data, headers))
 
     logger.info(f"NIKKE Chromium 刷新玩家映射启动（语言：{language}）...")
     try:
@@ -166,25 +149,42 @@ async def refresh_player_mappings(
             },
         ) as page:
 
-            def on_response(response):
-                task = asyncio.create_task(handle_response(response))
-                tasks.add(task)
-                task.add_done_callback(tasks.discard)
-
-            page.on("response", on_response)
+            page.on("response", _on_cdn_response)
             await page.goto(
                 SHIFTYSPAD_NIKKE_LIST_URL,
                 wait_until="load",
                 timeout=timeout_ms,
             )
             await page.wait_for_timeout(8000)
-            if tasks:
-                await asyncio.gather(*tasks, return_exceptions=True)
     except BrowserLaunchError as exc:
         raise PlayerMappingRefreshError(str(exc)) from exc
     except Exception as exc:
         logger.warning(f"NIKKE Playwright 刷新玩家映射失败：{exc}")
         raise PlayerMappingRefreshError(f"Chromium 刷新玩家映射失败：{exc}") from exc
+
+    for url, data, headers in cdn_entries:
+        found_names = extract_character_names(data)
+        found_options = extract_state_effect_options(data)
+        if not found_names and not found_options:
+            logger.debug(f"[{language}] 角色映射 CDN 响应未提取到数据：{url}")
+            continue
+
+        url_short = url.split("blablalink.com/")[-1] if "blablalink.com/" in url else url
+        logger.debug(
+            f"[{language}] 角色映射 CDN 响应：{url_short} 角色 {len(found_names)} 个，词条 {len(found_options)} 个"
+        )
+        found_resource_ids = extract_resource_ids(data)
+        if found_resource_ids:
+            resource_ids.update(found_resource_ids)
+
+        sources[url] = {
+            "etag": headers.get("etag", ""),
+            "last_modified": headers.get("last-modified", ""),
+        }
+        if found_names:
+            character_names.update(found_names)
+        if found_options:
+            options.update(found_options)
 
     if not character_names and not options:
         raise PlayerMappingRefreshError(
@@ -192,7 +192,7 @@ async def refresh_player_mappings(
         )
 
     logger.info(
-        f"NIKKE 玩家映射刷新完成：角色 {len(character_names)} 个，词条 {len(options)} 个"
+        f"NIKKE 玩家映射刷新完成（{language}）：角色 {len(character_names)} 个，词条 {len(options)} 个"
     )
     return character_names, options, sources, resource_ids
 
