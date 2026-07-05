@@ -221,7 +221,7 @@ class CharacterService:
                         resource_ids=resource_ids,
                     )
                     return (
-                        f"{lang_label}映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。",
+                        f"{lang_label} 映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。",
                         False,
                     )
 
