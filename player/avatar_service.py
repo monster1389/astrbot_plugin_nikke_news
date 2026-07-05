@@ -1,14 +1,20 @@
 """角色头像映射与图片管理——抓取、缓存、下载。"""
 
+from __future__ import annotations
+
 import asyncio
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import httpx
 from astrbot.api import logger
 
 from player.avatar_mapping_cache import AvatarMappingCache
 from player.avatar_scraper import AvatarScraper
+
+if TYPE_CHECKING:
+    from playwright.async_api import Browser
 
 
 async def _download_with_sem(service, sem, name_code: int, url: str) -> bool:
@@ -65,17 +71,20 @@ class AvatarService:
         """头像 URL 映射是否过期。"""
         return self._mapping_cache.is_stale(self._ttl_hours)
 
-    async def refresh_all(self, cookie: str) -> str:
+    async def refresh_all(
+        self, cookie: str, _browser: Browser | None = None
+    ) -> str:
         """抓取并下载所有角色头像缓存（/nikke_avatar_all）。
 
         Args:
             cookie: 玩家 Cookie 字符串。
+            _browser: 复用的 Browser 实例，None 则自行 launch。
 
         Returns:
             刷新结果描述文本（含角色数和耗时）。
         """
         t0 = time.monotonic()
-        mappings = await self._scraper.scrape(cookie)
+        mappings = await self._scraper.scrape(cookie, _browser=_browser)
         if not mappings:
             return (
                 "未获取到角色头像映射。请确认：\n"
@@ -90,13 +99,14 @@ class AvatarService:
         )
 
     async def refresh_cached(
-        self, cookie: str, *, force: bool = False
+        self, cookie: str, *, force: bool = False, _browser: Browser | None = None
     ) -> tuple[str, bool]:
         """抓取头像映射并仅重新下载本地已有缓存文件的头像。
 
         Args:
             cookie: 玩家 Cookie 字符串。
             force: True 跳过 TTL 检查强制刷新。
+            _browser: 复用的 Browser 实例，None 则自行 launch。
 
         Returns:
             (消息文本, 是否有失败) 元组。
@@ -105,7 +115,7 @@ class AvatarService:
             return ("", False)
 
         t0 = time.monotonic()
-        mappings = await self._scraper.scrape(cookie)
+        mappings = await self._scraper.scrape(cookie, _browser=_browser)
         if not mappings:
             elapsed = time.monotonic() - t0
             logger.debug(f"NIKKE 头像映射刷新耗时 {elapsed:.0f}s")
@@ -139,12 +149,15 @@ class AvatarService:
             return {}
         return self._mapping_cache.load()
 
-    async def ensure_avatar(self, name_code: int, cookie: str) -> bool:
+    async def ensure_avatar(
+        self, name_code: int, cookie: str, _browser: Browser | None = None
+    ) -> bool:
         """按需下载单个角色头像。先查磁盘缓存，过期则 Playwright 抓取再下载。
 
         Args:
             name_code: 角色 name_code。
             cookie: 玩家 Cookie 字符串。
+            _browser: 复用的 Browser 实例，None 则自行 launch。
 
         Returns:
             True 表示头像已就绪（已存在或下载成功）。
@@ -154,7 +167,7 @@ class AvatarService:
 
         mappings = self._load_mappings()
         if not mappings:
-            mappings = await self._scraper.scrape(cookie)
+            mappings = await self._scraper.scrape(cookie, _browser=_browser)
         url = mappings.get(name_code)
         if not url:
             return False

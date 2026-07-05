@@ -120,7 +120,7 @@ class TestRefreshCached:
         }
         called_with = []
 
-        async def fake_scrape(cookie):
+        async def fake_scrape(cookie, _browser=None):
             return mock_mappings
 
         async def fake_download(mappings):
@@ -140,7 +140,7 @@ class TestRefreshCached:
     async def test_refresh_cached_no_local_files(self, service, monkeypatch):
         mock_mappings = {101: "https://cdn.example.com/101.webp"}
 
-        async def fake_scrape(cookie):
+        async def fake_scrape(cookie, _browser=None):
             return mock_mappings
 
         monkeypatch.setattr(service._scraper, "scrape", fake_scrape)
@@ -151,7 +151,7 @@ class TestRefreshCached:
 
     @pytest.mark.asyncio
     async def test_refresh_cached_scrape_returns_empty(self, service, monkeypatch):
-        async def fake_scrape(cookie):
+        async def fake_scrape(cookie, _browser=None):
             return {}
 
         monkeypatch.setattr(service._scraper, "scrape", fake_scrape)
@@ -177,7 +177,7 @@ class TestRefreshCached:
         )
         scrape_called = False
 
-        async def fake_scrape(cookie):
+        async def fake_scrape(cookie, _browser=None):
             nonlocal scrape_called
             scrape_called = True
             return {}
@@ -193,7 +193,7 @@ class TestRefreshCached:
         """force=True 时跳过 TTL 检查直接抓取。"""
         scrape_called = False
 
-        async def fake_scrape(cookie):
+        async def fake_scrape(cookie, _browser=None):
             nonlocal scrape_called
             scrape_called = True
             return {}
