@@ -1,12 +1,17 @@
 """通过 Playwright 从 Blablalink CDN 抓取角色名和词条映射。"""
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from astrbot.api import logger
 
 from core.browser_context import browser_context, BrowserLaunchError
 from core.constants import CDN_HOST
 from core.utils import accept_language
+
+if TYPE_CHECKING:
+    from playwright.async_api import Browser
 
 SHIFTYSPAD_NIKKE_LIST_URL = (
     "https://www.blablalink.com/shiftyspad/nikke-list?type=combat"
@@ -95,6 +100,7 @@ async def refresh_player_mappings(
     cookie_header: str,
     language: str = "en",
     timeout_ms: int = 30000,
+    _browser: Browser | None = None,
 ) -> tuple[
     dict[int, str],
     dict[str, dict[str, Any]],
@@ -130,6 +136,7 @@ async def refresh_player_mappings(
                 "Accept-Language": accept_language(language),
                 "x-language": language,
             },
+            _browser=_browser,
         ) as page:
 
             pending_responses: list = []
