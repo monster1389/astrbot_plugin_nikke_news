@@ -1,9 +1,14 @@
 """Chromium 浏览器上下文管理器：统一 Playwright 启动与关闭。"""
 
+from __future__ import annotations
+
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import TYPE_CHECKING, AsyncIterator
 
 from core.utils import parse_cookie_pairs
+
+if TYPE_CHECKING:
+    from playwright.async_api import Browser
 
 
 class BrowserLaunchError(Exception):
@@ -43,6 +48,7 @@ async def browser_context(
     language: str = "en",
     viewport: dict[str, int] | None = None,
     extra_http_headers: dict[str, str] | None = None,
+    _browser: Browser | None = None,
 ) -> AsyncIterator:
     """启动 Chromium 并返回 Page，退出时自动关闭浏览器。
 
@@ -54,6 +60,7 @@ async def browser_context(
         language: new_context 的 locale 参数。
         viewport: 视口尺寸，None 使用默认。
         extra_http_headers: new_context 的 extra_http_headers。
+        _browser: 复用的 Browser 实例。为 None 时自行 launch 和 close。
 
     Yields:
         Playwright Page 对象。
@@ -61,16 +68,29 @@ async def browser_context(
     Raises:
         BrowserLaunchError: Playwright 导入失败。
     """
-    try:
-        from playwright.async_api import async_playwright
-    except ImportError as exc:
-        raise BrowserLaunchError("当前环境未安装 Playwright。") from exc
-
     context_kwargs: dict[str, object] = {"locale": language}
     if viewport is not None:
         context_kwargs["viewport"] = viewport
     if extra_http_headers is not None:
         context_kwargs["extra_http_headers"] = extra_http_headers
+
+    if _browser is not None:
+        ctx = await _browser.new_context(**context_kwargs)
+        if cookie_header:
+            cookies = parse_cookie_header(cookie_header)
+            if cookies:
+                await ctx.add_cookies(cookies)
+        page = await ctx.new_page()
+        try:
+            yield page
+        finally:
+            await ctx.close()
+        return
+
+    try:
+        from playwright.async_api import async_playwright
+    except ImportError as exc:
+        raise BrowserLaunchError("当前环境未安装 Playwright。") from exc
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
