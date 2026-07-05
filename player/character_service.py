@@ -1,7 +1,10 @@
 """角色查询服务——模糊匹配、映射刷新、角色详情。"""
 
+from __future__ import annotations
+
+import asyncio
 import time
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import httpx
 from astrbot.api import logger
@@ -14,6 +17,9 @@ from player.player_mapping_refresher import (
     refresh_player_mappings,
 )
 from player.player_client import PlayerClient
+
+if TYPE_CHECKING:
+    from playwright.async_api import Browser
 
 
 class CharacterQueryError(Exception):
@@ -170,11 +176,14 @@ class CharacterService:
 
         return results
 
-    async def refresh_mappings(self, *, force: bool = False) -> tuple[str, bool]:
-        """启动 Playwright 刷新角色映射（先 en 后目标语言）。
+    async def refresh_mappings(
+        self, *, force: bool = False, _browser: Browser | None = None
+    ) -> tuple[str, bool]:
+        """启动 Playwright 刷新角色映射（并行 en + 目标语言）。
 
         Args:
             force: True 时跳过 TTL 检查，强制刷新所有缓存。
+            _browser: 可复用的 Playwright Browser 实例，None 则自动创建。
 
         Returns:
             (消息文本, 是否有失败) 元组。
@@ -194,70 +203,52 @@ class CharacterService:
             has_failure = False
             did_refresh = False
 
-            # en
-            if (
-                force
-                or not self._en_cache.has_useful_data()
-                or self._en_cache.is_stale(ttl)
-            ):
-                did_refresh = True
+            async def _refresh_one(lang: str, cache, lang_label: str):
                 try:
-                    (
-                        names,
-                        options,
-                        sources,
-                        resource_ids,
-                    ) = await refresh_player_mappings(
+                    names, options, sources, resource_ids = await refresh_player_mappings(
                         cookie_header=cookie,
-                        language="en",
+                        language=lang,
+                        _browser=_browser,
                     )
                 except PlayerMappingRefreshError as exc:
-                    messages.append(str(exc))
-                    has_failure = True
+                    return (str(exc), True)
                 else:
-                    self._en_cache.save(
-                        language="en",
+                    cache.save(
+                        language=lang,
                         character_names=names,
                         state_effect_options=options,
                         sources=sources,
                         resource_ids=resource_ids,
                     )
-                    messages.append(
-                        f"英文映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。"
+                    return (
+                        f"{lang_label}映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。",
+                        False,
                     )
 
-            # target language
+            tasks: list[tuple[str, object]] = []
+            if (
+                force
+                or not self._en_cache.has_useful_data()
+                or self._en_cache.is_stale(ttl)
+            ):
+                tasks.append(("en", _refresh_one("en", self._en_cache, "英文")))
             if target_lang != "en" and self._target_cache:
                 if (
                     force
                     or not self._target_cache.has_useful_data()
                     or self._target_cache.is_stale(ttl)
                 ):
-                    did_refresh = True
-                    try:
-                        (
-                            names,
-                            options,
-                            sources,
-                            resource_ids,
-                        ) = await refresh_player_mappings(
-                            cookie_header=cookie,
-                            language=target_lang,
-                        )
-                    except PlayerMappingRefreshError as exc:
-                        messages.append(str(exc))
+                    tasks.append(
+                        (target_lang, _refresh_one(target_lang, self._target_cache, target_lang))
+                    )
+
+            if tasks:
+                did_refresh = True
+                results = await asyncio.gather(*[t[1] for t in tasks])
+                for msg, failed in results:
+                    if failed:
                         has_failure = True
-                    else:
-                        self._target_cache.save(
-                            language=target_lang,
-                            character_names=names,
-                            state_effect_options=options,
-                            sources=sources,
-                            resource_ids=resource_ids,
-                        )
-                        messages.append(
-                            f"{target_lang} 映射已刷新：角色 {len(names)} 个，词条 {len(options)} 个。"
-                        )
+                    messages.append(msg)
 
             self.load_caches()
             reload_count = self.count()
