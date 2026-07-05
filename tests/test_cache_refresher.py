@@ -8,7 +8,7 @@ from core.cookie_status import CookieStatus
 
 
 @pytest.fixture
-def mock_services():
+def mock_services(monkeypatch):
     char_svc = MagicMock()
     char_svc.refresh_mappings = AsyncMock(
         return_value=(
@@ -28,6 +28,18 @@ def mock_services():
     config = MagicMock()
     config.player_data_cookie = MagicMock(return_value="ck=abc")
 
+    # mock playwright import — CacheRefresher 用 _browser=None 降级
+    import builtins
+
+    _real_import = builtins.__import__
+
+    def _mock_import(name, *args, **kwargs):
+        if name == "playwright.async_api":
+            raise ImportError("no playwright")
+        return _real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _mock_import)
+
     return char_svc, avatar_svc, player_poller, config
 
 
@@ -41,8 +53,12 @@ class TestCacheRefresher:
         assert "英文映射已刷新" in msg
         assert "头像缓存刷新完成" in msg
         assert "总耗时" in msg
-        char_svc.refresh_mappings.assert_called_once_with(force=True)
-        avatar_svc.refresh_cached.assert_called_once_with("ck=abc", force=True)
+        char_svc.refresh_mappings.assert_called_once_with(
+            force=True, _browser=None
+        )
+        avatar_svc.refresh_cached.assert_called_once_with(
+            "ck=abc", force=True, _browser=None
+        )
 
     def test_returns_none_when_cookie_unavailable(self, mock_services):
         char_svc, avatar_svc, player_poller, config = mock_services
