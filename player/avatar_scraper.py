@@ -117,6 +117,16 @@ class AvatarScraper:
 
                 if mappings and not api_chars:
                     for _ in range(25):
+                        while pending_responses:
+                            response = pending_responses.pop(0)
+                            url = response.url
+                            if "GetUserCharacters" in url and not api_chars:
+                                try:
+                                    api_chars = await response.json()
+                                except Exception:
+                                    logger.debug(
+                                        "GetUserCharacters JSON 解析失败", exc_info=True
+                                    )
                         if api_chars:
                             break
                         await page.wait_for_timeout(_WAIT_MS)
