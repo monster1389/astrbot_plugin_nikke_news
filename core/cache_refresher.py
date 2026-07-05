@@ -64,6 +64,10 @@ class CacheRefresher:
                 _browser = await _playwright.chromium.launch(headless=True)
             except ImportError:
                 pass
+            except Exception:
+                if _playwright is not None:
+                    await _playwright.__aexit__(None, None, None)
+                raise
 
             try:
                 char_task = (
