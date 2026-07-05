@@ -1,9 +1,16 @@
 """Playwright 头像映射抓取：两阶段采集 name_code → CDN URL。"""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from core.browser_context import browser_context, BrowserLaunchError
 from player.avatar_mapping_cache import AvatarMappingCache
 
 from astrbot.api import logger
+
+if TYPE_CHECKING:
+    from playwright.async_api import Browser
 
 SHIFTYSPAD_COMBAT_URL = "https://www.blablalink.com/shiftyspad/nikke-list?type=combat"
 _WAIT_MS = 200
@@ -20,19 +27,20 @@ class AvatarScraper:
     def __init__(self, mapping_cache: AvatarMappingCache):
         self._mapping_cache = mapping_cache
 
-    async def scrape(self, cookie: str) -> dict[int, str]:
+    async def scrape(self, cookie: str, _browser: Browser | None = None) -> dict[int, str]:
         """执行两阶段抓取，保存到缓存，返回完整 name_code → URL 映射。
 
         Args:
             cookie: 玩家 Cookie 字符串。
+            _browser: 复用的 Browser 实例，None 则自行 launch。
 
         Returns:
             {name_code: CDN URL} 映射，失败返回空 dict。
         """
-        return await self._scrape_with_playwright(cookie)
+        return await self._scrape_with_playwright(cookie, _browser=_browser)
 
     async def _scrape_with_playwright(
-        self, cookie: str, language: str = "zh-TW"
+        self, cookie: str, language: str = "zh-TW", _browser: Browser | None = None
     ) -> dict[int, str]:
         """Playwright 抓取头像 URL 映射。
 
@@ -44,6 +52,7 @@ class AvatarScraper:
                 cookie_header=cookie,
                 language=language,
                 viewport={"width": 1280, "height": 900},
+                _browser=_browser,
             ) as page:
                 cdn_chars: list | None = None
                 api_chars: dict | None = None
