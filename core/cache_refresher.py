@@ -56,17 +56,18 @@ class CacheRefresher:
             cookie = self._config.player_data_cookie()
 
             _browser = None
-            _playwright = None
+            _pw_cm = None
             try:
                 from playwright.async_api import async_playwright
 
-                _playwright = await async_playwright().__aenter__()
-                _browser = await _playwright.chromium.launch(headless=True)
+                _pw_cm = async_playwright()
+                pw = await _pw_cm.__aenter__()
+                _browser = await pw.chromium.launch(headless=True)
             except ImportError:
                 pass
             except Exception:
-                if _playwright is not None:
-                    await _playwright.__aexit__(None, None, None)
+                if _pw_cm is not None:
+                    await _pw_cm.__aexit__(None, None, None)
                 raise
 
             try:
@@ -110,7 +111,7 @@ class CacheRefresher:
             finally:
                 if _browser is not None:
                     await _browser.close()
-                if _playwright is not None:
-                    await _playwright.__aexit__(None, None, None)
+                if _pw_cm is not None:
+                    await _pw_cm.__aexit__(None, None, None)
         finally:
             self._in_progress = False
