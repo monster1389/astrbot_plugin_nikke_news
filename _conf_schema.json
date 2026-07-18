@@ -2,11 +2,13 @@
   "新闻": {
     "description": "NIKKE 官方新闻推送配置",
     "type": "object",
+    "hint": "配置定时轮询 Blablalink 新闻、推送内容和目标群组。",
     "items": {
       "enabled": {
         "description": "启用 NIKKE 官方消息推送",
         "type": "bool",
-        "default": true
+        "default": true,
+        "hint": "开启后将定时轮询 Blablalink 获取最新官方消息并推送到指定群组。"
       },
       "poll_interval_seconds": {
         "description": "轮询间隔秒数",
@@ -18,7 +20,8 @@
         "description": "消息语言",
         "type": "string",
         "default": "en",
-        "options": ["zh-TW", "en", "ja", "ko"]
+        "options": ["zh-TW", "en", "ja", "ko"],
+        "hint": "新闻推送使用的语言，支持繁中、英文、日文、韩文。"
       },
       "fetch_limit": {
         "description": "每次拉取的消息数量",
@@ -42,7 +45,8 @@
       "show_publish_time": {
         "description": "显示发布时间",
         "type": "bool",
-        "default": true
+        "default": true,
+        "hint": "开启后在每条推送消息中附带新闻的发布时间。"
       },
       "scheduled_push_groups": {
         "description": "定时推送目标群组列表",
@@ -67,6 +71,7 @@
   "玩家": {
     "description": "玩家数据相关配置",
     "type": "object",
+    "hint": "配置 Cookie 登录、前哨/日常提醒以及角色查询相关选项。",
     "items": {
       "cookie": {
         "description": "玩家登录凭据",
@@ -79,6 +84,7 @@
       "状态提醒": {
         "description": "玩家状态提醒配置",
         "type": "object",
+        "hint": "配置前哨基地满仓提醒和日常任务未完成提醒。",
         "items": {
           "enabled": {
             "description": "启用玩家数据提醒",
@@ -95,7 +101,8 @@
           "daily_mission_enabled": {
             "description": "启用日常未完成提醒",
             "type": "bool",
-            "default": true
+            "default": true,
+            "hint": "开启后，超过提醒时间且日常积分为 0 时触发提醒，每天一次。"
           },
           "daily_mission_remind_time": {
             "description": "日常提醒时间（北京时间）",
@@ -114,6 +121,7 @@
       "nikke查询": {
         "description": "NIKKE 角色查询配置",
         "type": "object",
+        "hint": "配置角色别名、映射语言、缓存 TTL 和头像显示等查询相关选项。",
         "items": {
           "character_alias": {
             "description": "角色别名映射",
