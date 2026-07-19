@@ -77,12 +77,8 @@ async def broadcast_to_targets(targets: list[dict[str, str]], chain, label: str)
     success = False
     for target in targets:
         try:
-            await StarTools.send_message_by_id(
-                target["target_type"],
-                target["target_id"],
-                chain,
-                platform="aiocqhttp",
-            )
+            session = f"aiocqhttp:{target['target_type']}:{target['target_id']}"
+            await StarTools.send_message(session, chain)
             success = True
         except Exception as exc:
             logger.warning(

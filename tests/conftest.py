@@ -105,12 +105,12 @@ class StarTools:
         return Path(tempfile.mkdtemp(prefix=f"test_{name}_"))
 
     @staticmethod
-    async def send_message_by_id(
-        target_type: str,
-        target_id: str,
-        message_chain: MessageChain,
-        platform: str = "aiocqhttp",
-    ) -> None:
+    async def send_message(session, message_chain: MessageChain) -> bool:
+        session_str = str(session) if hasattr(session, "__str__") else session
+        parts = session_str.split(":", 2)
+        platform = parts[0] if len(parts) > 0 else ""
+        target_type = parts[1] if len(parts) > 1 else ""
+        target_id = parts[2] if len(parts) > 2 else ""
         _SENT_MESSAGES.append(
             {
                 "target_type": target_type,
@@ -125,6 +125,7 @@ class StarTools:
                 "platform": platform,
             }
         )
+        return True
 
 
 # ---------------------------------------------------------------------------

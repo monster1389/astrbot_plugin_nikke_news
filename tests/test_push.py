@@ -337,7 +337,7 @@ async def test_push_partial_failure(caplog, captured, tmp_path):
     import main as mod
 
     call_count = 0
-    original = mod.StarTools.send_message_by_id
+    original = mod.StarTools.send_message
 
     async def flaky_send(*args, **kwargs):
         nonlocal call_count
@@ -346,11 +346,11 @@ async def test_push_partial_failure(caplog, captured, tmp_path):
             raise RuntimeError("send failed")
         return await original(*args, **kwargs)
 
-    mod.StarTools.send_message_by_id = flaky_send
+    mod.StarTools.send_message = flaky_send
 
     try:
         await plugin._poll_once()
         assert "发送失败" in caplog.text
         assert len(captured) == 3
     finally:
-        mod.StarTools.send_message_by_id = original
+        mod.StarTools.send_message = original
