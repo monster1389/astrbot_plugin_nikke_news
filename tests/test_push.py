@@ -280,6 +280,7 @@ async def test_push_friend_message(captured, tmp_path):
     _setup_coordinator(plugin)
 
     await plugin._poll_once()
+    assert captured[0]["platform"] == "napcat"
     assert captured[0]["target_type"] == "FriendMessage"
     assert captured[0]["target_id"] == "2854964693"
 
