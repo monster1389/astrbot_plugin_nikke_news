@@ -27,7 +27,9 @@ class AvatarScraper:
     def __init__(self, mapping_cache: AvatarMappingCache):
         self._mapping_cache = mapping_cache
 
-    async def scrape(self, cookie: str, _browser: Browser | None = None) -> dict[int, str]:
+    async def scrape(
+        self, cookie: str, _browser: Browser | None = None
+    ) -> dict[int, str]:
         """执行两阶段抓取，保存到缓存，返回完整 name_code → URL 映射。
 
         Args:
@@ -68,9 +70,7 @@ class AvatarScraper:
                         pending_responses.append(response)
 
                 page.on("response", _on_response)
-                await page.goto(
-                    SHIFTYSPAD_COMBAT_URL, wait_until="load", timeout=60000
-                )
+                await page.goto(SHIFTYSPAD_COMBAT_URL, wait_until="load", timeout=60000)
 
                 # 轮询等待并处理 CDN/API 响应（async 回调靠 wait 让出事件循环来执行）
                 for _ in range(90):

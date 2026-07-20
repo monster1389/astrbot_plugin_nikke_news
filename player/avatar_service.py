@@ -71,9 +71,7 @@ class AvatarService:
         """头像 URL 映射是否过期。"""
         return self._mapping_cache.is_stale(self._ttl_hours)
 
-    async def refresh_all(
-        self, cookie: str, _browser: Browser | None = None
-    ) -> str:
+    async def refresh_all(self, cookie: str, _browser: Browser | None = None) -> str:
         """抓取并下载所有角色头像缓存（/nikke_avatar_all）。
 
         Args:

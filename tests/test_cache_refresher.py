@@ -53,9 +53,7 @@ class TestCacheRefresher:
         assert "英文映射已刷新" in msg
         assert "头像缓存刷新完成" in msg
         assert "总耗时" in msg
-        char_svc.refresh_mappings.assert_called_once_with(
-            force=True, _browser=None
-        )
+        char_svc.refresh_mappings.assert_called_once_with(force=True, _browser=None)
         avatar_svc.refresh_cached.assert_called_once_with(
             "ck=abc", force=True, _browser=None
         )

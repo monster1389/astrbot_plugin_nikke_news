@@ -138,7 +138,6 @@ async def refresh_player_mappings(
             },
             _browser=_browser,
         ) as page:
-
             pending_responses: list = []
 
             def _on_cdn_response(response):
@@ -202,7 +201,9 @@ async def refresh_player_mappings(
             logger.debug(f"[{language}] 角色映射 CDN 响应未提取到数据：{url}")
             continue
 
-        url_short = url.split("blablalink.com/")[-1] if "blablalink.com/" in url else url
+        url_short = (
+            url.split("blablalink.com/")[-1] if "blablalink.com/" in url else url
+        )
         logger.debug(
             f"[{language}] 角色映射 CDN 响应：{url_short} 角色 {len(found_names)} 个，词条 {len(found_options)} 个"
         )

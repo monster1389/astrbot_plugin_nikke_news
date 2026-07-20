@@ -205,7 +205,12 @@ class CharacterService:
 
             async def _refresh_one(lang: str, cache, lang_label: str):
                 try:
-                    names, options, sources, resource_ids = await refresh_player_mappings(
+                    (
+                        names,
+                        options,
+                        sources,
+                        resource_ids,
+                    ) = await refresh_player_mappings(
                         cookie_header=cookie,
                         language=lang,
                         _browser=_browser,
@@ -239,7 +244,10 @@ class CharacterService:
                     or self._target_cache.is_stale(ttl)
                 ):
                     tasks.append(
-                        (target_lang, _refresh_one(target_lang, self._target_cache, target_lang))
+                        (
+                            target_lang,
+                            _refresh_one(target_lang, self._target_cache, target_lang),
+                        )
                     )
 
             if tasks:
