@@ -172,6 +172,38 @@ class AvatarService:
 
         return await self._download_one(name_code, url)
 
+    def avatar_hint(self, name_code: int, cookie: str) -> str | None:
+        """返回下载头像前需要展示的进度提示，无需提示时返回 None。
+
+        Args:
+            name_code: 角色 name_code。
+            cookie: 玩家 Cookie 字符串。
+
+        Returns:
+            进度提示字符串，无需提示时返回 None。
+        """
+        if not cookie or self.exists(name_code) or not self.is_mapping_stale():
+            return None
+        return "正在刷新头像映射（约 20-30s）..."
+
+    async def ensure_avatar_path(self, name_code: int, cookie: str) -> Path | None:
+        """确保角色头像就绪并返回路径，失败返回 None。
+
+        Args:
+            name_code: 角色 name_code。
+            cookie: 玩家 Cookie 字符串。
+
+        Returns:
+            头像文件路径，未就绪返回 None。
+        """
+        if not cookie:
+            return None
+        if await self.ensure_avatar(name_code, cookie):
+            path = self.avatar_path(name_code)
+            if path and path.exists():
+                return path
+        return None
+
     async def _download_one(self, name_code: int, url: str) -> bool:
         """下载单个角色头像到本地 avatars/ 目录。"""
         if self._avatars_dir:

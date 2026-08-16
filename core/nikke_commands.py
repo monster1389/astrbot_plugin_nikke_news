@@ -87,34 +87,21 @@ async def handle_query(plugin, event: AstrMessageEvent, text: str = ""):
         result_text, name_code = await plugin._character_service.query(text)
 
         if plugin._plugin_config.show_character_avatar() and plugin._avatar_service:
-            path = plugin._avatar_service.avatar_path(name_code)
-            if path and path.exists():
+            cookie = plugin._plugin_config.player_data_cookie()
+            svc = plugin._avatar_service
+
+            hint = svc.avatar_hint(name_code, cookie)
+            if hint:
+                yield event.plain_result(hint)
+
+            path = await svc.ensure_avatar_path(name_code, cookie)
+            if path:
                 chain = [
                     Comp.Image.fromFileSystem(str(path)),
                     Comp.Plain(result_text),
                 ]
                 yield event.chain_result(chain)
                 return
-
-            cookie = plugin._plugin_config.player_data_cookie()
-            if cookie:
-                if (
-                    not plugin._avatar_service.exists(name_code)
-                    and plugin._avatar_service.is_mapping_stale()
-                ):
-                    yield event.plain_result("正在刷新头像映射（约 20-30s）...")
-                downloaded = await plugin._avatar_service.ensure_avatar(
-                    name_code, cookie
-                )
-                if downloaded:
-                    path = plugin._avatar_service.avatar_path(name_code)
-                    if path and path.exists():
-                        chain = [
-                            Comp.Image.fromFileSystem(str(path)),
-                            Comp.Plain(result_text),
-                        ]
-                        yield event.chain_result(chain)
-                        return
 
             yield event.plain_result(
                 result_text

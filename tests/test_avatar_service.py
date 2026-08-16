@@ -205,6 +205,67 @@ class TestRefreshCached:
         assert scrape_called is True
 
 
+class TestAvatarHint:
+    def test_no_cookie(self, service):
+        assert service.avatar_hint(101, "") is None
+
+    def test_exists(self, service):
+        (service._avatars_dir / "101.webp").write_bytes(b"fake")
+        assert service.avatar_hint(101, "cookie") is None
+
+    def test_fresh_mapping(self, service, tmp_path):
+        (tmp_path / "avatar_mappings.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "mappings": {"5005": "https://example.com/a.webp"},
+                }
+            )
+        )
+        assert service.avatar_hint(101, "cookie") is None
+
+    def test_stale_returns_hint(self, service):
+        assert service.avatar_hint(101, "cookie") == "正在刷新头像映射（约 20-30s）..."
+
+
+class TestEnsureAvatarPath:
+    @pytest.mark.asyncio
+    async def test_no_cookie(self, service):
+        assert await service.ensure_avatar_path(101, "") is None
+
+    @pytest.mark.asyncio
+    async def test_exists(self, service):
+        (service._avatars_dir / "101.webp").write_bytes(b"fake")
+        path = await service.ensure_avatar_path(101, "cookie")
+        assert path == service._avatars_dir / "101.webp"
+
+    @pytest.mark.asyncio
+    async def test_downloads(self, service, monkeypatch):
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.content = b"image_data"
+        service._client.get.return_value = mock_resp
+
+        async def fake_scrape(cookie, _browser=None):
+            return {101: "https://cdn.example.com/101.webp"}
+
+        monkeypatch.setattr(service._scraper, "scrape", fake_scrape)
+
+        path = await service.ensure_avatar_path(101, "cookie")
+        assert path == service._avatars_dir / "101.webp"
+        assert path.read_bytes() == b"image_data"
+
+    @pytest.mark.asyncio
+    async def test_download_fails(self, service, monkeypatch):
+        async def fake_scrape(cookie, _browser=None):
+            return {}
+
+        monkeypatch.setattr(service._scraper, "scrape", fake_scrape)
+
+        assert await service.ensure_avatar_path(101, "cookie") is None
+
+
 # ── AvatarMappingCache ──────────────────────────────────────────
 
 
