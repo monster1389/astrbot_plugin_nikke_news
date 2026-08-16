@@ -176,6 +176,29 @@ class CharacterService:
 
         return results
 
+    def resolve(self, name: str) -> tuple[int, str]:
+        """将角色名收敛为唯一角色，未找到或多个匹配时抛 CharacterQueryError。
+
+        Args:
+            name: 用户输入的角色名。
+
+        Returns:
+            (name_code, display_name) 元组。
+
+        Raises:
+            CharacterQueryError: 未找到角色，或匹配到多个角色。
+        """
+        matches = self.lookup(name)
+        if not matches:
+            raise CharacterQueryError(f"未找到角色「{name}」，请检查名称是否正确。")
+
+        if len(matches) > 1:
+            names = "、".join(f"「{n}」" for _, n in matches[:10])
+            hint = "\n请提供更精确的名称。" if len(matches) > 10 else ""
+            raise CharacterQueryError(f"找到 {len(matches)} 个匹配：\n{names}{hint}")
+
+        return matches[0]
+
     async def refresh_mappings(
         self, *, force: bool = False, _browser: Browser | None = None
     ) -> tuple[str, bool]:
@@ -296,16 +319,7 @@ class CharacterService:
                 "角色数据尚未加载，请执行 /nikke_refresh 刷新角色列表。"
             )
 
-        matches = self.lookup(name)
-        if not matches:
-            raise CharacterQueryError(f"未找到角色「{name}」，请检查名称是否正确。")
-
-        if len(matches) > 1:
-            names = "、".join(f"「{n}」" for _, n in matches[:10])
-            hint = "\n请提供更精确的名称。" if len(matches) > 10 else ""
-            raise CharacterQueryError(f"找到 {len(matches)} 个匹配：\n{names}{hint}")
-
-        name_code, display_name = matches[0]
+        name_code, display_name = self.resolve(name)
         area_id = self._config.player_data_area_id()
         language = self._config.player_mapping_language()
         game_id = self._config.player_game_id()

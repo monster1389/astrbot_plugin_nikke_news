@@ -264,18 +264,7 @@ async def handle_skill(plugin, event: AstrMessageEvent, text: str = ""):
         return
 
     try:
-        matches = plugin._character_service.lookup(text)
-        if not matches:
-            yield event.plain_result(f"未找到角色「{text}」，请检查名称是否正确。")
-            return
-
-        if len(matches) > 1:
-            names = "、".join(f"「{n}」" for _, n in matches[:10])
-            hint = "\n请提供更精确的名称。" if len(matches) > 10 else ""
-            yield event.plain_result(f"找到 {len(matches)} 个匹配：\n{names}{hint}")
-            return
-
-        name_code, display_name = matches[0]
+        name_code, display_name = plugin._character_service.resolve(text)
 
         if not plugin._skill_service.is_cached(name_code):
             yield event.plain_result("正在获取技能数据，预计 10 秒...")

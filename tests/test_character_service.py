@@ -1,7 +1,9 @@
 from unittest.mock import MagicMock
 
+import pytest
+
 from core.config import PluginConfig
-from player.character_service import CharacterService
+from player.character_service import CharacterQueryError, CharacterService
 from player.player_mapping_cache import PlayerMappingCache
 
 
@@ -155,6 +157,25 @@ class TestLookup:
         svc._aliases = {"Sakura": ["sak"]}
         result = svc.lookup("sak")
         assert len(result) == 2
+
+
+class TestResolve:
+    def test_no_match_raises(self):
+        svc = _make_service(name_to_code={"Anis": 101})
+        with pytest.raises(CharacterQueryError) as exc:
+            svc.resolve("unknown")
+        assert exc.value.message == "未找到角色「unknown」，请检查名称是否正确。"
+
+    def test_multiple_match_raises(self):
+        svc = _make_service(name_to_code={"Anis": 101})
+        svc._code_to_en_name = {101: "Sakura", 201: "Rei", 301: "Sakura"}
+        with pytest.raises(CharacterQueryError) as exc:
+            svc.resolve("Sakura")
+        assert "找到 2 个匹配" in exc.value.message
+
+    def test_single_match(self):
+        svc = _make_service(name_to_code={"Anis": 101, "Rapi": 102})
+        assert svc.resolve("Anis") == (101, "Anis")
 
 
 class TestIsMappingStale:
