@@ -4,6 +4,7 @@
 import asyncio
 import time
 
+from core.browser_context import BrowserLaunchError, launch_browser
 from core.cookie_status import CookieStatus
 
 
@@ -55,63 +56,50 @@ class CacheRefresher:
             t0 = time.monotonic()
             cookie = self._config.player_data_cookie()
 
-            _browser = None
-            _pw_cm = None
-            try:
-                from playwright.async_api import async_playwright
-
-                _pw_cm = async_playwright()
-                pw = await _pw_cm.__aenter__()
-                _browser = await pw.chromium.launch(headless=True)
-            except ImportError:
-                pass
-            except Exception:
-                if _pw_cm is not None:
-                    await _pw_cm.__aexit__(None, None, None)
-                raise
-
-            try:
-                char_task = (
-                    _noop_refresh()
-                    if skip_character
-                    else self._character_service.refresh_mappings(
-                        force=force, _browser=_browser
-                    )
-                )
-                avatar_task = (
-                    _noop_refresh()
-                    if skip_avatar
-                    else self._avatar_service.refresh_cached(
-                        cookie, force=force, _browser=_browser
-                    )
-                )
-
-                results = await asyncio.gather(
-                    char_task, avatar_task, return_exceptions=True
-                )
-
-                if isinstance(results[0], Exception):
-                    role_msg = f"角色映射刷新失败：{results[0]}"
-                    char_failed = True
-                else:
-                    role_msg, char_failed = results[0]
-
-                if isinstance(results[1], Exception):
-                    avatar_msg = f"头像刷新失败：{results[1]}"
-                    avatar_failed = True
-                else:
-                    avatar_msg, avatar_failed = results[1]
-
-                parts = [p for p in [role_msg, avatar_msg] if p]
-                if not force and (char_failed or avatar_failed):
-                    parts.append("请执行 /nikke_refresh 重置失败状态后重试。")
+            if skip_character and skip_avatar:
                 elapsed = time.monotonic() - t0
-                parts.append(f"总耗时 {elapsed:.0f}s")
-                return ("\n".join(parts), char_failed, avatar_failed)
-            finally:
-                if _browser is not None:
-                    await _browser.close()
-                if _pw_cm is not None:
-                    await _pw_cm.__aexit__(None, None, None)
+                return (f"总耗时 {elapsed:.0f}s", False, False)
+
+            try:
+                async with launch_browser() as _browser:
+                    char_task = (
+                        _noop_refresh()
+                        if skip_character
+                        else self._character_service.refresh_mappings(
+                            force=force, _browser=_browser
+                        )
+                    )
+                    avatar_task = (
+                        _noop_refresh()
+                        if skip_avatar
+                        else self._avatar_service.refresh_cached(
+                            cookie, force=force, _browser=_browser
+                        )
+                    )
+
+                    results = await asyncio.gather(
+                        char_task, avatar_task, return_exceptions=True
+                    )
+
+                    if isinstance(results[0], Exception):
+                        role_msg = f"角色映射刷新失败：{results[0]}"
+                        char_failed = True
+                    else:
+                        role_msg, char_failed = results[0]
+
+                    if isinstance(results[1], Exception):
+                        avatar_msg = f"头像刷新失败：{results[1]}"
+                        avatar_failed = True
+                    else:
+                        avatar_msg, avatar_failed = results[1]
+
+                    parts = [p for p in [role_msg, avatar_msg] if p]
+                    if not force and (char_failed or avatar_failed):
+                        parts.append("请执行 /nikke_refresh 重置失败状态后重试。")
+                    elapsed = time.monotonic() - t0
+                    parts.append(f"总耗时 {elapsed:.0f}s")
+                    return ("\n".join(parts), char_failed, avatar_failed)
+            except BrowserLaunchError as exc:
+                return (f"刷新失败：{exc}", True, True)
         finally:
             self._in_progress = False

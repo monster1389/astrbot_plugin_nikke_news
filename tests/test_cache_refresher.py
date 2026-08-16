@@ -1,10 +1,17 @@
 # tests/test_cache_refresher.py
 import asyncio
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from core.browser_context import BrowserLaunchError
 from core.cache_refresher import CacheRefresher
 from core.cookie_status import CookieStatus
+
+
+@asynccontextmanager
+async def _fake_launch(browser):
+    yield browser
 
 
 @pytest.fixture
@@ -28,24 +35,24 @@ def mock_services(monkeypatch):
     config = MagicMock()
     config.player_data_cookie = MagicMock(return_value="ck=abc")
 
-    # mock playwright import — CacheRefresher 用 _browser=None 降级
-    import builtins
+    fake_browser = MagicMock()
+    monkeypatch.setattr(
+        "core.cache_refresher.launch_browser",
+        lambda: _fake_launch(fake_browser),
+    )
 
-    _real_import = builtins.__import__
+    return char_svc, avatar_svc, player_poller, config, fake_browser
 
-    def _mock_import(name, *args, **kwargs):
-        if name == "playwright.async_api":
-            raise ImportError("no playwright")
-        return _real_import(name, *args, **kwargs)
 
-    monkeypatch.setattr(builtins, "__import__", _mock_import)
-
-    return char_svc, avatar_svc, player_poller, config
+@asynccontextmanager
+async def _failing_launch():
+    raise BrowserLaunchError("当前环境未安装 Playwright。")
+    yield  # pragma: no cover
 
 
 class TestCacheRefresher:
     def test_refresh_concurrent(self, mock_services):
-        char_svc, avatar_svc, player_poller, config = mock_services
+        char_svc, avatar_svc, player_poller, config, fake_browser = mock_services
         cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
         msg, char_failed, avatar_failed = asyncio.run(cr.refresh(force=True))
         assert char_failed is False
@@ -53,13 +60,27 @@ class TestCacheRefresher:
         assert "英文映射已刷新" in msg
         assert "头像缓存刷新完成" in msg
         assert "总耗时" in msg
-        char_svc.refresh_mappings.assert_called_once_with(force=True, _browser=None)
+        char_svc.refresh_mappings.assert_called_once_with(
+            force=True, _browser=fake_browser
+        )
         avatar_svc.refresh_cached.assert_called_once_with(
-            "ck=abc", force=True, _browser=None
+            "ck=abc", force=True, _browser=fake_browser
         )
 
+    def test_launch_failure_returns_failure(self, mock_services, monkeypatch):
+        char_svc, avatar_svc, player_poller, config, _ = mock_services
+        monkeypatch.setattr("core.cache_refresher.launch_browser", _failing_launch)
+
+        cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
+        msg, char_failed, avatar_failed = asyncio.run(cr.refresh(force=True))
+        assert char_failed is True
+        assert avatar_failed is True
+        assert "未安装 Playwright" in msg
+        char_svc.refresh_mappings.assert_not_called()
+        avatar_svc.refresh_cached.assert_not_called()
+
     def test_returns_none_when_cookie_unavailable(self, mock_services):
-        char_svc, avatar_svc, player_poller, config = mock_services
+        char_svc, avatar_svc, player_poller, config, _ = mock_services
         player_poller.cookie_status.return_value = CookieStatus.EMPTY
         cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
         result = asyncio.run(cr.refresh())
@@ -67,14 +88,14 @@ class TestCacheRefresher:
         char_svc.refresh_mappings.assert_not_called()
 
     def test_returns_none_on_concurrent_call(self, mock_services):
-        char_svc, avatar_svc, player_poller, config = mock_services
+        char_svc, avatar_svc, player_poller, config, _ = mock_services
         cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
         cr._in_progress = True
         result = asyncio.run(cr.refresh())
         assert result is None
 
     def test_handles_refresh_exception(self, mock_services):
-        char_svc, avatar_svc, player_poller, config = mock_services
+        char_svc, avatar_svc, player_poller, config, _ = mock_services
         char_svc.refresh_mappings = AsyncMock(
             side_effect=RuntimeError("Playwright crash")
         )
@@ -86,7 +107,7 @@ class TestCacheRefresher:
         assert "头像缓存刷新完成" in msg
 
     def test_skip_character_and_avatar(self, mock_services):
-        char_svc, avatar_svc, player_poller, config = mock_services
+        char_svc, avatar_svc, player_poller, config, _ = mock_services
         cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
         msg, char_failed, avatar_failed = asyncio.run(
             cr.refresh(skip_character=True, skip_avatar=True)
@@ -98,7 +119,7 @@ class TestCacheRefresher:
         avatar_svc.refresh_cached.assert_not_called()
 
     def test_failure_adds_reset_hint_when_not_force(self, mock_services):
-        char_svc, avatar_svc, player_poller, config = mock_services
+        char_svc, avatar_svc, player_poller, config, _ = mock_services
         char_svc.refresh_mappings = AsyncMock(side_effect=RuntimeError("crash"))
         cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
         msg, char_failed, avatar_failed = asyncio.run(cr.refresh(force=False))
@@ -106,7 +127,7 @@ class TestCacheRefresher:
         assert "请执行 /nikke_refresh 重置失败状态后重试。" in msg
 
     def test_failure_no_reset_hint_when_force(self, mock_services):
-        char_svc, avatar_svc, player_poller, config = mock_services
+        char_svc, avatar_svc, player_poller, config, _ = mock_services
         char_svc.refresh_mappings = AsyncMock(side_effect=RuntimeError("crash"))
         cr = CacheRefresher(char_svc, avatar_svc, player_poller, config)
         msg, char_failed, avatar_failed = asyncio.run(cr.refresh(force=True))

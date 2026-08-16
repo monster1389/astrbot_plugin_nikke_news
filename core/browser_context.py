@@ -42,6 +42,29 @@ def parse_cookie_header(cookie_header: str) -> list[dict[str, object]]:
 
 
 @asynccontextmanager
+async def launch_browser() -> AsyncIterator[Browser]:
+    """启动 headless Chromium Browser，退出时自动关闭。
+
+    Yields:
+        Playwright Browser 对象。
+
+    Raises:
+        BrowserLaunchError: Playwright 导入失败。
+    """
+    try:
+        from playwright.async_api import async_playwright
+    except ImportError as exc:
+        raise BrowserLaunchError("当前环境未安装 Playwright。") from exc
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        try:
+            yield browser
+        finally:
+            await browser.close()
+
+
+@asynccontextmanager
 async def browser_context(
     *,
     cookie_header: str = "",
@@ -87,20 +110,11 @@ async def browser_context(
             await ctx.close()
         return
 
-    try:
-        from playwright.async_api import async_playwright
-    except ImportError as exc:
-        raise BrowserLaunchError("当前环境未安装 Playwright。") from exc
-
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        try:
-            ctx = await browser.new_context(**context_kwargs)
-            if cookie_header:
-                cookies = parse_cookie_header(cookie_header)
-                if cookies:
-                    await ctx.add_cookies(cookies)
-            page = await ctx.new_page()
-            yield page
-        finally:
-            await browser.close()
+    async with launch_browser() as browser:
+        ctx = await browser.new_context(**context_kwargs)
+        if cookie_header:
+            cookies = parse_cookie_header(cookie_header)
+            if cookies:
+                await ctx.add_cookies(cookies)
+        page = await ctx.new_page()
+        yield page
