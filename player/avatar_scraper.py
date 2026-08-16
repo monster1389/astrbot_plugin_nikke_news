@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from core.browser_context import browser_context, BrowserLaunchError
+from core.cdn_collector import CdnResponseCollector
 from player.avatar_mapping_cache import AvatarMappingCache
 
 from astrbot.api import logger
@@ -58,50 +59,30 @@ class AvatarScraper:
             ) as page:
                 cdn_chars: list | None = None
                 api_chars: dict | None = None
-                pending_responses: list = []
 
-                async def _on_response(response):
-                    url = response.url
-                    if (
-                        "sg-tools-cdn" in url
-                        and url.endswith(".json")
-                        and not cdn_chars
-                    ) or ("GetUserCharacters" in url and not api_chars):
-                        pending_responses.append(response)
+                cdn_collector = CdnResponseCollector(
+                    page,
+                    url_filter=lambda u: "sg-tools-cdn" in u and u.endswith(".json"),
+                )
+                api_collector = CdnResponseCollector(
+                    page, url_filter=lambda u: "GetUserCharacters" in u
+                )
 
-                page.on("response", _on_response)
                 await page.goto(SHIFTYSPAD_COMBAT_URL, wait_until="load", timeout=60000)
 
-                # 轮询等待并处理 CDN/API 响应（async 回调靠 wait 让出事件循环来执行）
+                # 阶段 1：等 CDN 列表（50+ 角色），GetUserCharacters 由 api_collector 后台收集
                 for _ in range(90):
-                    await page.wait_for_timeout(_WAIT_MS)
-                    while pending_responses:
-                        response = pending_responses.pop(0)
-                        url = response.url
-                        if (
-                            "sg-tools-cdn" in url
-                            and url.endswith(".json")
-                            and not cdn_chars
-                        ):
-                            try:
-                                data = await response.json()
-                                if (
-                                    isinstance(data, list)
-                                    and data
-                                    and "name_code" in data[0]
-                                ):
-                                    cdn_chars = data
-                            except Exception:
-                                logger.debug(
-                                    "CDN 角色头像 JSON 解析失败", exc_info=True
-                                )
-                        if "GetUserCharacters" in url and not api_chars:
-                            try:
-                                api_chars = await response.json()
-                            except Exception:
-                                logger.debug(
-                                    "GetUserCharacters JSON 解析失败", exc_info=True
-                                )
+                    item = await cdn_collector.next()
+                    if item is None:
+                        continue
+                    _, data = item
+                    if (
+                        cdn_chars is None
+                        and isinstance(data, list)
+                        and data
+                        and "name_code" in data[0]
+                    ):
+                        cdn_chars = data
                     if cdn_chars and len(cdn_chars) >= 50:
                         break
 
@@ -116,20 +97,14 @@ class AvatarScraper:
                     logger.info(f"NIKKE 阶段 1：{len(mappings)} 个默认头像 URL。")
 
                 if mappings and not api_chars:
+                    # 阶段 2：从 api_collector 拿 GetUserCharacters
                     for _ in range(25):
-                        while pending_responses:
-                            response = pending_responses.pop(0)
-                            url = response.url
-                            if "GetUserCharacters" in url and not api_chars:
-                                try:
-                                    api_chars = await response.json()
-                                except Exception:
-                                    logger.debug(
-                                        "GetUserCharacters JSON 解析失败", exc_info=True
-                                    )
-                        if api_chars:
-                            break
-                        await page.wait_for_timeout(_WAIT_MS)
+                        item = await api_collector.next()
+                        if item is None:
+                            continue
+                        _, data = item
+                        api_chars = data
+                        break
 
                 obtained_mappings = await self._scrape_obtained_avatars(
                     page, mappings, cdn_chars, api_chars

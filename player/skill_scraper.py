@@ -1,12 +1,12 @@
 """通过 Playwright 访问角色页面拦截 CDN JSON 提取技能数据。"""
 
-import asyncio
 import time
 from typing import Any
 
 from astrbot.api import logger
 
 from core.browser_context import browser_context, BrowserLaunchError
+from core.cdn_collector import CdnResponseCollector
 from core.constants import CDN_HOST
 from core.utils import accept_language
 
@@ -70,37 +70,13 @@ class SkillScraper:
         Raises:
             SkillScrapeError: Playwright 不可用、超时或未捕获到数据。
         """
-        skill_data: dict[str, Any] | None = None
-        skill_data_event = asyncio.Event()
-
-        tasks: set[asyncio.Task] = set()
-
-        def on_response(response):
-            url = response.url
-            if CDN_HOST not in url or not url.endswith(".json"):
-                return
-            task = asyncio.create_task(_parse_skill_response(response))
-            tasks.add(task)
-            task.add_done_callback(tasks.discard)
-
-        async def _parse_skill_response(response):
-            nonlocal skill_data
-            try:
-                data = await response.json()
-            except Exception:
-                logger.debug("技能 CDN JSON 解析失败", exc_info=True)
-                return
-            extracted = self._extract_skill_data(data)
-            if extracted is not None:
-                skill_data = extracted
-                skill_data_event.set()
-
         page_url = f"{SHIFTYSPAD_NIKKE_URL}?from=list&nikke={resource_id}"
         logger.debug(
             f"NIKKE 开始使用 Playwright 获取技能数据 "
             f"(resource_id={resource_id}, language={language})"
         )
         t_start = time.monotonic()
+        skill_data: dict[str, Any] | None = None
         try:
             async with browser_context(
                 language=language,
@@ -109,21 +85,24 @@ class SkillScraper:
                     "x-language": language,
                 },
             ) as page:
-                page.on("response", on_response)
+                collector = CdnResponseCollector(
+                    page, url_filter=lambda u: CDN_HOST in u and u.endswith(".json")
+                )
                 await page.goto(
                     page_url,
                     wait_until="load",
                     timeout=self._timeout_ms,
                 )
-                await page.wait_for_timeout(5000)
-                if tasks:
-                    await asyncio.gather(*tasks, return_exceptions=True)
-                try:
-                    await asyncio.wait_for(skill_data_event.wait(), timeout=5)
-                except asyncio.TimeoutError:
-                    raise SkillScrapeError(
-                        f"获取角色技能数据超时 (resource_id={resource_id})"
-                    )
+                # 50 * 200ms ≈ 10s，保持与原「5s 固定等待 + 5s 超时」一致
+                for _ in range(50):
+                    item = await collector.next()
+                    if item is None:
+                        continue
+                    _, data = item
+                    extracted = self._extract_skill_data(data)
+                    if extracted is not None:
+                        skill_data = extracted
+                        break
         except BrowserLaunchError as exc:
             raise SkillScrapeError(str(exc)) from exc
         except Exception as exc:

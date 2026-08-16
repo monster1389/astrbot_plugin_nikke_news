@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 from astrbot.api import logger
 
 from core.browser_context import browser_context, BrowserLaunchError
+from core.cdn_collector import CdnResponseCollector
 from core.constants import CDN_HOST
 from core.utils import accept_language
 
@@ -138,14 +139,9 @@ async def refresh_player_mappings(
             },
             _browser=_browser,
         ) as page:
-            pending_responses: list = []
-
-            def _on_cdn_response(response):
-                url = response.url
-                if CDN_HOST in url and url.endswith(".json"):
-                    pending_responses.append(response)
-
-            page.on("response", _on_cdn_response)
+            collector = CdnResponseCollector(
+                page, url_filter=lambda u: CDN_HOST in u and u.endswith(".json")
+            )
             await page.goto(
                 SHIFTYSPAD_NIKKE_LIST_URL,
                 wait_until="load",
@@ -154,40 +150,29 @@ async def refresh_player_mappings(
 
             got_names = False
             got_options = False
-            _WAIT_MS = 200
             stall = 0
-            prev_count = 0
             for _ in range(150):
-                await page.wait_for_timeout(_WAIT_MS)
-                while pending_responses:
-                    response = pending_responses.pop(0)
-                    url = response.url
-                    try:
-                        data = await response.json()
-                    except Exception:
-                        logger.debug(
-                            f"[{language}] 角色映射 CDN JSON 解析失败：{url}",
-                            exc_info=True,
-                        )
-                        continue
-                    try:
-                        headers = await response.all_headers()
-                    except Exception:
-                        headers = {}
-                    cdn_entries.append((url, data, headers))
-                    if not got_names and extract_character_names(data):
-                        got_names = True
-                    if not got_options and extract_state_effect_options(data):
-                        got_options = True
+                item = await collector.next()
+                if item is None:
+                    if cdn_entries:
+                        stall += 1
+                        if stall >= 25:
+                            break
+                    continue
+                response, data = item
+                stall = 0
+                url = response.url
+                try:
+                    headers = await response.all_headers()
+                except Exception:
+                    headers = {}
+                cdn_entries.append((url, data, headers))
+                if not got_names and extract_character_names(data):
+                    got_names = True
+                if not got_options and extract_state_effect_options(data):
+                    got_options = True
                 if got_names and got_options:
                     break
-                if len(cdn_entries) > prev_count:
-                    prev_count = len(cdn_entries)
-                    stall = 0
-                elif cdn_entries:
-                    stall += 1
-                    if stall >= 25:
-                        break
     except BrowserLaunchError as exc:
         raise PlayerMappingRefreshError(str(exc)) from exc
     except Exception as exc:
