@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
-from player.player_client import PlayerClient, _player_headers
+from player.player_client import CharacterDetailError, PlayerClient, _player_headers
 
 
 class TestPlayerHeaders:
@@ -157,3 +157,47 @@ class TestFetchCharacterDetails:
         client = _client_with_post({"code": 5001, "msg": "server error"})
         with pytest.raises(RuntimeError, match="PLAYER_API_ERROR:5001"):
             await client.fetch_character_details("c=1", 84, [101])
+
+
+# ── fetch_character_detail ───────────────────────────────────────
+
+
+class TestFetchCharacterDetail:
+    @pytest.mark.asyncio
+    async def test_success(self):
+        detail = {"skill1_lv": 5}
+        effects = [{"id": 9001}]
+        data = {
+            "code": 0,
+            "msg": "ok",
+            "data": {"character_details": [detail], "state_effects": effects},
+        }
+        client = _client_with_post(data)
+        result_d, result_e = await client.fetch_character_detail(
+            "c=1", 84, 101, intl_open_id="oid", language="ja", game_id="29080"
+        )
+        assert result_d == detail
+        assert result_e == effects
+
+    @pytest.mark.asyncio
+    async def test_empty_details_raises(self):
+        data = {"code": 0, "msg": "ok", "data": {"character_details": []}}
+        client = _client_with_post(data)
+        with pytest.raises(CharacterDetailError, match="角色详情数据为空"):
+            await client.fetch_character_detail("c=1", 84, 101)
+
+    @pytest.mark.asyncio
+    async def test_passes_single_name_code_and_open_id(self):
+        detail = {"skill1_lv": 5}
+        data = {"code": 0, "msg": "ok", "data": {"character_details": [detail]}}
+        mock = MagicMock(spec=httpx.AsyncClient)
+        mock.post = AsyncMock(return_value=_mock_resp(data))
+        client = PlayerClient(mock)
+
+        await client.fetch_character_detail(
+            "c=1", 84, 101, intl_open_id="oid", language="ja", game_id="29080"
+        )
+
+        sent = mock.post.await_args
+        assert sent.kwargs["json"]["name_codes"] == [101]
+        assert sent.kwargs["json"]["intl_open_id"] == "oid"

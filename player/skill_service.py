@@ -10,7 +10,7 @@ from astrbot.api import logger
 from core.json_cache import JsonCache
 from core.utils import safe_int
 from player.character_formatter import extract_skill_levels
-from player.player_client import PlayerClient
+from player.player_client import CharacterDetailError, PlayerClient
 from player.skill_scraper import SkillScraper, SkillScrapeError
 
 
@@ -160,22 +160,20 @@ class SkillService:
 
         player = PlayerClient(self._client)
         try:
-            details, _ = await player.fetch_character_details(
+            char_detail, _ = await player.fetch_character_detail(
                 cookie,
                 area_id,
-                [name_code],
+                name_code,
                 intl_open_id=self._config.player_open_id(),
                 language=language,
                 game_id=game_id,
             )
+        except CharacterDetailError as exc:
+            raise SkillError(str(exc))
         except Exception as exc:
             logger.warning(f"NIKKE 角色详情查询失败：{exc}")
             raise SkillError(f"角色详情查询失败：{exc}")
 
-        if not details:
-            raise SkillError(f"未在账号中找到角色「{display_name}」。")
-
-        char_detail = details[0]
         raw_levels = extract_skill_levels(char_detail, default=1)
         levels = {
             "skill1": safe_int(raw_levels["skill1"]),

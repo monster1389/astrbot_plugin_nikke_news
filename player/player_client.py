@@ -14,6 +14,10 @@ from core.constants import (
 from core.utils import safe_int
 
 
+class CharacterDetailError(RuntimeError):
+    """角色详情为空等业务异常。"""
+
+
 class PlayerClient:
     """调用 Blablalink 玩家数据 API（前哨收菜、角色列表、角色详情）。
 
@@ -168,6 +172,45 @@ class PlayerClient:
             effects = []
 
         return details, effects
+
+    async def fetch_character_detail(
+        self,
+        cookie: str,
+        area_id: int,
+        name_code: int,
+        *,
+        intl_open_id: str = "",
+        language: str = "en",
+        game_id: str = DEFAULT_GAME_ID,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        """获取单个角色的详情与词条效果。
+
+        Args:
+            cookie: 玩家 Cookie。
+            area_id: 区域 ID。
+            name_code: 角色 name_code。
+            intl_open_id: 国际版 Open ID，可选。
+            language: 接口语言，默认 en。
+            game_id: 游戏 ID，默认 29080。
+
+        Returns:
+            (角色详情 dict, state_effects 列表) 元组。
+
+        Raises:
+            RuntimeError: 请求失败或响应结构异常。
+            CharacterDetailError: 详情列表为空。
+        """
+        details, effects = await self.fetch_character_details(
+            cookie,
+            area_id,
+            [name_code],
+            intl_open_id=intl_open_id,
+            language=language,
+            game_id=game_id,
+        )
+        if not details:
+            raise CharacterDetailError("角色详情数据为空。")
+        return details[0], effects
 
 
 def _player_headers(cookie: str, language: str, game_id: str) -> dict[str, str]:

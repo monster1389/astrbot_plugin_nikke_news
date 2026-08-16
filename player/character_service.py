@@ -16,7 +16,7 @@ from player.player_mapping_refresher import (
     PlayerMappingRefreshError,
     refresh_player_mappings,
 )
-from player.player_client import PlayerClient
+from player.player_client import CharacterDetailError, PlayerClient
 
 if TYPE_CHECKING:
     from playwright.async_api import Browser
@@ -340,24 +340,23 @@ class CharacterService:
             raise CharacterQueryError(f"未在账号中找到角色「{display_name}」。")
 
         try:
-            details, effects = await player.fetch_character_details(
+            detail, effects = await player.fetch_character_detail(
                 cookie,
                 area_id,
-                [name_code],
+                name_code,
                 intl_open_id=self._config.player_open_id(),
                 language=language,
                 game_id=game_id,
             )
+        except CharacterDetailError as exc:
+            raise CharacterQueryError(str(exc))
         except Exception as exc:
             logger.warning(f"NIKKE 角色详情查询失败：{exc}")
             raise CharacterQueryError(f"角色详情查询失败：{exc}")
 
-        if not details:
-            raise CharacterQueryError("角色详情数据为空。")
-
         text = format_character_stats(
             char_info,
-            details[0],
+            detail,
             {"en": display_name},
             effects,
             self._state_effect_options,
