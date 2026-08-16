@@ -42,7 +42,7 @@ from player.skill_service import SkillService
     PLUGIN_NAME,
     "monster1389",
     "Blablalink官方消息推送、日常/收菜提醒、角色查询。",
-    "v1.7.0",
+    "v1.7.1",
 )
 class NikkeNewsPlugin(Star):
     """NIKKE 官方消息推送、玩家状态提醒、角色查询插件。
